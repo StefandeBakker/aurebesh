@@ -5,13 +5,13 @@ A lightweight, dependency-free WYSIWYG editor for the web. Rich text, tables, co
 A vanilla TypeScript core plus an `<aurebesh-editor>` web component, so it works in React, Vue, Angular or plain HTML.
 
 ```bash
-npm install aurebesh
+npm install @stefan.de.bakker/aurebesh
 ```
 
 ## Vanilla
 
 ```ts
-import { Aurebesh } from 'aurebesh';
+import { Aurebesh } from '@stefan.de.bakker/aurebesh';
 
 const editor = new Aurebesh(document.querySelector('#editor')!, {
   value: '<p>Hello</p>',
@@ -25,7 +25,7 @@ editor.destroy();
 ## Web component (any framework)
 
 ```ts
-import 'aurebesh/element'; // registers <aurebesh-editor>
+import '@stefan.de.bakker/aurebesh/element'; // registers <aurebesh-editor>
 ```
 
 ```html
@@ -65,7 +65,7 @@ Images and videos can be added by link, by file picker, by pasting a screenshot 
 **Where uploaded files go is up to you**: pick an adapter.
 
 ```ts
-import { Aurebesh, base64Adapter, endpointAdapter, presignedAdapter } from 'aurebesh';
+import { Aurebesh, base64Adapter, endpointAdapter, presignedAdapter } from '@stefan.de.bakker/aurebesh';
 
 new Aurebesh(el, {
   media: {

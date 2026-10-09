@@ -1,8 +1,17 @@
 {
   "name": "aurebesh",
-  "version": "0.1.0",
+  "version": "0.1.0-beta.0",
   "description": "A lightweight, dependency-free WYSIWYG editor for the web. Rich text, tables, code blocks, images and video, with pluggable uploads. Works in React, Vue, Angular or plain HTML.",
+  "private": true,
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/StefandeBakker/aurebesh.git"
+  },
+  "homepage": "https://github.com/StefandeBakker/aurebesh#readme",
+  "bugs": {
+    "url": "https://github.com/StefandeBakker/aurebesh/issues"
+  },
   "type": "module",
   "sideEffects": [
     "./dist/element.js",
