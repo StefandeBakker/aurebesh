@@ -9,7 +9,10 @@ import type { AurebeshOptions } from './editor';
  * - `options` property: everything that can't be an attribute (media adapter, fonts, colors...).
  *   `el.options = { media: { adapter: endpointAdapter({ url: '/api/upload' }) } }`
  */
-export class AurebeshElement extends HTMLElement {
+// On the server (SSR) there is no HTMLElement: fall back to an empty class so importing this file doesn't throw.
+const BaseElement: typeof HTMLElement = typeof HTMLElement === 'undefined' ? (class {} as unknown as typeof HTMLElement) : HTMLElement;
+
+export class AurebeshElement extends BaseElement {
   static observedAttributes = ['placeholder', 'readonly'];
   private editor: Aurebesh | null = null;
   private pendingValue: string | null = null;

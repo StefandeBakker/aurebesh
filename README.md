@@ -91,6 +91,18 @@ Video links: YouTube (embedded through `youtube-nocookie.com`) and Vimeo (with d
 Only these exact embed URLs survive the sanitizer; every other `<iframe>` is removed. SVG images are not accepted.
 Listen for problems with `editor.on('error', (e) => ...)`.
 
+## Browser support and SSR
+
+Modern evergreen browsers. Formatting uses `document.execCommand` (still supported everywhere). Code-block colours need the
+CSS Custom Highlight API (Chrome/Edge 105+, Safari 17.2+, Firefox 140+); without it code blocks simply show no colours.
+Importing the package on the server (Next.js, Nuxt, Angular Universal) is safe; the editor itself only runs in the browser,
+so create it in `onMounted`/`useEffect`/`ngAfterViewInit`. `sanitize()` needs a DOM (`DOMParser`), so on a server
+use it with jsdom or similar.
+
+## License
+
+MIT
+
 ## Development
 
 ```bash

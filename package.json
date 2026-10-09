@@ -2,7 +2,6 @@
   "name": "aurebesh",
   "version": "0.1.0-beta.0",
   "description": "A lightweight, dependency-free WYSIWYG editor for the web. Rich text, tables, code blocks, images and video, with pluggable uploads. Works in React, Vue, Angular or plain HTML.",
-  "private": true,
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -20,22 +19,40 @@
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "element": [
+        "./dist/element.d.ts"
+      ]
+    }
+  },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./element": {
-      "types": "./dist/element.d.ts",
-      "import": "./dist/element.js",
-      "require": "./dist/element.cjs"
+      "import": {
+        "types": "./dist/element.d.ts",
+        "default": "./dist/element.js"
+      },
+      "require": {
+        "types": "./dist/element.d.cts",
+        "default": "./dist/element.cjs"
+      }
     },
     "./package.json": "./package.json"
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsup",
@@ -49,7 +66,14 @@
     "wysiwyg",
     "editor",
     "rich-text",
+    "rich-text-editor",
+    "contenteditable",
     "web-component",
+    "custom-element",
+    "table",
+    "code-highlighting",
+    "html-sanitizer",
+    "image-upload",
     "react",
     "vue",
     "angular"
