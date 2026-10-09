@@ -1,0 +1,13 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Aurebesh demo</title>
+<body style="font-family:system-ui;max-width:720px;margin:2rem auto">
+  <h1>Aurebesh</h1>
+  <aurebesh-editor placeholder="Start typing..."><p>Hello <strong>Aurebesh</strong></p></aurebesh-editor>
+  <pre id="out" style="white-space:pre-wrap"></pre>
+  <script type="module">
+    import '../dist/element.js';
+    const ed = document.querySelector('aurebesh-editor');
+    ed.addEventListener('change', (e) => (document.getElementById('out').textContent = e.detail));
+  </script>
+</body>
