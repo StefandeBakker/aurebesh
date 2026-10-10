@@ -1,33 +1,126 @@
 <!doctype html>
+<html lang="en">
+<head>
 <meta charset="utf-8">
-<title>Aurebesh demo</title>
-<body style="font-family:system-ui;max-width:720px;margin:2rem auto">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aurebesh: a lightweight WYSIWYG editor</title>
+<meta name="description" content="Aurebesh is a dependency-free WYSIWYG rich text editor for the web. Works in plain HTML, React, Vue and Angular. Try it here.">
+<style>
+  :root {
+    --page-bg: #f6f7f9;
+    --page-color: #111827;
+    --muted: #5b6472;
+    --card: #fff;
+    --line: #d0d5dd;
+    --accent: #2563eb;
+    --aurebesh-bg: #fff;
+    --aurebesh-color: #111827;
+    --aurebesh-border: #d0d5dd;
+    --aurebesh-toolbar-bg: #f8f9fb;
+    --aurebesh-code-bg: #f3f4f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page-bg: #0f1218;
+      --page-color: #e6e8ec;
+      --muted: #9aa3b2;
+      --card: #171b23;
+      --line: #2b3240;
+      --accent: #6ea0ff;
+      --aurebesh-bg: #171b23;
+      --aurebesh-color: #e6e8ec;
+      --aurebesh-border: #2b3240;
+      --aurebesh-toolbar-bg: #1d222c;
+      --aurebesh-code-bg: #0f1218;
+      --aurebesh-accent: #3b6fe0;
+      --aurebesh-hl-keyword: #ff7b72;
+      --aurebesh-hl-string: #a5d6ff;
+      --aurebesh-hl-comment: #8b949e;
+      --aurebesh-hl-number: #79c0ff;
+      --aurebesh-hl-function: #d2a8ff;
+      --aurebesh-hl-type: #ffa657;
+      --aurebesh-hl-tag: #7ee787;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page-bg); color: var(--page-color); font: 16px/1.55 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 56px; }
+  h1 { margin: 0 0 4px; font-size: 2rem; }
+  .tagline { margin: 0 0 16px; color: var(--muted); font-size: 1.1rem; }
+  nav { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 24px; }
+  a { color: var(--accent); }
+  .points { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 24px; padding: 0; list-style: none; }
+  .points li { padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); font-size: .85rem; color: var(--muted); }
+  aurebesh-editor { display: block; }
+  h2 { margin: 32px 0 8px; font-size: 1.15rem; }
+  .tabs { display: flex; gap: 4px; margin-bottom: -1px; }
+  .tabs button { padding: 6px 14px; border: 1px solid var(--line); border-bottom: 0; border-radius: 6px 6px 0 0; background: transparent; color: var(--muted); font: inherit; font-size: .9rem; cursor: pointer; }
+  .tabs button[aria-selected="true"] { background: var(--card); color: var(--page-color); font-weight: 600; }
+  #out { min-height: 120px; max-height: 320px; margin: 0; padding: 12px; overflow: auto; border: 1px solid var(--line); border-radius: 0 6px 6px 6px; background: var(--card); font: .85rem/1.5 ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
+  pre.install { padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); overflow-x: auto; font: .9rem ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace; }
+  footer { margin-top: 40px; color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+<main>
   <h1>Aurebesh</h1>
-  <aurebesh-editor placeholder="Start typing..." counter maxlength="500"
-    toolbar="font,size,|,bold,italic,underline,strike,code,|,color,highlight,|,h1,h2,quote,codeblock,|,ul,ol,alignLeft,alignCenter,alignRight,ltr,rtl,columns,|,link,image,video,table,hr,|,clear,undo,redo"><p>Hello <strong>Aurebesh</strong></p></aurebesh-editor>
-  <p id="tabs" style="margin:1rem 0 .25rem">
-    <button data-f="html">HTML</button>
-    <button data-f="markdown">Markdown</button>
-    <button data-f="text">Text</button>
-  </p>
-  <pre id="out" style="white-space:pre-wrap;margin-top:0"></pre>
-  <script type="module">
-    import '../dist/element.js';
-    const ed = document.querySelector('aurebesh-editor');
-    const out = document.getElementById('out');
-    let format = 'markdown';
-    const show = () => {
-      const editor = ed.instance;
-      out.textContent = editor ? editor.getValue(format) : '';
-      document.querySelectorAll('#tabs button').forEach((b) => (b.style.fontWeight = b.dataset.f === format ? '700' : '400'));
-    };
-    document.getElementById('tabs').addEventListener('click', (e) => {
-      if (e.target.dataset?.f) {
-        format = e.target.dataset.f;
-        show();
-      }
-    });
-    ed.addEventListener('change', show);
-    ed.addEventListener('ready', show);
-  </script>
+  <p class="tagline">A lightweight, dependency-free WYSIWYG editor for the web.</p>
+  <nav>
+    <a href="https://github.com/StefandeBakker/aurebesh">GitHub</a>
+    <a href="https://www.npmjs.com/package/aurebesh">npm</a>
+    <a href="https://github.com/StefandeBakker/aurebesh#readme">Documentation</a>
+  </nav>
+  <ul class="points">
+    <li>No dependencies</li>
+    <li>Plain HTML, React, Vue, Angular</li>
+    <li>Paste from Word and Google Docs</li>
+    <li>Tables: merge cells, drag column widths</li>
+    <li>Right-to-left text</li>
+    <li>HTML, Markdown or text output</li>
+    <li>Built-in sanitizing</li>
+  </ul>
+
+  <aurebesh-editor id="editor" placeholder="Start typing..." counter maxlength="5000"
+    toolbar="font,size,|,bold,italic,underline,strike,code,|,color,highlight,|,h1,h2,quote,codeblock,|,ul,ol,alignLeft,alignCenter,alignRight,ltr,rtl,columns,|,link,image,video,table,hr,|,clear,undo,redo"><h1>Try it</h1><p>This is <strong>Aurebesh</strong>. Select some text and use the toolbar, or type <code># </code> at the start of a line for a heading and <code>- </code> for a list. Paste something from <em>Word</em> or <em>Google Docs</em> to see it come in clean.</p><ul><li>Rich text, lists and quotes</li><li>Tables you can merge and resize</li><li>Code blocks with colours</li></ul><table><tbody><tr><th>Feature</th><th>Status</th></tr><tr><td>Tables</td><td>Merge cells, drag the borders</td></tr><tr><td>Languages</td><td>עברית and العربية work too</td></tr></tbody></table><pre>function hello(name) {
+  return `Hello, ${name}!`;
+}</pre><p>שלום עולם</p></aurebesh-editor>
+
+  <h2>Output</h2>
+  <div class="tabs" role="tablist" id="tabs">
+    <button role="tab" data-f="html" aria-selected="false">HTML</button>
+    <button role="tab" data-f="markdown" aria-selected="true">Markdown</button>
+    <button role="tab" data-f="text" aria-selected="false">Text</button>
+  </div>
+  <pre id="out" aria-live="polite"></pre>
+
+  <h2>Install</h2>
+  <pre class="install">npm install aurebesh</pre>
+  <pre class="install">import 'aurebesh/element';
+
+&lt;aurebesh-editor placeholder="Start typing..."&gt;&lt;/aurebesh-editor&gt;</pre>
+
+  <footer>MIT licensed. Made by <a href="https://github.com/StefandeBakker">Stefan de Bakker</a>. Enjoying it? <a href="https://github.com/sponsors/StefandeBakker">Sponsor</a>.</footer>
+</main>
+
+<script type="module">
+  import '../dist/element.js';
+  const ed = document.getElementById('editor');
+  const out = document.getElementById('out');
+  const tabs = document.getElementById('tabs');
+  let format = 'markdown';
+  const show = () => {
+    out.textContent = ed.instance ? ed.instance.getValue(format) : '';
+    tabs.querySelectorAll('button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.f === format)));
+  };
+  tabs.addEventListener('click', (e) => {
+    const f = e.target.dataset && e.target.dataset.f;
+    if (f) {
+      format = f;
+      show();
+    }
+  });
+  ed.addEventListener('change', show);
+  ed.addEventListener('ready', show);
+</script>
 </body>
+</html>
