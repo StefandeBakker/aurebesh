@@ -11,7 +11,8 @@ import { defineComponent, h } from 'vue';
 import type { PropType } from 'vue';
 import { defineAurebeshElement } from './element';
 import type { AurebeshElement } from './element';
-import type { AurebeshOptions } from './editor';
+import type { Aurebesh, AurebeshOptions } from './editor';
+import type { TextStats } from './stats';
 
 export const AurebeshEditor = defineComponent({
   name: 'AurebeshEditor',
@@ -19,6 +20,8 @@ export const AurebeshEditor = defineComponent({
     modelValue: { type: String, default: undefined },
     options: { type: Object as PropType<AurebeshOptions>, default: undefined },
     placeholder: { type: String, default: undefined },
+    maxLength: { type: Number, default: undefined },
+    counter: { type: Boolean, default: false },
     readOnly: { type: Boolean, default: false },
     required: { type: Boolean, default: false },
     name: { type: String, default: undefined },
@@ -28,6 +31,8 @@ export const AurebeshEditor = defineComponent({
     'update:modelValue': (html: string) => typeof html === 'string',
     change: (html: string) => typeof html === 'string',
     error: (error: Error) => error instanceof Error,
+    ready: (editor: Aurebesh) => !!editor,
+    count: (stats: TextStats) => !!stats,
   },
   setup(props, { emit }) {
     defineAurebeshElement();
@@ -38,6 +43,8 @@ export const AurebeshEditor = defineComponent({
         options: props.options,
         name: props.name,
         placeholder: props.placeholder,
+        maxlength: props.maxLength,
+        counter: props.counter ? '' : undefined,
         toolbar: props.toolbar?.join(','),
         readonly: props.readOnly ? '' : undefined,
         required: props.required ? '' : undefined,
@@ -46,6 +53,8 @@ export const AurebeshEditor = defineComponent({
           emit('change', e.detail);
         },
         onError: (e: CustomEvent<Error>) => emit('error', e.detail),
+        onReady: (e: CustomEvent<Aurebesh>) => emit('ready', e.detail),
+        onCount: (e: CustomEvent<TextStats>) => emit('count', e.detail),
       });
   },
 });

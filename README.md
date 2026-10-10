@@ -122,6 +122,8 @@ import 'aurebesh/element'; // registers <aurebesh-editor>
 | `toolbar` | Items, e.g. `['bold','italic','|','link']`; `[]` hides it |
 | `fonts` | Font list for the font picker (default: 15 system font stacks, nothing to download) |
 | `colors` | Swatches for text/highlight colour (default: 40) |
+| `maxLength` | Maximum number of characters, see "Counter and limit" |
+| `counter` | Show "12 words · 80 / 500 characters" under the text |
 | `markdownShortcuts` | Typing `# `, `- `, … at the start of a line formats it (default `true`) |
 | `labels` | Override the editor's own texts, see below |
 | `media` | Image and video settings, see below |
@@ -130,6 +132,24 @@ Toolbar items (default order): `font size | bold italic underline strike code | 
 Also available: `sup sub alignJustify`.
 
 Theme via CSS variables: `--aurebesh-border`, `--aurebesh-bg`, `--aurebesh-color`, `--aurebesh-accent`, `--aurebesh-toolbar-bg`, `--aurebesh-code-bg`, `--aurebesh-min-height`, and `--aurebesh-hl-keyword|string|comment|number|function|type|tag` for code colours.
+
+## Counter, limit and ready
+
+```js
+const editor = new Aurebesh(el, { counter: true, maxLength: 500 });
+editor.on('ready', (ed) => {});        // once, when the editor is built (also for a listener added later)
+editor.on('count', ({ characters, charactersNoSpaces, words }) => {});
+await editor.whenReady();
+editor.getStats();                     // { characters, charactersNoSpaces, words }
+editor.getText();                      // plain text: line break between blocks, tab between table cells
+editor.setMaxLength(300); editor.setCounter(false); editor.isOverLimit();
+```
+
+- Characters are counted as people count them (an emoji or a letter with accents is one; line breaks are free). Words use the browser's word segmentation, so Chinese and Japanese work too.
+- With `maxLength`, typing, dropping and pasting stop at the limit (a paste that doesn't fit is inserted as plain text, cut off) and a message shows. Deleting always works. Text set with `setHTML()` or the `value` is never cut off; it is marked in red and, in a `<form>`, the field is invalid (`validity.tooLong`).
+- Web component: attributes `maxlength="500"` and `counter`, events `ready` (detail: the instance) and `count` (detail: the stats). React: props `maxLength`, `counter`, `onReady`, `onCount`. Vue: props `max-length`, `counter` and events `@ready`, `@count`.
+- Text input through an input method (IME) cannot be cancelled while composing; the limit is then enforced by the validity check.
+- Texts are `ui.words.*`, `ui.characters.*` and `ui.limitReached` in `labels`.
 
 ## Texts and languages
 

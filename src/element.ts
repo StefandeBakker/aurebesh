@@ -7,14 +7,17 @@ const BaseElement: typeof HTMLElement = typeof HTMLElement === 'undefined' ? (cl
 /**
  * <aurebesh-editor name="body" placeholder="Type..." readonly required toolbar="bold,italic,|,link"><p>initial</p></aurebesh-editor>
  *
- * - Emits a `change` CustomEvent whose `detail` is the HTML string, and an `error` event.
+ * - Emits a `change` CustomEvent whose `detail` is the HTML string, an `error` event, a `ready` event (detail: the
+ *   Aurebesh instance) and a `count` event (detail: `{ characters, charactersNoSpaces, words }`).
+ * - `maxlength="500"` limits the characters (typing and pasting are cut off, longer text is invalid in a form);
+ *   `counter` shows "12 words · 80 / 500 characters" under the text.
  * - `value` property: get/set the HTML.
  * - `options` property: everything that can't be an attribute (media adapter, fonts, colors, labels...).
  *   `el.options = { media: { adapter: endpointAdapter({ url: '/api/upload' }) } }`
  * - Works inside a <form>: with a `name` its HTML is submitted, `required` is validated, reset restores the initial content.
  */
 export class AurebeshElement extends BaseElement {
-  static observedAttributes = ['placeholder', 'readonly', 'required'];
+  static observedAttributes = ['placeholder', 'readonly', 'required', 'maxlength', 'counter'];
   static formAssociated = true;
 
   private editor: Aurebesh | null = null;
@@ -54,6 +57,16 @@ export class AurebeshElement extends BaseElement {
     if (name === 'placeholder') this.editor.setPlaceholder(value ?? '');
     if (name === 'readonly') this.editor.setReadOnly(value !== null);
     if (name === 'required') this.syncForm();
+    if (name === 'maxlength') {
+      this.editor.setMaxLength(this.maxLengthAttr() ?? null);
+      this.syncForm();
+    }
+    if (name === 'counter') this.editor.setCounter(value !== null);
+  }
+
+  private maxLengthAttr(): number | undefined {
+    const n = parseInt(this.getAttribute('maxlength') ?? '', 10);
+    return n > 0 ? n : undefined;
   }
 
   // ---- form association ------------------------------------------------------------------------------
@@ -76,6 +89,8 @@ export class AurebeshElement extends BaseElement {
     this.internals.setFormValue(html);
     if (this.hasAttribute('required') && !html) {
       this.internals.setValidity({ valueMissing: true }, 'Please fill in this field.', this.editor.content);
+    } else if (this.editor.isOverLimit()) {
+      this.internals.setValidity({ tooLong: true }, 'The text is too long.', this.editor.content);
     } else {
       this.internals.setValidity({});
     }
@@ -91,6 +106,8 @@ export class AurebeshElement extends BaseElement {
       value: initial,
       placeholder: this.getAttribute('placeholder') ?? '',
       readOnly: this.hasAttribute('readonly'),
+      maxLength: this.maxLengthAttr(),
+      counter: this.hasAttribute('counter'),
       toolbar: toolbarAttr === null ? undefined : toolbarAttr.split(',').map((s) => s.trim()).filter(Boolean),
       ...this.extraOptions,
     });
@@ -101,6 +118,11 @@ export class AurebeshElement extends BaseElement {
       this.dispatchEvent(new CustomEvent('change', { detail: html, bubbles: true }));
     });
     this.editor.on('error', (error) => this.dispatchEvent(new CustomEvent('error', { detail: error, bubbles: true })));
+    this.editor.on('ready', () => this.dispatchEvent(new CustomEvent('ready', { detail: this.editor })));
+    this.editor.on('count', (stats) => {
+      this.syncForm();
+      this.dispatchEvent(new CustomEvent('count', { detail: stats, bubbles: true }));
+    });
     this.syncForm();
   }
 
@@ -136,6 +158,19 @@ export class AurebeshElement extends BaseElement {
     this.editor.destroy();
     this.editor = null;
     this.create(html);
+  }
+
+  /** Form validity: `valueMissing` (required and empty) or `tooLong` (more characters than `maxlength`). */
+  get validity(): ValidityState {
+    return this.internals!.validity;
+  }
+
+  checkValidity(): boolean {
+    return this.internals ? this.internals.checkValidity() : true;
+  }
+
+  reportValidity(): boolean {
+    return this.internals ? this.internals.reportValidity() : true;
   }
 
   /** The underlying Aurebesh instance (available once connected). */

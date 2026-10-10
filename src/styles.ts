@@ -47,6 +47,9 @@ export const CSS = `
 .aurebesh-media-form button{padding:5px 8px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:transparent;color:inherit;cursor:pointer;font:inherit;font-size:13px}
 .aurebesh-status{padding:5px 10px;border-top:1px solid var(--aurebesh-border,#d0d5dd);background:var(--aurebesh-toolbar-bg,#f8f9fb);font-size:12px}
 .aurebesh-status[hidden]{display:none}
+.aurebesh-count{padding:4px 10px;border-top:1px solid var(--aurebesh-border,#d0d5dd);font-size:12px;color:#667085;text-align:right}
+.aurebesh-count[hidden]{display:none}
+.aurebesh-count.over{color:#b42318;font-weight:600}
 .aurebesh-status.error{color:#b42318;background:#fef3f2}
 .aurebesh-content :not(pre)>code{padding:1px 5px;border-radius:4px;background:var(--aurebesh-code-bg,#f3f4f6);font-size:.9em}
 .aurebesh-size{max-width:90px}

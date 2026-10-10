@@ -12,7 +12,8 @@ import { createElement, forwardRef, useImperativeHandle, useLayoutEffect, useRef
 import type { CSSProperties } from 'react';
 import { defineAurebeshElement } from './element';
 import type { AurebeshElement } from './element';
-import type { AurebeshOptions } from './editor';
+import type { Aurebesh, AurebeshOptions } from './editor';
+import type { TextStats } from './stats';
 
 export interface AurebeshEditorProps {
   /** Controlled HTML. Pair it with `onChange`. */
@@ -21,7 +22,15 @@ export interface AurebeshEditorProps {
   defaultValue?: string;
   onChange?: (html: string) => void;
   onError?: (error: Error) => void;
+  /** Called once when the editor is built. */
+  onReady?: (editor: Aurebesh) => void;
+  /** Called when the words / characters change. */
+  onCount?: (stats: TextStats) => void;
   options?: AurebeshOptions;
+  /** Maximum number of characters; typing and pasting stop at the limit. */
+  maxLength?: number;
+  /** Show "12 words · 80 / 500 characters" under the text. */
+  counter?: boolean;
   placeholder?: string;
   readOnly?: boolean;
   required?: boolean;
@@ -35,11 +44,11 @@ export interface AurebeshEditorProps {
 
 export const AurebeshEditor = forwardRef<AurebeshElement, AurebeshEditorProps>(function AurebeshEditor(props, ref) {
   defineAurebeshElement();
-  const { value, defaultValue, onChange, onError, options, placeholder, readOnly, required, name, toolbar, id, className, style } = props;
+  const { value, defaultValue, onChange, onError, onReady, onCount, options, maxLength, counter, placeholder, readOnly, required, name, toolbar, id, className, style } = props;
   const el = useRef<AurebeshElement | null>(null);
   useImperativeHandle(ref, () => el.current as AurebeshElement);
-  const handlers = useRef({ onChange, onError });
-  handlers.current = { onChange, onError };
+  const handlers = useRef({ onChange, onError, onReady, onCount });
+  handlers.current = { onChange, onError, onReady, onCount };
 
   // Layout effects run right after the element is inserted, before it creates its editor.
   useLayoutEffect(() => {
@@ -58,11 +67,17 @@ export const AurebeshEditor = forwardRef<AurebeshElement, AurebeshEditorProps>(f
     if (!node) return;
     const change = (e: Event) => handlers.current.onChange?.((e as CustomEvent<string>).detail);
     const error = (e: Event) => handlers.current.onError?.((e as CustomEvent<Error>).detail);
+    const ready = (e: Event) => handlers.current.onReady?.((e as CustomEvent<Aurebesh>).detail);
+    const count = (e: Event) => handlers.current.onCount?.((e as CustomEvent<TextStats>).detail);
     node.addEventListener('change', change);
     node.addEventListener('error', error);
+    node.addEventListener('ready', ready);
+    node.addEventListener('count', count);
     return () => {
       node.removeEventListener('change', change);
       node.removeEventListener('error', error);
+      node.removeEventListener('ready', ready);
+      node.removeEventListener('count', count);
     };
   }, []);
 
@@ -73,6 +88,8 @@ export const AurebeshEditor = forwardRef<AurebeshElement, AurebeshEditorProps>(f
     class: className,
     style,
     placeholder,
+    maxlength: maxLength,
+    counter: counter ? '' : undefined,
     toolbar: toolbar?.join(','),
     readonly: readOnly ? '' : undefined,
     required: required ? '' : undefined,

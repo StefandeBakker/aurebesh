@@ -1,5 +1,7 @@
 export { Aurebesh } from './editor';
 export type { AurebeshOptions, AurebeshEvents } from './editor';
+export { plainText, countText } from './stats';
+export type { TextStats } from './stats';
 export { insertTable, addRow, addColumn, deleteRow, deleteColumn, deleteTable } from './table';
 export { preparePaste, extractRtfImages, extractRtfShapePictures } from './paste';
 export type { PasteImagePolicy, PendingImage, PreparedPaste } from './paste';

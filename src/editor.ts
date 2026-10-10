@@ -18,6 +18,8 @@ import type { FontDef } from './fonts';
 import { base64Adapter, resultUrl } from './media';
 import type { MediaAdapter, MediaKind, MediaUploadFn } from './media';
 import { IMAGE_TYPES, isSafeImageSrc, VIDEO_TYPES } from './media-urls';
+import { countCharacters, countText, plainText, truncateCharacters } from './stats';
+import type { TextStats } from './stats';
 import { MARKER, preparePaste } from './paste';
 import type { PasteImagePolicy, PendingImage } from './paste';
 import { sanitize } from './sanitize';
@@ -41,6 +43,10 @@ export interface MediaOptions {
 }
 
 export interface AurebeshOptions {
+  /** Most characters allowed (spaces count, line breaks don't). Typing and pasting stop at the limit. */
+  maxLength?: number;
+  /** Show a line under the text with the number of words and characters (and the limit, if there is one). */
+  counter?: boolean;
   /** Override the editor's own texts (tooltips, popovers). See `DEFAULT_LABELS` / `LABELS_NL`. */
   labels?: Partial<Labels>;
   /** Image and video settings: where uploads are stored and whether links are allowed. */
@@ -61,6 +67,10 @@ export interface AurebeshOptions {
 
 export interface AurebeshEvents {
   change: string;
+  /** Fires once the editor is built and has its initial content. Registering after that still calls you (once). */
+  ready: Aurebesh;
+  /** Words and characters, after each change (only worked out while someone listens, or the counter or a limit is on). */
+  count: TextStats;
   focus: undefined;
   blur: undefined;
   /** An upload failed or a link was rejected. */
@@ -98,6 +108,10 @@ export class Aurebesh {
   private statusTimer: ReturnType<typeof setTimeout> | undefined;
   private pendingUploads = 0;
   private markdown: boolean;
+  private maxLength: number | null = null;
+  private counterEl: HTMLElement | null = null;
+  private stats: TextStats = { characters: 0, charactersNoSpaces: 0, words: 0 };
+  private isReady = false;
 
   constructor(private container: HTMLElement, options: AurebeshOptions = {}) {
     const doc = container.ownerDocument;
@@ -129,6 +143,13 @@ export class Aurebesh {
     this.content.setAttribute('aria-label', this.t('ui.editor'));
     this.root.appendChild(this.content);
 
+    this.counterEl = doc.createElement('div');
+    this.counterEl.className = 'aurebesh-count';
+    this.counterEl.hidden = true;
+    this.root.appendChild(this.counterEl);
+    this.maxLength = options.maxLength && options.maxLength > 0 ? Math.floor(options.maxLength) : null;
+    this.counterEl.hidden = !options.counter;
+
     this.setPlaceholder(options.placeholder ?? '');
     this.setReadOnly(options.readOnly ?? false);
     if (options.value) this.content.innerHTML = sanitize(options.value);
@@ -144,6 +165,7 @@ export class Aurebesh {
     this.listen(this.content, 'blur', () => this.emit('blur', undefined));
     this.listen(this.content, 'keydown', (e) => this.onKeyDown(e as KeyboardEvent));
     this.listen(this.content, 'paste', (e) => this.onPaste(e as ClipboardEvent));
+    this.listen(this.content, 'beforeinput', (e) => this.onBeforeInput(e as InputEvent));
     this.listen(this.content, 'dragover', (e) => {
       if ((e as DragEvent).dataTransfer?.types.includes('Files')) e.preventDefault();
     });
@@ -159,6 +181,82 @@ export class Aurebesh {
 
     container.appendChild(this.root);
     this.scheduleHighlight();
+    this.updateStats();
+    // Announced a moment later, so code that registers right after `new Aurebesh(...)` hears it too.
+    queueMicrotask(() => {
+      this.isReady = true;
+      this.emit('ready', this);
+    });
+  }
+
+  /** Resolves once the editor is ready (immediately when it already is). */
+  whenReady(): Promise<this> {
+    return new Promise((resolve) => this.on('ready', () => resolve(this)));
+  }
+
+  /** Words and characters of the current content. */
+  getStats(): TextStats {
+    return countText(plainText(this.content));
+  }
+
+  /** True when the content is longer than `maxLength` (possible after setHTML, which never cuts content off). */
+  isOverLimit(): boolean {
+    return this.maxLength !== null && this.getStats().characters > this.maxLength;
+  }
+
+  setMaxLength(max: number | null): void {
+    this.maxLength = max && max > 0 ? Math.floor(max) : null;
+    this.updateStats();
+  }
+
+  setCounter(show: boolean): void {
+    if (this.counterEl) this.counterEl.hidden = !show;
+    this.updateStats();
+  }
+
+  /** Counts, shows the line under the text, flags an over-long text and emits `count`. Does the work only when it is used. */
+  private updateStats(): void {
+    const wanted = !this.counterEl?.hidden || this.maxLength !== null || !!this.listeners.get('count')?.size;
+    if (!wanted) return;
+    const stats = this.getStats();
+    this.stats = stats;
+    const over = this.maxLength !== null && stats.characters > this.maxLength;
+    if (over) this.content.setAttribute('aria-invalid', 'true');
+    else this.content.removeAttribute('aria-invalid');
+    if (this.counterEl && !this.counterEl.hidden) {
+      const words = `${stats.words} ${this.t(stats.words === 1 ? 'ui.words.one' : 'ui.words.other')}`;
+      const chars = `${stats.characters}${this.maxLength !== null ? ` / ${this.maxLength}` : ''} ${this.t(stats.characters === 1 ? 'ui.characters.one' : 'ui.characters.other')}`;
+      this.counterEl.textContent = `${words} · ${chars}`;
+      this.counterEl.classList.toggle('over', over);
+    }
+    this.emit('count', stats);
+  }
+
+  /** How many more characters fit (counting the selection, which typing would replace); null without a limit. */
+  private roomLeft(): number | null {
+    if (this.maxLength === null) return null;
+    const sel = this.container.ownerDocument.getSelection();
+    const inside = !!sel && sel.rangeCount > 0 && this.content.contains(sel.anchorNode);
+    const selected = inside ? countCharacters(sel!.toString()) : 0;
+    return this.maxLength - this.getStats().characters + selected;
+  }
+
+  private limitReached(): void {
+    this.showStatus(this.t('ui.limitReached', { max: String(this.maxLength) }), true);
+  }
+
+  /** Stops typing, dropping and replacing text at the limit; what is pasted is cut off in onPaste. Deleting is always allowed. */
+  private onBeforeInput(e: InputEvent): void {
+    // While an input method composes text it can't be cancelled; the over-long state is flagged and the form rejects it.
+    if (this.maxLength === null || e.isComposing || !e.inputType.startsWith('insert') || e.inputType === 'insertFromPaste') return;
+    const incoming = e.data ?? e.dataTransfer?.getData('text/plain') ?? '';
+    const room = this.roomLeft();
+    if (!incoming || room === null) return;
+    const length = countCharacters(incoming);
+    if (length <= room) return;
+    e.preventDefault();
+    if (room > 0 && e.inputType !== 'insertText') document.execCommand('insertText', false, truncateCharacters(incoming, room)); // a drop
+    this.limitReached();
   }
 
   /**
@@ -203,6 +301,7 @@ export class Aurebesh {
     this.content.innerHTML = sanitize(html);
     this.syncEmpty();
     this.scheduleHighlight();
+    this.updateStats();
   }
 
   /** True when there is no text and no image, video, table or list. */
@@ -210,8 +309,9 @@ export class Aurebesh {
     return this.content.classList.contains('is-empty');
   }
 
+  /** The text without formatting: a line break between paragraphs and at <br>, a tab between table cells. */
   getText(): string {
-    return this.content.textContent ?? '';
+    return plainText(this.content);
   }
 
   focus(): void {
@@ -252,6 +352,9 @@ export class Aurebesh {
     let set = this.listeners.get(event) as Set<Listener<AurebeshEvents[K]>> | undefined;
     if (!set) this.listeners.set(event, (set = new Set()));
     set.add(fn);
+    // Someone who registers after the editor is ready still gets `ready`, once.
+    if (event === 'ready' && this.isReady) queueMicrotask(() => fn(this as unknown as AurebeshEvents[K]));
+    if (event === 'count') this.updateStats();
     return () => set.delete(fn);
   }
 
@@ -265,7 +368,10 @@ export class Aurebesh {
   }
 
   private emit<K extends keyof AurebeshEvents>(event: K, payload: AurebeshEvents[K]): void {
-    if (event === 'change') this.scheduleHighlight();
+    if (event === 'change') {
+      this.scheduleHighlight();
+      this.updateStats();
+    }
     this.listeners.get(event)?.forEach((fn) => fn(payload));
   }
 
@@ -1057,14 +1163,27 @@ export class Aurebesh {
       void this.uploadFiles(data.files);
       return;
     }
+    // With a limit, what doesn't fit is cut off: as plain text, since cutting formatted content in the middle breaks it.
+    const room = this.roomLeft();
+    const plain = data.getData('text/plain');
+    const fits = room === null || countCharacters(plain) <= room;
+    if (!fits) {
+      const cut = truncateCharacters(plain, Math.max(room!, 0));
+      if (room! > 0) {
+        if (currentPre()) insertCode(cut);
+        else document.execCommand('insertText', false, cut);
+      }
+      this.limitReached();
+      return;
+    }
     // Inside a code block always paste plain text: pasted HTML blocks would split the <pre> in two.
     if (currentPre()) {
-      insertCode(data.getData('text/plain'));
+      insertCode(plain);
       return;
     }
     const html = data.getData('text/html');
     if (!html) {
-      document.execCommand('insertText', false, data.getData('text/plain'));
+      document.execCommand('insertText', false, plain);
       return;
     }
     // Word, Google Docs and web pages: keep the meaningful formatting, drop the rest, and bring the images along.
