@@ -1,6 +1,6 @@
 {
   "name": "aurebesh",
-  "version": "0.1.0-beta.0",
+  "version": "1.0.0",
   "description": "A lightweight, dependency-free WYSIWYG editor for the web. Rich text, tables, code blocks, images and video, with pluggable uploads. Works in React, Vue, Angular or plain HTML.",
   "license": "MIT",
   "repository": {
@@ -12,10 +12,6 @@
     "url": "https://github.com/StefandeBakker/aurebesh/issues"
   },
   "type": "module",
-  "sideEffects": [
-    "./dist/element.js",
-    "./dist/element.cjs"
-  ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -23,6 +19,12 @@
     "*": {
       "element": [
         "./dist/element.d.ts"
+      ],
+      "react": [
+        "./dist/react.d.ts"
+      ],
+      "vue": [
+        "./dist/vue.d.ts"
       ]
     }
   },
@@ -47,6 +49,26 @@
         "default": "./dist/element.cjs"
       }
     },
+    "./react": {
+      "import": {
+        "types": "./dist/react.d.ts",
+        "default": "./dist/react.js"
+      },
+      "require": {
+        "types": "./dist/react.d.cts",
+        "default": "./dist/react.cjs"
+      }
+    },
+    "./vue": {
+      "import": {
+        "types": "./dist/vue.d.ts",
+        "default": "./dist/vue.js"
+      },
+      "require": {
+        "types": "./dist/vue.d.cts",
+        "default": "./dist/vue.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -59,6 +81,7 @@
     "dev": "tsup --watch",
     "demo": "tsup && serve -l 5199 .",
     "test": "vitest run",
+    "test:e2e": "tsup && playwright test",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
@@ -78,11 +101,31 @@
     "vue",
     "angular"
   ],
+  "peerDependencies": {
+    "react": ">=17",
+    "vue": ">=3.3"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "esbuild": "^0.25.0",
     "jsdom": "^26.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "serve": "^14.2.6",
     "tsup": "^8.3.0",
     "typescript": "^5.6.0",
-    "vitest": "^3.0.0"
+    "vitest": "^3.0.0",
+    "vue": "^3.5.0"
   }
 }

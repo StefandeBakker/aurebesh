@@ -96,6 +96,49 @@ export function presignedAdapter(options: {
   };
 }
 
+// ---- the selected image ---------------------------------------------------------------------------------
+
+/** The image that is currently selected as a whole (after clicking it), if any. */
+export function selectedImage(): HTMLImageElement | null {
+  const sel = document.getSelection();
+  if (!sel?.rangeCount) return null;
+  const r = sel.getRangeAt(0);
+  if (r.startContainer !== r.endContainer || r.endOffset - r.startOffset !== 1) return null;
+  const node = r.startContainer.childNodes[r.startOffset];
+  return node instanceof HTMLImageElement && node.closest('.aurebesh-content') ? node : null;
+}
+
+const setStyles = (img: HTMLElement, styles: Record<string, string>): void => {
+  for (const [prop, value] of Object.entries(styles)) {
+    if (value) img.style.setProperty(prop, value);
+    else img.style.removeProperty(prop);
+  }
+  if (!img.getAttribute('style')?.trim()) img.removeAttribute('style');
+};
+
+/** Width as a percentage of the editor (25, 50, 75, 100); an empty value restores the natural size. */
+export function setImageWidth(percent: string): void {
+  const img = selectedImage();
+  if (!img) return;
+  setStyles(img, { width: /^\d{1,3}$/.test(percent) ? `${percent}%` : '' });
+}
+
+/** 'left' | 'center' | 'right' put the image on its own line; anything else puts it back inline. */
+export function setImageAlign(align: string): void {
+  const img = selectedImage();
+  if (!img) return;
+  const margins: Record<string, [string, string]> = { left: ['0', 'auto'], center: ['auto', 'auto'], right: ['auto', '0'] };
+  const m = margins[align];
+  setStyles(img, { display: m ? 'block' : '', 'margin-left': m?.[0] ?? '', 'margin-right': m?.[1] ?? '' });
+}
+
+export function setImageAlt(alt: string): void {
+  const img = selectedImage();
+  if (!img) return;
+  if (alt) img.setAttribute('alt', alt);
+  else img.removeAttribute('alt');
+}
+
 // ---- inserting ------------------------------------------------------------------------------------------
 
 export function insertImage(url: string, alt = ''): void {

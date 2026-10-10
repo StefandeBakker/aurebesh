@@ -21,6 +21,8 @@ export type {
 } from './media';
 export { parseVideoUrl } from './media-urls';
 export type { MediaOptions } from './editor';
+export { DEFAULT_LABELS, LABELS_NL } from './labels';
+export type { Labels } from './labels';
 export { DEFAULT_COLORS } from './colors';
 export { DEFAULT_FONTS } from './fonts';
 export type { FontDef } from './fonts';

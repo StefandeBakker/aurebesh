@@ -1,0 +1,12 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Aurebesh e2e</title>
+<body style="font-family: system-ui; margin: 1rem">
+  <form id="form">
+    <aurebesh-editor id="ed" name="body" placeholder="Type here"></aurebesh-editor>
+  </form>
+  <script type="module">
+    import '/dist/element.js';
+    window.ed = document.getElementById('ed');
+  </script>
+</body>

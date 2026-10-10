@@ -1,9 +1,10 @@
 import { SAFE_COLOR } from './colors';
-import { insertImage, insertVideo, insertVideoFile } from './media';
-import { addColumn, addRow, deleteColumn, deleteRow, deleteTable, insertTable } from './table';
+import { currentLink, isInlineCode, setLink, toggleInlineCode } from './inline';
+import { insertImage, insertVideo, insertVideoFile, setImageAlign, setImageAlt, setImageWidth } from './media';
+import { addColumn, addRow, deleteColumn, deleteRow, deleteTable, insertTable, toggleHeaderRow } from './table';
 
 /** Shown in a second toolbar row while the cursor is inside a table. */
-export const TABLE_TOOLS = ['tableRowAdd', 'tableColAdd', 'tableRowDel', 'tableColDel', 'tableDel'];
+export const TABLE_TOOLS = ['tableHeader', 'tableRowAdd', 'tableColAdd', 'tableRowDel', 'tableColDel', 'tableDel'];
 
 export interface CommandDef {
   name: string;
@@ -32,35 +33,66 @@ const isBlock = (tag: string) => () => {
 };
 const toggleBlock = (tag: string) => () => exec('formatBlock', isBlock(tag)() ? 'p' : tag);
 
+/**
+ * Runs a command with `styleWithCSS` on (so it produces <span style="..."> / text-align instead of <font>/align),
+ * and switches it off again. Leaving it on makes later commands such as Bold emit
+ * <span style="font-weight: bold">, which the sanitizer would then strip.
+ */
+const withCss = (fn: () => void) => {
+  exec('styleWithCSS', 'true');
+  try {
+    fn();
+  } finally {
+    exec('styleWithCSS', 'false');
+  }
+};
+
+const align = (name: string, label: string, title: string, command: string): CommandDef => ({
+  name,
+  label,
+  title,
+  run: () => withCss(() => exec(command)),
+  isActive: () => state(command),
+});
+
 export const COMMANDS: Record<string, CommandDef> = {
   bold: { name: 'bold', label: 'B', title: 'Bold', run: () => exec('bold'), isActive: () => state('bold') },
   italic: { name: 'italic', label: 'I', title: 'Italic', run: () => exec('italic'), isActive: () => state('italic') },
   underline: { name: 'underline', label: 'U', title: 'Underline', run: () => exec('underline'), isActive: () => state('underline') },
   strike: { name: 'strike', label: 'S', title: 'Strikethrough', run: () => exec('strikeThrough'), isActive: () => state('strikeThrough') },
+  code: { name: 'code', label: '</>', title: 'Inline code', run: toggleInlineCode, isActive: isInlineCode },
+  sup: { name: 'sup', label: 'x²', title: 'Superscript', run: () => exec('superscript'), isActive: () => state('superscript') },
+  sub: { name: 'sub', label: 'x₂', title: 'Subscript', run: () => exec('subscript'), isActive: () => state('subscript') },
   h1: { name: 'h1', label: 'H1', title: 'Heading 1', run: toggleBlock('h1'), isActive: isBlock('h1') },
   h2: { name: 'h2', label: 'H2', title: 'Heading 2', run: toggleBlock('h2'), isActive: isBlock('h2') },
+  /** Not in the default toolbar; reachable with Mod+Alt+3 and the `### ` Markdown shortcut. */
+  h3: { name: 'h3', label: 'H3', title: 'Heading 3', run: toggleBlock('h3'), isActive: isBlock('h3') },
   quote: { name: 'quote', label: '❝', title: 'Quote', run: toggleBlock('blockquote'), isActive: isBlock('blockquote') },
   codeblock: { name: 'codeblock', label: '{ }', title: 'Code block', run: toggleBlock('pre'), isActive: isBlock('pre') },
+  hr: { name: 'hr', label: '―', title: 'Horizontal line', run: () => exec('insertHorizontalRule') },
   ul: { name: 'ul', label: '• List', title: 'Bullet list', run: () => exec('insertUnorderedList'), isActive: () => state('insertUnorderedList') },
   ol: { name: 'ol', label: '1. List', title: 'Numbered list', run: () => exec('insertOrderedList'), isActive: () => state('insertOrderedList') },
-  link: {
-    name: 'link',
-    label: 'Link',
-    title: 'Link',
-    run: (url) => {
-      if (url === undefined) url = window.prompt('URL') ?? '';
-      if (url) exec('createLink', url);
-      else exec('unlink');
-    },
-  },
+  alignLeft: align('alignLeft', '≡', 'Align left', 'justifyLeft'),
+  alignCenter: align('alignCenter', '≣', 'Align center', 'justifyCenter'),
+  alignRight: align('alignRight', '≢', 'Align right', 'justifyRight'),
+  alignJustify: align('alignJustify', '☰', 'Justify', 'justifyFull'),
+  /** run(url): set or change the link; an empty url removes it. */
+  link: { name: 'link', label: 'Link', title: 'Link', run: (url) => setLink(url ?? ''), isActive: () => !!currentLink() },
   font: {
     name: 'font',
     label: 'Font',
     title: 'Font',
     run: (family) => {
-      if (!family) return;
-      exec('styleWithCSS', 'true'); // emit <span style="font-family"> instead of <font face>
-      exec('fontName', family);
+      if (family) withCss(() => exec('fontName', family));
+    },
+  },
+  /** run('1'..'7'): the browser's seven size steps (small .. huge). */
+  size: {
+    name: 'size',
+    label: 'Size',
+    title: 'Size',
+    run: (step) => {
+      if (step && /^[1-7]$/.test(step)) withCss(() => exec('fontSize', step));
     },
   },
   color: {
@@ -68,9 +100,7 @@ export const COMMANDS: Record<string, CommandDef> = {
     label: 'A',
     title: 'Text color',
     run: (value) => {
-      if (!value || !SAFE_COLOR.test(value)) return;
-      exec('styleWithCSS', 'true');
-      exec('foreColor', value);
+      if (value && SAFE_COLOR.test(value)) withCss(() => exec('foreColor', value));
     },
   },
   highlight: {
@@ -78,15 +108,17 @@ export const COMMANDS: Record<string, CommandDef> = {
     label: 'ab',
     title: 'Highlight color',
     run: (value) => {
-      if (!value || !SAFE_COLOR.test(value)) return;
-      exec('styleWithCSS', 'true');
-      exec('hiliteColor', value);
+      if (value && SAFE_COLOR.test(value)) withCss(() => exec('hiliteColor', value));
     },
   },
   image: { name: 'image', label: '🖼', title: 'Image', run: (url, alt) => url && insertImage(url, alt) },
   video: { name: 'video', label: '▶', title: 'Video', run: (url) => url && insertVideo(url) },
   /** Not a toolbar item: used after an upload, when the URL may have no file extension. */
   videoFile: { name: 'videoFile', label: '', title: 'Video file', run: (url) => url && insertVideoFile(url) },
+  /** Not toolbar items: used by the image tools row, they act on the selected image. */
+  imageWidth: { name: 'imageWidth', label: '', title: 'Image width', run: (percent) => setImageWidth(percent ?? '') },
+  imageAlign: { name: 'imageAlign', label: '', title: 'Image alignment', run: (where) => setImageAlign(where ?? '') },
+  imageAlt: { name: 'imageAlt', label: '', title: 'Alt text', run: (alt) => setImageAlt(alt ?? '') },
   table: {
     name: 'table',
     label: '▦',
@@ -96,6 +128,7 @@ export const COMMANDS: Record<string, CommandDef> = {
       if (m) insertTable(Math.min(+m[1], 50), Math.min(+m[2], 20));
     },
   },
+  tableHeader: { name: 'tableHeader', label: 'Header', title: 'Toggle header row', run: () => toggleHeaderRow() },
   tableRowAdd: { name: 'tableRowAdd', label: '+ Row', title: 'Insert row below', run: () => addRow() },
   tableColAdd: { name: 'tableColAdd', label: '+ Col', title: 'Insert column right', run: () => addColumn() },
   tableRowDel: { name: 'tableRowDel', label: '− Row', title: 'Delete row', run: () => deleteRow() },
@@ -107,5 +140,11 @@ export const COMMANDS: Record<string, CommandDef> = {
 };
 
 export const DEFAULT_TOOLBAR = [
-  'font', '|', 'bold', 'italic', 'underline', 'strike', 'color', 'highlight', '|', 'h1', 'h2', 'quote', 'codeblock', '|', 'ul', 'ol', 'link', 'image', 'video', 'table', '|', 'clear', 'undo', 'redo',
+  'font', 'size', '|',
+  'bold', 'italic', 'underline', 'strike', 'code', '|',
+  'color', 'highlight', '|',
+  'h1', 'h2', 'quote', 'codeblock', '|',
+  'ul', 'ol', 'alignLeft', 'alignCenter', 'alignRight', '|',
+  'link', 'image', 'video', 'table', 'hr', '|',
+  'clear', 'undo', 'redo',
 ];

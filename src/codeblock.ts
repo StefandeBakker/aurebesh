@@ -10,19 +10,42 @@ export function currentPre(): HTMLPreElement | null {
   return pre?.closest(ROOT) ? pre : null;
 }
 
+/** The block's text with every <br> counted as a newline (browsers differ in which of the two they produce). */
+function codeText(pre: HTMLElement): string {
+  let text = '';
+  const walker = pre.ownerDocument.createTreeWalker(pre, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    if (n.nodeType === Node.TEXT_NODE) text += n.textContent ?? '';
+    else if (n.nodeName === 'BR') text += '\n';
+  }
+  return text;
+}
+
+/** Caret at the end of the code, ignoring the trailing newline some browsers keep as a placeholder. */
 function caretAtEnd(pre: HTMLElement): boolean {
   const sel = document.getSelection();
   if (!sel || !sel.isCollapsed || !sel.anchorNode) return false;
   const rest = document.createRange();
   rest.selectNodeContents(pre);
   rest.setStart(sel.anchorNode, sel.anchorOffset);
-  return rest.toString() === '';
+  return rest.toString().replace(/\n/g, '') === '';
 }
 
 /** Moves out of the block: strips trailing line breaks and puts the caret in a paragraph after it. */
 function exitBlock(pre: HTMLElement): void {
-  while (pre.lastChild?.nodeName === 'BR' || (pre.lastChild?.nodeType === Node.TEXT_NODE && /^\n*$/.test(pre.lastChild.textContent ?? ''))) {
-    pre.lastChild!.remove();
+  for (let last = pre.lastChild; last; last = pre.lastChild) {
+    if (last.nodeName === 'BR') {
+      last.remove();
+    } else if (last.nodeType === Node.TEXT_NODE && /\n$/.test(last.textContent ?? '')) {
+      const trimmed = (last.textContent ?? '').replace(/\n+$/, '');
+      if (trimmed) {
+        last.textContent = trimmed;
+        break;
+      }
+      last.remove();
+    } else {
+      break;
+    }
   }
   const p = document.createElement('p');
   p.appendChild(document.createElement('br'));
@@ -36,6 +59,14 @@ function exitBlock(pre: HTMLElement): void {
   sel?.addRange(range);
 }
 
+/** Inserts text that may contain newlines as lines of the same block (not as separate <pre> blocks). */
+export function insertCode(text: string): void {
+  text.replace(/\r\n?/g, '\n').split('\n').forEach((line, i) => {
+    if (i) document.execCommand('insertLineBreak');
+    if (line) document.execCommand('insertText', false, line);
+  });
+}
+
 /**
  * Enter adds a line, Enter on an empty last line leaves the block, Shift+Enter always adds a line,
  * Tab indents. Returns true when the event was handled.
@@ -46,11 +77,11 @@ export function handleCodeKey(e: KeyboardEvent): boolean {
 
   if (e.key === 'Enter') {
     e.preventDefault();
-    const last = pre.lastChild;
-    const blankLastLine =
-      !e.shiftKey && caretAtEnd(pre) && last?.nodeName === 'BR' && (last.previousSibling?.nodeName === 'BR' || /\n$/.test(last.previousSibling?.textContent ?? ''));
-    if (blankLastLine || (!e.shiftKey && !pre.textContent)) exitBlock(pre);
-    else document.execCommand('insertText', false, '\n');
+    const text = codeText(pre);
+    const emptyBlock = !text.replace(/\n/g, '');
+    const blankLastLine = /\n\n$/.test(text) && caretAtEnd(pre);
+    if (!e.shiftKey && (emptyBlock || blankLastLine)) exitBlock(pre);
+    else document.execCommand('insertLineBreak');
     return true;
   }
   if (e.key === 'Tab' && !e.shiftKey) {

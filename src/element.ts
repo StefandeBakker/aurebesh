@@ -1,23 +1,37 @@
 import { Aurebesh } from './editor';
 import type { AurebeshOptions } from './editor';
 
-/**
- * <aurebesh-editor placeholder="Type..." readonly toolbar="bold,italic,|,link"><p>initial</p></aurebesh-editor>
- *
- * - Emits a `change` CustomEvent whose `detail` is the HTML string.
- * - `value` property: get/set the HTML.
- * - `options` property: everything that can't be an attribute (media adapter, fonts, colors...).
- *   `el.options = { media: { adapter: endpointAdapter({ url: '/api/upload' }) } }`
- */
 // On the server (SSR) there is no HTMLElement: fall back to an empty class so importing this file doesn't throw.
 const BaseElement: typeof HTMLElement = typeof HTMLElement === 'undefined' ? (class {} as unknown as typeof HTMLElement) : HTMLElement;
 
+/**
+ * <aurebesh-editor name="body" placeholder="Type..." readonly required toolbar="bold,italic,|,link"><p>initial</p></aurebesh-editor>
+ *
+ * - Emits a `change` CustomEvent whose `detail` is the HTML string, and an `error` event.
+ * - `value` property: get/set the HTML.
+ * - `options` property: everything that can't be an attribute (media adapter, fonts, colors, labels...).
+ *   `el.options = { media: { adapter: endpointAdapter({ url: '/api/upload' }) } }`
+ * - Works inside a <form>: with a `name` its HTML is submitted, `required` is validated, reset restores the initial content.
+ */
 export class AurebeshElement extends BaseElement {
-  static observedAttributes = ['placeholder', 'readonly'];
+  static observedAttributes = ['placeholder', 'readonly', 'required'];
+  static formAssociated = true;
+
   private editor: Aurebesh | null = null;
   private pendingValue: string | null = null;
+  private initialHtml = '';
   private extraOptions: AurebeshOptions = {};
   private connectQueued = false;
+  private internals: ElementInternals | null = null;
+
+  constructor() {
+    super();
+    try {
+      this.internals = this.attachInternals?.() ?? null;
+    } catch {
+      this.internals = null; // very old browser
+    }
+  }
 
   connectedCallback(): void {
     if (this.editor || this.connectQueued) return;
@@ -39,7 +53,35 @@ export class AurebeshElement extends BaseElement {
     if (!this.editor) return;
     if (name === 'placeholder') this.editor.setPlaceholder(value ?? '');
     if (name === 'readonly') this.editor.setReadOnly(value !== null);
+    if (name === 'required') this.syncForm();
   }
+
+  // ---- form association ------------------------------------------------------------------------------
+
+  formResetCallback(): void {
+    this.value = this.initialHtml;
+  }
+
+  formDisabledCallback(disabled: boolean): void {
+    this.editor?.setReadOnly(disabled || this.hasAttribute('readonly'));
+  }
+
+  formStateRestoreCallback(state: string | File | FormData | null): void {
+    if (typeof state === 'string') this.value = state;
+  }
+
+  private syncForm(): void {
+    if (!this.internals || !this.editor) return;
+    const html = this.editor.isEmpty() ? '' : this.editor.getHTML();
+    this.internals.setFormValue(html);
+    if (this.hasAttribute('required') && !html) {
+      this.internals.setValidity({ valueMissing: true }, 'Please fill in this field.', this.editor.content);
+    } else {
+      this.internals.setValidity({});
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------------------
 
   private create(initial: string): void {
     const toolbarAttr = this.getAttribute('toolbar');
@@ -52,9 +94,14 @@ export class AurebeshElement extends BaseElement {
       toolbar: toolbarAttr === null ? undefined : toolbarAttr.split(',').map((s) => s.trim()).filter(Boolean),
       ...this.extraOptions,
     });
+    this.initialHtml = this.editor.getHTML();
     this.pendingValue = null;
-    this.editor.on('change', (html) => this.dispatchEvent(new CustomEvent('change', { detail: html, bubbles: true })));
+    this.editor.on('change', (html) => {
+      this.syncForm();
+      this.dispatchEvent(new CustomEvent('change', { detail: html, bubbles: true }));
+    });
     this.editor.on('error', (error) => this.dispatchEvent(new CustomEvent('error', { detail: error, bubbles: true })));
+    this.syncForm();
   }
 
   get value(): string {
@@ -62,17 +109,28 @@ export class AurebeshElement extends BaseElement {
   }
 
   set value(html: string) {
-    if (this.editor) this.editor.setHTML(html);
-    else this.pendingValue = html;
+    if (this.editor) {
+      // Frameworks hand back what we just emitted; setting it again would reset the caret.
+      if (html !== this.editor.getHTML()) this.editor.setHTML(html);
+      this.syncForm();
+    } else {
+      this.pendingValue = html;
+    }
   }
 
   get options(): AurebeshOptions {
     return this.extraOptions;
   }
 
-  /** Setting options after the editor exists rebuilds it, keeping the current content. */
+  /**
+   * Setting options after the editor exists rebuilds it, keeping the current content.
+   * An equal value (same content, functions compared by identity) is ignored, so frameworks that re-pass
+   * an options object on every render don't rebuild the editor.
+   */
   set options(options: AurebeshOptions) {
-    this.extraOptions = options ?? {};
+    const next = options ?? {};
+    if (isSame(this.extraOptions, next)) return;
+    this.extraOptions = next;
     if (!this.editor) return;
     const html = this.editor.getHTML();
     this.editor.destroy();
@@ -86,6 +144,26 @@ export class AurebeshElement extends BaseElement {
   }
 }
 
-if (typeof customElements !== 'undefined' && !customElements.get('aurebesh-editor')) {
-  customElements.define('aurebesh-editor', AurebeshElement);
+/** Structural equality for option objects: plain data is compared by content, functions by identity. */
+function isSame(a: unknown, b: unknown, depth = 4): boolean {
+  if (a === b) return true;
+  if (depth === 0 || typeof a !== 'object' || typeof b !== 'object' || !a || !b) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const ka = Object.keys(a);
+  const kb = Object.keys(b);
+  if (ka.length !== kb.length) return false;
+  return ka.every((k) => isSame((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k], depth - 1));
 }
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'aurebesh-editor': AurebeshElement;
+  }
+}
+
+/** Registers <aurebesh-editor>. Safe to call many times and on the server (where it does nothing). */
+export function defineAurebeshElement(name = 'aurebesh-editor'): void {
+  if (typeof customElements !== 'undefined' && !customElements.get(name)) customElements.define(name, AurebeshElement);
+}
+
+defineAurebeshElement();

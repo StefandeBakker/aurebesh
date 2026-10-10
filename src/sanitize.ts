@@ -6,7 +6,7 @@ const ALLOWED_TAGS = new Set([
   'p', 'br', 'div', 'span', 'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del',
   'h1', 'h2', 'h3', 'blockquote', 'ul', 'ol', 'li', 'a', 'code', 'pre', 'hr',
   'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th',
-  'img', 'video',
+  'img', 'video', 'sup', 'sub',
 ]);
 const DROP_WITH_CONTENT = new Set(['script', 'style', 'iframe', 'object', 'embed', 'noscript', 'template']);
 const ALLOWED_ATTRS: Record<string, string[]> = {
@@ -25,21 +25,38 @@ export function sanitize(html: string): string {
   return doc.body.innerHTML;
 }
 
-const STYLE_RULES: Record<string, RegExp> = {
+type StyleRules = Record<string, RegExp>;
+
+const SPAN_STYLES: StyleRules = {
   'font-family': SAFE_FAMILY,
   color: SAFE_COLOR,
   'background-color': SAFE_COLOR,
+  'font-size': /^(?:x-small|small|medium|large|x-large|xx-large|xxx-large)$/,
+};
+const BLOCK_STYLES: StyleRules = { 'text-align': /^(?:left|center|right|justify)$/ };
+const IMG_STYLES: StyleRules = {
+  width: /^\d{1,3}%$/,
+  display: /^block$/,
+  'margin-left': /^(?:auto|0|0px)$/,
+  'margin-right': /^(?:auto|0|0px)$/,
+};
+const STYLES_BY_TAG: Record<string, StyleRules> = {
+  span: SPAN_STYLES,
+  img: IMG_STYLES,
+  ...Object.fromEntries(['p', 'div', 'h1', 'h2', 'h3', 'li', 'blockquote', 'td', 'th'].map((t) => [t, BLOCK_STYLES])),
 };
 
-/** Keeps only font-family, color and background-color with safe values; every other style is dropped. */
-function safeStyle(style: string | null): string | null {
+/** Keeps only the few style properties each tag may carry, with safe values; everything else is dropped. */
+function safeStyle(style: string | null, rules: StyleRules | undefined): string | null {
+  if (!rules) return null;
   const kept: string[] = [];
   for (const decl of (style ?? '').split(';')) {
     const i = decl.indexOf(':');
     if (i < 0) continue;
     const prop = decl.slice(0, i).trim().toLowerCase();
     const value = decl.slice(i + 1).trim();
-    if (STYLE_RULES[prop]?.test(value)) kept.push(`${prop}: ${value}`);
+    if (prop === 'font-family' && /^(?:inherit|initial|unset)$/i.test(value)) continue; // browser noise, changes nothing
+    if (rules[prop]?.test(value)) kept.push(`${prop}: ${value}`);
   }
   return kept.length ? kept.join('; ') : null;
 }
@@ -82,7 +99,7 @@ function clean(parent: Node): void {
       continue;
     }
     const allowed = ALLOWED_ATTRS[tag] ?? [];
-    const style = tag === 'span' ? safeStyle(el.getAttribute('style')) : null;
+    const style = safeStyle(el.getAttribute('style'), STYLES_BY_TAG[tag]);
     for (const attr of Array.from(el.attributes)) {
       if (!allowed.includes(attr.name)) el.removeAttribute(attr.name);
     }
@@ -105,6 +122,36 @@ function clean(parent: Node): void {
     const href = el.getAttribute('href');
     if (href !== null && !SAFE_URL.test(href.trim())) el.removeAttribute('href');
     if (tag === 'a' && el.getAttribute('target') === '_blank') el.setAttribute('rel', 'noopener noreferrer');
+    // A list directly inside a list (what browsers make of "indent") belongs inside the item before it.
+    if ((tag === 'ul' || tag === 'ol') && /^(?:ul|ol)$/i.test(parent.nodeName)) {
+      const prev = el.previousElementSibling;
+      if (prev?.tagName === 'LI') {
+        prev.appendChild(el);
+      } else {
+        const li = el.ownerDocument.createElement('li');
+        parent.insertBefore(li, el);
+        li.appendChild(el);
+      }
+    }
     clean(el);
+    // A <span> that lost all its styles carries nothing: keep its content, drop the wrapper.
+    if (tag === 'span' && !el.attributes.length) {
+      while (el.firstChild) el.parentNode!.insertBefore(el.firstChild, el);
+      el.remove();
+    }
+  }
+  dropPlaceholderBreak(parent);
+}
+
+/**
+ * Some browsers (WebKit) keep a trailing <br> as a placeholder after the last piece of content in a block.
+ * It renders as nothing, so it doesn't belong in stored HTML. A lone <br> (an empty line) and a <br> that
+ * follows another <br> (a visible blank line) stay.
+ */
+function dropPlaceholderBreak(parent: Node): void {
+  const last = parent.lastChild;
+  const before = last?.previousSibling;
+  if (last?.nodeName === 'BR' && before && before.nodeName !== 'BR' && !(before.nodeType === Node.TEXT_NODE && !before.textContent)) {
+    parent.removeChild(last);
   }
 }

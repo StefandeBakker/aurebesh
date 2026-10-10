@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { Aurebesh, sanitize, tokenize } from '../src';
+import { Aurebesh, sanitize, tokenize, LABELS_NL, COMMANDS } from '../src';
+import { normalizeLink } from '../src/inline';
 
 describe('sanitize', () => {
   it('removes scripts, handlers and javascript: urls', () => {
@@ -18,12 +19,88 @@ describe('fonts', () => {
   });
   it('drops unsafe font-family values', () => {
     expect(sanitize('<span style="font-family: x;background:url(a)">x</span>')).toContain('style="font-family: x"');
-    expect(sanitize('<span style="font-family: url(http://evil)">x</span>')).toBe('<span>x</span>');
+    expect(sanitize('<span style="font-family: url(http://evil)">x</span>')).toBe('x'); // nothing left to style: the span goes
   });
   it('renders a font picker with 15 fonts', () => {
     const el = document.createElement('div');
     new Aurebesh(el);
     expect(el.querySelectorAll('select.aurebesh-font option').length).toBe(16);
+  });
+});
+
+describe('styles per tag', () => {
+  it('allows font-size steps on spans and text-align on blocks only', () => {
+    expect(sanitize('<span style="font-size: x-large">a</span>')).toBe('<span style="font-size: x-large">a</span>');
+    expect(sanitize('<span style="font-size: 500px">a</span>')).toBe('a');
+    expect(sanitize('<p style="text-align: center; color: red">a</p>')).toBe('<p style="text-align: center">a</p>');
+    expect(sanitize('<span style="text-align: center">a</span>')).toBe('a');
+    expect(sanitize('<p style="text-align: expression(alert(1))">a</p>')).toBe('<p>a</p>');
+  });
+  it('allows image width and alignment, drops positioning', () => {
+    const out = sanitize('<img src="https://x.dev/a.png" style="width: 50%; display: block; margin-left: auto; position: fixed; top: 0">');
+    expect(out).toContain('width: 50%');
+    expect(out).toContain('display: block');
+    expect(out).toContain('margin-left: auto');
+    expect(out).not.toContain('position');
+    expect(sanitize('<img src="https://x.dev/a.png" style="width: 1000px">')).not.toContain('style');
+  });
+  it('allows superscript and subscript', () => {
+    expect(sanitize('x<sup>2</sup><sub>i</sub>')).toBe('x<sup>2</sup><sub>i</sub>');
+  });
+});
+
+describe('clean output', () => {
+  it('unwraps spans that carry nothing and normalizes nested lists', () => {
+    expect(sanitize('<p>a<span style="font-weight: bold"> b</span></p>')).toBe('<p>a b</p>');
+    expect(sanitize('<ul><li>a</li><ul><li>b</li></ul></ul>')).toBe('<ul><li>a<ul><li>b</li></ul></li></ul>');
+    expect(sanitize('<ol><ul><li>x</li></ul></ol>')).toBe('<ol><li><ul><li>x</li></ul></li></ol>');
+  });
+
+  it('getHTML() returns sanitized HTML and an empty string for an empty editor', () => {
+    const el = document.createElement('div');
+    const ed = new Aurebesh(el);
+    expect(ed.getHTML()).toBe('');
+    ed.setHTML('<p><br></p>');
+    expect(ed.getHTML()).toBe('');
+    ed.setHTML('<p>hi</p>');
+    expect(ed.getHTML()).toBe('<p>hi</p>');
+    // leftovers a browser can put in the live DOM do not reach the output
+    ed.content.innerHTML = '<p>a<span style="font-family: inherit;"> b</span><b style=""> c</b></p><div data-new>d</div>';
+    ed.content.dispatchEvent(new Event('input'));
+    expect(ed.getHTML()).toBe('<p>a b<b> c</b></p><div>d</div>');
+  });
+});
+
+describe('links', () => {
+  it('normalizes what people type and refuses unsafe schemes', () => {
+    expect(normalizeLink('example.com')).toBe('https://example.com');
+    expect(normalizeLink('example.com/a?b=1')).toBe('https://example.com/a?b=1');
+    expect(normalizeLink('me@example.com')).toBe('mailto:me@example.com');
+    expect(normalizeLink('https://x.dev')).toBe('https://x.dev');
+    expect(normalizeLink('/relative')).toBe('/relative');
+    expect(normalizeLink('  ')).toBe('');
+    expect(() => normalizeLink('javascript:alert(1)')).toThrow(/Unsupported link/);
+    expect(() => normalizeLink('data:text/html,x')).toThrow();
+  });
+});
+
+describe('labels', () => {
+  it('translates tooltips and popover texts, keeps the rest in English', () => {
+    const el = document.createElement('div');
+    new Aurebesh(el, { labels: { ...LABELS_NL, bold: 'Vet' } });
+    expect(el.querySelector('button[title="Vet"]')).not.toBeNull();
+    expect(el.querySelector('button[title="Cursief"]')).not.toBeNull();
+    expect(el.querySelector('select.aurebesh-font')?.getAttribute('title')).toBe('Lettertype');
+    const partial = document.createElement('div');
+    new Aurebesh(partial, { labels: { bold: 'Fett' } });
+    expect(partial.querySelector('button[title="Fett"]')).not.toBeNull();
+    expect(partial.querySelector('button[title="Italic"]')).not.toBeNull();
+  });
+  it('every toolbar command has a Dutch label', () => {
+    for (const name of Object.keys(COMMANDS)) {
+      if (['videoFile', 'imageWidth', 'imageAlign', 'imageAlt'].includes(name)) continue; // internal
+      expect(LABELS_NL[name], `missing nl label for ${name}`).toBeTruthy();
+    }
   });
 });
 
@@ -68,13 +145,13 @@ describe('colors', () => {
     expect(sanitize('<span style="color: rgb(255, 0, 0); background-color: #ff0">x</span>')).toBe(
       '<span style="color: rgb(255, 0, 0); background-color: #ff0">x</span>',
     );
-    expect(sanitize('<span style="color: url(javascript:x); position: fixed">x</span>')).toBe('<span>x</span>');
+    expect(sanitize('<span style="color: url(javascript:x); position: fixed">x</span>')).toBe('x');
   });
   it('renders color and highlight pickers with 40 swatches each', () => {
     const el = document.createElement('div');
     new Aurebesh(el);
     expect(el.querySelectorAll('.aurebesh-color-grid').length).toBe(2);
-    expect(el.querySelectorAll('.aurebesh-color-grid div').length).toBe(80);
+    expect(el.querySelectorAll('.aurebesh-color-grid button').length).toBe(80);
   });
 });
 
@@ -86,7 +163,7 @@ describe('tables', () => {
   it('shows the table picker and hides table tools until the cursor is in a table', () => {
     const el = document.createElement('div');
     new Aurebesh(el);
-    expect(el.querySelectorAll('.aurebesh-table-grid div').length).toBe(64);
+    expect(el.querySelectorAll('.aurebesh-table-grid button').length).toBe(64);
     expect((el.querySelector('.aurebesh-table-tools') as HTMLElement).hidden).toBe(true);
   });
 });
