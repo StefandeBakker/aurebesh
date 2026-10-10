@@ -23,6 +23,10 @@ jobs:
           node-version: 24 # ships npm 11, staged publishing needs npm 11.15.0 or newer
           registry-url: https://registry.npmjs.org
 
+      # The npm that comes with Node 24 can be older than 11.15.0, the first version with `npm stage`.
+      - name: Use a recent npm
+        run: npm install -g npm@latest
+
       - name: The release tag must match the version in package.json
         run: |
           VERSION="$(node -p "require('./package.json').version")"
