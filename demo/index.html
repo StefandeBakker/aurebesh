@@ -4,10 +4,29 @@
 <body style="font-family:system-ui;max-width:720px;margin:2rem auto">
   <h1>Aurebesh</h1>
   <aurebesh-editor placeholder="Start typing..." counter maxlength="500"><p>Hello <strong>Aurebesh</strong></p></aurebesh-editor>
-  <pre id="out" style="white-space:pre-wrap"></pre>
+  <p id="tabs" style="margin:1rem 0 .25rem">
+    <button data-f="html">HTML</button>
+    <button data-f="markdown">Markdown</button>
+    <button data-f="text">Text</button>
+  </p>
+  <pre id="out" style="white-space:pre-wrap;margin-top:0"></pre>
   <script type="module">
     import '../dist/element.js';
     const ed = document.querySelector('aurebesh-editor');
-    ed.addEventListener('change', (e) => (document.getElementById('out').textContent = e.detail));
+    const out = document.getElementById('out');
+    let format = 'markdown';
+    const show = () => {
+      const editor = ed.instance;
+      out.textContent = editor ? editor.getValue(format) : '';
+      document.querySelectorAll('#tabs button').forEach((b) => (b.style.fontWeight = b.dataset.f === format ? '700' : '400'));
+    };
+    document.getElementById('tabs').addEventListener('click', (e) => {
+      if (e.target.dataset?.f) {
+        format = e.target.dataset.f;
+        show();
+      }
+    });
+    ed.addEventListener('change', show);
+    ed.addEventListener('ready', show);
   </script>
 </body>

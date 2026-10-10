@@ -1,5 +1,6 @@
 import { Aurebesh } from './editor';
 import type { AurebeshOptions } from './editor';
+import type { OutputFormat } from './export';
 
 // On the server (SSR) there is no HTMLElement: fall back to an empty class so importing this file doesn't throw.
 const BaseElement: typeof HTMLElement = typeof HTMLElement === 'undefined' ? (class {} as unknown as typeof HTMLElement) : HTMLElement;
@@ -17,7 +18,7 @@ const BaseElement: typeof HTMLElement = typeof HTMLElement === 'undefined' ? (cl
  * - Works inside a <form>: with a `name` its HTML is submitted, `required` is validated, reset restores the initial content.
  */
 export class AurebeshElement extends BaseElement {
-  static observedAttributes = ['placeholder', 'readonly', 'required', 'maxlength', 'counter'];
+  static observedAttributes = ['placeholder', 'readonly', 'required', 'maxlength', 'counter', 'format'];
   static formAssociated = true;
 
   private editor: Aurebesh | null = null;
@@ -56,7 +57,7 @@ export class AurebeshElement extends BaseElement {
     if (!this.editor) return;
     if (name === 'placeholder') this.editor.setPlaceholder(value ?? '');
     if (name === 'readonly') this.editor.setReadOnly(value !== null);
-    if (name === 'required') this.syncForm();
+    if (name === 'required' || name === 'format') this.syncForm();
     if (name === 'maxlength') {
       this.editor.setMaxLength(this.maxLengthAttr() ?? null);
       this.syncForm();
@@ -86,7 +87,7 @@ export class AurebeshElement extends BaseElement {
   private syncForm(): void {
     if (!this.internals || !this.editor) return;
     const html = this.editor.isEmpty() ? '' : this.editor.getHTML();
-    this.internals.setFormValue(html);
+    this.internals.setFormValue(html ? this.editor.getValue(this.format) : '');
     if (this.hasAttribute('required') && !html) {
       this.internals.setValidity({ valueMissing: true }, 'Please fill in this field.', this.editor.content);
     } else if (this.editor.isOverLimit()) {
@@ -158,6 +159,24 @@ export class AurebeshElement extends BaseElement {
     this.editor.destroy();
     this.editor = null;
     this.create(html);
+  }
+
+  /** What is submitted with a form: the `format` attribute, "html" (default), "markdown" or "text". `value` stays HTML. */
+  get format(): OutputFormat {
+    const f = this.getAttribute('format');
+    return f === 'markdown' || f === 'text' ? f : 'html';
+  }
+
+  set format(f: OutputFormat) {
+    this.setAttribute('format', f);
+  }
+
+  get markdown(): string {
+    return this.editor ? this.editor.getMarkdown() : '';
+  }
+
+  get text(): string {
+    return this.editor ? this.editor.getValue('text') : '';
   }
 
   /** Form validity: `valueMissing` (required and empty) or `tooLong` (more characters than `maxlength`). */

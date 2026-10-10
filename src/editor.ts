@@ -20,6 +20,8 @@ import type { MediaAdapter, MediaKind, MediaUploadFn } from './media';
 import { IMAGE_TYPES, isSafeImageSrc, VIDEO_TYPES } from './media-urls';
 import { countCharacters, countText, plainText, truncateCharacters } from './stats';
 import type { TextStats } from './stats';
+import { toMarkdown } from './export';
+import type { OutputFormat } from './export';
 import { MARKER, preparePaste } from './paste';
 import type { PasteImagePolicy, PendingImage } from './paste';
 import { sanitize } from './sanitize';
@@ -265,6 +267,18 @@ export class Aurebesh {
    */
   getHTML(): string {
     return this.isEmpty() ? '' : sanitize(this.content.innerHTML);
+  }
+
+  /** The content as Markdown (GitHub flavour); '' when empty. Underline and sub/superscript stay inline HTML; colours, fonts and columns are dropped. */
+  getMarkdown(): string {
+    return this.isEmpty() ? '' : toMarkdown(this.getHTML());
+  }
+
+  /** The content in the given format: 'html' (default), 'markdown' or 'text'. */
+  getValue(format: OutputFormat = 'html'): string {
+    if (format === 'markdown') return this.getMarkdown();
+    if (format === 'text') return this.isEmpty() ? '' : this.getText();
+    return this.getHTML();
   }
 
   private onKeyDown(e: KeyboardEvent): void {

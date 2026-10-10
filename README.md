@@ -151,6 +151,20 @@ editor.setMaxLength(300); editor.setCounter(false); editor.isOverLimit();
 - Text input through an input method (IME) cannot be cancelled while composing; the limit is then enforced by the validity check.
 - Texts are `ui.words.*`, `ui.characters.*` and `ui.limitReached` in `labels`.
 
+## Output formats: HTML, Markdown, text
+
+```js
+editor.getHTML();                // clean, sanitized HTML (the default, and what `change` emits)
+editor.getMarkdown();            // GitHub-flavoured Markdown
+editor.getText();                // plain text
+editor.getValue('markdown');     // any of 'html' | 'markdown' | 'text'
+import { toMarkdown, toText } from 'aurebesh'; // the same for any HTML string (needs a DOM)
+```
+
+- Web component: `el.markdown`, `el.text`, and `format="markdown"` (or `"text"`) makes a surrounding `<form>` submit that format instead of HTML. `el.value` always stays HTML, because that is what you set the content with.
+- Markdown covers headings, bold, italic, strikethrough, inline code, code blocks, links, images, quotes, lists (nested too) and tables (GFM; the first row becomes the header row). Underline and sub/superscript stay as inline HTML. Colours, fonts, sizes, alignment and columns are dropped, since Markdown cannot express them. A video becomes a link; sidebars become quotes.
+- Output only for now: there is no `setMarkdown()`.
+
 ## Texts and languages
 
 Every tooltip and popover text can be changed. Dutch is included:
