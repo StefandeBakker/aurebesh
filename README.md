@@ -375,7 +375,11 @@ the editor itself only runs in the browser. `sanitize()` needs a DOM (`DOMParser
 
 ## License
 
-MIT
+[MIT](LICENSE): free to use, also commercially.
+
+## Support
+
+Aurebesh is made and maintained by one person in their spare time. If it saves you time or you use it in a project that earns money, you can support it through [GitHub Sponsors](https://github.com/sponsors/StefandeBakker). It is never required.
 
 ## Development
 

@@ -128,5 +128,9 @@
     "typescript": "^5.6.0",
     "vitest": "^3.0.0",
     "vue": "^3.5.0"
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/StefandeBakker"
   }
 }
