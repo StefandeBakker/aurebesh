@@ -1,8 +1,9 @@
 name: Publish to npm
 
 # Runs when a release is published on GitHub (Releases -> Draft a new release, tag e.g. v1.0.1).
-# It publishes with npm "trusted publishing": no npm token is stored anywhere, GitHub proves to npm
+# It stages with npm "trusted publishing": no npm token is stored anywhere, GitHub proves to npm
 # which repository and workflow this is (OIDC) and npm adds a provenance statement to the package.
+# A maintainer must approve the staged package on npm with 2FA before it goes live.
 on:
   release:
     types: [published]
@@ -19,7 +20,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 24 # ships npm 11, trusted publishing needs npm 11.5.1 or newer
+          node-version: 24 # ships npm 11, staged publishing needs npm 11.15.0 or newer
           registry-url: https://registry.npmjs.org
 
       - name: The release tag must match the version in package.json
@@ -36,10 +37,10 @@ jobs:
 
       # prepublishOnly builds the package. A version with a dash (1.1.0-beta.0) goes out under the "beta" tag,
       # so it never becomes what `npm install aurebesh` gives people.
-      - name: Publish
+      - name: Stage package for npm approval
         run: |
           if node -p "require('./package.json').version" | grep -q -- '-'; then
-            npm publish --tag beta
+            npm stage publish --tag beta
           else
-            npm publish
+            npm stage publish
           fi
