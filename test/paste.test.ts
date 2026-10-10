@@ -189,8 +189,9 @@ describe('columns', () => {
   });
 });
 
-describe('Word newsletter template (a real clipboard, reduced)', () => {
-  const r = pasted(NEWSLETTER_HTML, newsletterRtf());
+// Needs test/fixtures/word-newsletter.html, a reduced real clipboard that is not committed (make one with `npm run capture`).
+(NEWSLETTER_HTML ? describe : describe.skip)('Word newsletter template (a real clipboard, reduced)', () => {
+  const r = pasted(NEWSLETTER_HTML ?? '', newsletterRtf());
   const dom = new DOMParser().parseFromString(r.out, 'text/html');
   const text = (el: Element | null | undefined) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
 

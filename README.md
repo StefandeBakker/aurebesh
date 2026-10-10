@@ -157,6 +157,7 @@ Error messages for bad links or files stay English.
 | `Mod+Shift+7` / `Mod+Shift+8` | Numbered / bullet list |
 | `Mod+Alt+1` / `2` / `3` | Heading 1 / 2 / 3 |
 | `Mod+Alt+C` | Code block |
+| `Ctrl/Cmd+click` on a link | Open the link in a new tab (a plain click only puts the caret in it) |
 | `Tab` / `Shift+Tab` in a list | Indent / outdent the item (nested lists) |
 | `Tab` / `Shift+Tab` in a table | Next / previous cell (Tab in the last cell adds a row) |
 | `Tab` in a code block | Insert two spaces |
@@ -166,6 +167,13 @@ Error messages for bad links or files stay English.
 `# ` `## ` `### ` heading · `- ` `* ` `+ ` bullet list · `1. ` numbered list · `> ` quote · ` ``` ` + Enter code block · `---` + Enter horizontal line.
 
 Enter, Tab and Space are left alone while an input method (Chinese, Japanese, Korean...) is composing text.
+
+## Links
+
+While the caret is in a link, a row under the toolbar shows its address with **Open link** (new tab), **Edit** (opens the link box with the address filled in) and **Remove link**.
+Ctrl/Cmd+click opens a link directly, and in a read-only editor a plain click does. Links open with `noopener,noreferrer`, so the new page can't reach back into yours,
+and only `http(s):`, `mailto:`, `tel:` and site paths are opened (never `javascript:`; `#anchors` aren't opened either). The texts can be changed with the `labels` option
+(`ui.openLink`, `ui.editLink`, `ui.removeLink`).
 
 ## Accessibility
 
@@ -330,3 +338,6 @@ npm run test:e2e  # real-browser tests (Playwright: Chromium, Firefox, WebKit)
 ```
 
 The first time, install the test browsers with `npx playwright install chromium firefox webkit`.
+
+One test group (a real Word newsletter, with sidebar, pull quote, columns and a picture) needs `test/fixtures/word-newsletter.html`, a reduced real clipboard that is not
+committed; those tests are skipped when it isn't there. Capture one with `npm run capture` if you want to run them.

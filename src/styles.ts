@@ -50,6 +50,9 @@ export const CSS = `
 .aurebesh-status.error{color:#b42318;background:#fef3f2}
 .aurebesh-content :not(pre)>code{padding:1px 5px;border-radius:4px;background:var(--aurebesh-code-bg,#f3f4f6);font-size:.9em}
 .aurebesh-size{max-width:90px}
+.aurebesh-link-tools{align-items:center}
+.aurebesh-link-url{flex:1 1 auto;min-width:0;max-width:340px;padding:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--aurebesh-accent,#2563eb)}
+.aurebesh-link-tools button{padding:0 10px}
 .aurebesh-pending{display:inline-block;min-width:120px;padding:18px 12px;margin:2px;border:1px dashed var(--aurebesh-border,#d0d5dd);border-radius:4px;background:var(--aurebesh-toolbar-bg,#f8f9fb);color:#667085;font-size:13px;text-align:center;vertical-align:middle;user-select:none}
 .aurebesh-pending::before{content:attr(data-label)}
 .aurebesh-image-tools{align-items:center}

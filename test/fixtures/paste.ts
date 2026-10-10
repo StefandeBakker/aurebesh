@@ -4,7 +4,7 @@
  * so real documents should still be tried by hand.
  */
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const PNG_BASE64 =
@@ -48,7 +48,9 @@ export const WORD_COLUMNS_HTML = `<html xmlns:o="urn:schemas-microsoft-com:offic
  * its structure: drawing data, settings blocks and links to the author's folders removed. Word 365 writes shapes as VML
  * (`<v:rect>` + `<v:textbox>`) with their position in percent of the page, and pictures as `<v:imagedata>` without any `<img>`.
  */
-export const NEWSLETTER_HTML = readFileSync(join(process.cwd(), 'test', 'fixtures', 'word-newsletter.html'), 'utf8');
+const NEWSLETTER_FILE = join(process.cwd(), 'test', 'fixtures', 'word-newsletter.html');
+/** The sample is not committed (it comes from a real document): null when the file is not there, and its tests are skipped. */
+export const NEWSLETTER_HTML: string | null = existsSync(NEWSLETTER_FILE) ? readFileSync(NEWSLETTER_FILE, 'utf8') : null;
 
 export const JPEG_BYTES = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01]);
 

@@ -12,6 +12,19 @@ const closestIn = (selector: string): HTMLElement | null => {
 
 export const currentLink = (): HTMLAnchorElement | null => closestIn('a') as HTMLAnchorElement | null;
 
+/** Whether an address is one the editor will open: http(s), mailto, tel or a path on this site (not `#anchors`, not scripts). */
+export const canOpenLink = (href: string | null | undefined): boolean => {
+  const url = (href ?? '').trim();
+  return !!url && !url.startsWith('#') && SAFE_LINK.test(url);
+};
+
+/** Opens a link in a new tab, without giving the new page access to this one. Returns false when the address is not openable. */
+export function openLink(href: string | null | undefined): boolean {
+  if (!canOpenLink(href)) return false;
+  window.open((href as string).trim(), '_blank', 'noopener,noreferrer');
+  return true;
+}
+
 /** Accepts what people type: `example.com`, `me@example.com`, full URLs. Throws for anything unsafe. */
 export function normalizeLink(input: string): string {
   const v = input.trim();

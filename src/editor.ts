@@ -8,7 +8,7 @@ import { COMMANDS, DEFAULT_TOOLBAR, TABLE_TOOLS } from './commands';
 import type { CommandDef } from './commands';
 import { currentPre, handleCodeKey, insertCode } from './codeblock';
 import { clearHighlights, highlightCode } from './highlight';
-import { currentLink, normalizeLink } from './inline';
+import { canOpenLink, currentLink, normalizeLink, openLink } from './inline';
 import { DEFAULT_LABELS } from './labels';
 import type { Labels } from './labels';
 import { selectedImage } from './media';
@@ -82,6 +82,10 @@ export class Aurebesh {
   private tableTools: HTMLElement | null = null;
   private imageTools: HTMLElement | null = null;
   private imageAltInput: HTMLInputElement | null = null;
+  private linkTools: HTMLElement | null = null;
+  private linkUrl: HTMLElement | null = null;
+  private linkOpen: HTMLButtonElement | null = null;
+  private lastLink: HTMLAnchorElement | null = null;
   private lastImage: HTMLImageElement | null = null;
   private sizeSelect: HTMLSelectElement | null = null;
   private columnsSelect: HTMLSelectElement | null = null;
@@ -144,7 +148,7 @@ export class Aurebesh {
       if ((e as DragEvent).dataTransfer?.types.includes('Files')) e.preventDefault();
     });
     this.listen(this.content, 'drop', (e) => this.onDrop(e as DragEvent));
-    this.listen(this.content, 'click', (e) => this.selectMedia(e.target as HTMLElement));
+    this.listen(this.content, 'click', (e) => this.onClick(e as MouseEvent));
     this.listen(doc, 'selectionchange', () => this.updateToolbar());
 
     this.statusEl = doc.createElement('div');
@@ -342,6 +346,39 @@ export class Aurebesh {
     }
 
     if (items.includes('image')) this.buildImageTools();
+    if (items.includes('link')) this.buildLinkTools();
+  }
+
+  /** Row that appears while the caret is in a link: its address, Open (new tab), Edit and Remove. */
+  private buildLinkTools(): void {
+    const doc = this.container.ownerDocument;
+    const tools = doc.createElement('div');
+    tools.className = 'aurebesh-toolbar aurebesh-link-tools';
+    tools.setAttribute('role', 'toolbar');
+    tools.setAttribute('aria-label', this.t('ui.linkTools'));
+    tools.hidden = true;
+
+    const url = doc.createElement('span');
+    url.className = 'aurebesh-link-url';
+    this.linkUrl = url;
+    tools.appendChild(url);
+
+    const add = (label: string, run: () => void): HTMLButtonElement => {
+      const b = doc.createElement('button');
+      b.type = 'button';
+      b.textContent = label;
+      b.addEventListener('mousedown', (e) => e.preventDefault()); // keep the caret in the link
+      b.addEventListener('click', run);
+      tools.appendChild(b);
+      return b;
+    };
+    this.linkOpen = add(this.t('ui.openLink'), () => openLink(this.lastLink?.getAttribute('href')));
+    add(this.t('ui.editLink'), () => this.buttons.get('link')?.click());
+    add(this.t('ui.removeLink'), () => this.exec('link', ''));
+
+    this.linkTools = tools;
+    this.root.appendChild(tools);
+    rovingToolbar(tools, () => this.content.focus());
   }
 
   /** Text for a key: the `labels` option, then the built-in English text. `{name}` placeholders are filled from `vars`. */
@@ -614,6 +651,23 @@ export class Aurebesh {
       sel?.addRange(range);
     }
     void this.uploadFiles(files);
+  }
+
+  /**
+   * A click on a link: Ctrl/Cmd+click opens it while editing (a plain click only places the caret, which shows the link row),
+   * and in a read-only editor a plain click opens it. Otherwise a click on an image, video or embed selects it.
+   */
+  private onClick(e: MouseEvent): void {
+    const target = e.target as HTMLElement;
+    const link = target.closest('a');
+    if (link && this.content.contains(link)) {
+      if (!this.content.isContentEditable || e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        openLink(link.getAttribute('href'));
+      }
+      return;
+    }
+    this.selectMedia(target);
   }
 
   /** Clicking an image, video or embed selects it as a whole, so Backspace/Delete removes it. */
@@ -945,6 +999,19 @@ export class Aurebesh {
     const inside = !!sel && sel.rangeCount > 0 && this.content.contains(sel.anchorNode);
     if (inside) this.lastRange = sel!.getRangeAt(0).cloneRange();
     if (this.tableTools) this.tableTools.hidden = !(inside && currentCell());
+    if (this.linkTools) {
+      const link = inside && this.content.isContentEditable ? currentLink() : null;
+      if (link) {
+        this.lastLink = link;
+        const href = link.getAttribute('href') ?? '';
+        if (this.linkUrl) {
+          this.linkUrl.textContent = href;
+          this.linkUrl.title = href;
+        }
+        if (this.linkOpen) this.linkOpen.disabled = !canOpenLink(href);
+      }
+      this.linkTools.hidden = !link && !this.linkTools.contains(this.container.ownerDocument.activeElement);
+    }
     if (this.imageTools) {
       const img = inside ? selectedImage() : null;
       if (img) {

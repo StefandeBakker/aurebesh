@@ -198,9 +198,10 @@ test.describe('pasting from Word', () => {
 
 test.describe('pasting a Word newsletter with floating text boxes', () => {
   test('the sidebar floats at the right, the pull quote sits in the columns, the picture keeps its size, and the headings stay clean', async ({ page }) => {
+    test.skip(!NEWSLETTER_HTML, 'needs test/fixtures/word-newsletter.html (a reduced real clipboard, not committed; make one with `npm run capture`)');
     await open(page);
     // A real (tiny) picture, so the browser can lay it out; the RTF says "jpeg" like Word's does, browsers sniff the real type.
-    await paste(page, { html: NEWSLETTER_HTML, rtf: newsletterRtf(pngBytes()) });
+    await paste(page, { html: NEWSLETTER_HTML!, rtf: newsletterRtf(pngBytes()) });
     await expect.poll(async () => (await srcs(page)).length).toBe(1);
     await expect(page.locator('.aurebesh-pending')).toHaveCount(0);
 

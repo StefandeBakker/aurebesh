@@ -185,6 +185,100 @@ test.describe('formatting', () => {
     await expect(size).toHaveValue('5');
   });
 
+  test.describe('opening links', () => {
+    const LINKED = '<p>see <a href="https://example.com/page">the link</a> here</p>';
+    const MOD = process.platform === 'darwin' ? 'Meta' : 'Control';
+
+    test.beforeEach(async ({ page }) => {
+      // The pages the tests open: no network needed.
+      await page.context().route('https://example.com/**', (route) => route.fulfill({ contentType: 'text/html', body: '<title>opened</title>' }));
+    });
+
+    test('a row with the address and Open / Edit / Remove shows while the caret is in a link, and hides outside it', async ({ page }) => {
+      await open(page, LINKED);
+      const row = page.locator('.aurebesh-link-tools');
+      await expect(row).toBeHidden();
+      await content(page).locator('a').click();
+      await expect(row).toBeVisible();
+      await expect(row.locator('.aurebesh-link-url')).toHaveText('https://example.com/page');
+      for (const name of ['Open link', 'Edit', 'Remove link']) await expect(row.getByRole('button', { name })).toBeVisible();
+      await content(page).locator('p').click({ position: { x: 3, y: 5 } }); // before the link
+      await expect(row).toBeHidden();
+    });
+
+    test('Open link opens the address in a new tab that cannot reach back to the editor', async ({ page }) => {
+      await open(page, LINKED);
+      await content(page).locator('a').click();
+      const popupPromise = page.waitForEvent('popup');
+      await page.locator('.aurebesh-link-tools').getByRole('button', { name: 'Open link' }).click();
+      const popup = await popupPromise;
+      await popup.waitForLoadState();
+      expect(popup.url()).toBe('https://example.com/page');
+      expect(await popup.evaluate(() => window.opener)).toBeNull(); // noopener
+    });
+
+    test('Edit opens the link box with the address filled in, and Remove takes the link away', async ({ page }) => {
+      await open(page, LINKED);
+      await content(page).locator('a').click();
+      await page.locator('.aurebesh-link-tools').getByRole('button', { name: 'Edit' }).click();
+      await expect(page.locator('input[inputmode="url"]')).toHaveValue('https://example.com/page');
+      await page.keyboard.press('Escape');
+
+      await content(page).locator('a').click();
+      await page.locator('.aurebesh-link-tools').getByRole('button', { name: 'Remove link' }).click();
+      expect(await html(page)).not.toContain('<a');
+      await expect(page.locator('.aurebesh-link-tools')).toBeHidden();
+    });
+
+    test('Ctrl/Cmd+click opens a link while editing; a plain click only places the caret', async ({ page }) => {
+      await open(page, LINKED);
+      let opened = 0;
+      page.on('popup', () => opened++);
+      await content(page).locator('a').click();
+      await page.waitForTimeout(250);
+      expect(opened).toBe(0);
+      const popupPromise = page.waitForEvent('popup');
+      await content(page).locator('a').click({ modifiers: [MOD] });
+      expect((await popupPromise).url()).toBe('https://example.com/page');
+      expect(opened).toBe(1);
+    });
+
+    test('in a read-only editor a plain click opens the link', async ({ page }) => {
+      await open(page, LINKED);
+      await page.evaluate(() => (window as any).ed.setAttribute('readonly', ''));
+      const popupPromise = page.waitForEvent('popup');
+      await content(page).locator('a').click();
+      expect((await popupPromise).url()).toBe('https://example.com/page');
+    });
+
+    test('an address that is not safe (a script) is never opened, and its Open button is off', async ({ page }) => {
+      await open(page);
+      // Raw DOM on purpose: the sanitizer would remove such an href, but it must not be run if one is ever there.
+      await page.evaluate(() => {
+        (window as any).ran = false;
+        document.querySelector('.aurebesh-content')!.innerHTML = '<p>x <a href="javascript:window.ran=true">bad</a></p>';
+      });
+      let opened = 0;
+      page.on('popup', () => opened++);
+      await content(page).locator('a').click({ modifiers: [MOD] });
+      await page.waitForTimeout(250);
+      expect(opened).toBe(0);
+      expect(await page.evaluate(() => (window as any).ran)).toBe(false);
+      await content(page).locator('a').click();
+      await expect(page.locator('.aurebesh-link-tools').getByRole('button', { name: 'Open link' })).toBeDisabled();
+    });
+
+    test('the row can be translated with the labels option', async ({ page }) => {
+      await open(page, LINKED);
+      await page.evaluate(() => {
+        (window as any).ed.options = { labels: { 'ui.openLink': 'Link openen', 'ui.editLink': 'Bewerken' } };
+      });
+      await content(page).locator('a').click();
+      await expect(page.locator('.aurebesh-link-tools').getByRole('button', { name: 'Link openen' })).toBeVisible();
+      await expect(page.locator('.aurebesh-link-tools').getByRole('button', { name: 'Bewerken' })).toBeVisible();
+    });
+  });
+
   test('horizontal line and lists', async ({ page }) => {
     await open(page);
     await type(page, 'one');
