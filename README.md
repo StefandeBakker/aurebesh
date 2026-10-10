@@ -394,3 +394,15 @@ The first time, install the test browsers with `npx playwright install chromium 
 
 One test group (a real Word newsletter, with sidebar, pull quote, columns and a picture) needs `test/fixtures/word-newsletter.html`, a reduced real clipboard that is not
 committed; those tests are skipped when it isn't there. Capture one with `npm run capture` if you want to run them.
+
+### Releasing
+
+Publish a GitHub release with a tag matching `package.json` (for example, `v1.0.0`).
+The `publish.yml` workflow uses npm trusted publishing to stage the package, not publish it directly.
+Configure the package's npm trusted publisher with owner `StefandeBakker`, repository `aurebesh`,
+workflow filename `publish.yml`, and no environment. New trusted publishers allow staging by default;
+direct `npm publish` requires a separate permission.
+
+After the workflow succeeds, review and approve the package in npm's **Staged Packages** tab with 2FA,
+or run `npm stage approve <stage-id>` in an authenticated maintainer session (npm 11.15.0 or newer).
+Only approval makes the version public. Prerelease versions retain the `beta` tag; stable versions use `latest`.
