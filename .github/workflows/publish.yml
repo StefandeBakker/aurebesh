@@ -1,0 +1,45 @@
+name: Publish to npm
+
+# Runs when a release is published on GitHub (Releases -> Draft a new release, tag e.g. v1.0.1).
+# It publishes with npm "trusted publishing": no npm token is stored anywhere, GitHub proves to npm
+# which repository and workflow this is (OIDC) and npm adds a provenance statement to the package.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write # needed for trusted publishing
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24 # ships npm 11, trusted publishing needs npm 11.5.1 or newer
+          registry-url: https://registry.npmjs.org
+
+      - name: The release tag must match the version in package.json
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          if [ "v$VERSION" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $VERSION"
+            exit 1
+          fi
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+      # prepublishOnly builds the package. A version with a dash (1.1.0-beta.0) goes out under the "beta" tag,
+      # so it never becomes what `npm install aurebesh` gives people.
+      - name: Publish
+        run: |
+          if node -p "require('./package.json').version" | grep -q -- '-'; then
+            npm publish --tag beta
+          else
+            npm publish
+          fi
