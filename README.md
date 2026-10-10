@@ -397,7 +397,7 @@ committed; those tests are skipped when it isn't there. Capture one with `npm ru
 
 ### Releasing
 
-Publish a GitHub release with a tag matching `package.json` (for example, `v1.0.0`).
+Publish a GitHub release with a tag matching `package.json` (for example, `v1.0.1`).
 The `publish.yml` workflow uses npm trusted publishing to stage the package, not publish it directly.
 Configure the package's npm trusted publisher with owner `StefandeBakker`, repository `aurebesh`,
 workflow filename `publish.yml`, and no environment. New trusted publishers allow staging by default;
