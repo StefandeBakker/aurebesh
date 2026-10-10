@@ -8,7 +8,7 @@ A vanilla TypeScript core plus an `<aurebesh-editor>` web component, with thin w
 npm install aurebesh
 ```
 
-**Features:** bold/italic/underline/strike, inline code, super/subscript, headings, quotes, lists, text alignment, font and text size, text and highlight colour, links (with a small editor), images (upload, paste, drag and drop, width/alignment/alt tools), YouTube/Vimeo/mp4 video, tables (size picker, header row, row/column tools, Tab navigation, undo), code blocks with syntax highlighting, horizontal line, undo/redo, translatable UI, form integration.
+**Features:** bold/italic/underline/strike, inline code, super/subscript, headings, quotes, lists, text alignment, font and text size, text and highlight colour, links (with a small editor), images (upload, paste, drag and drop, width/alignment/alt tools), YouTube/Vimeo/mp4 video, tables (size picker, header row, row/column tools, merge and split cells, drag column borders, Tab navigation, undo), code blocks with syntax highlighting, horizontal line, undo/redo, translatable UI, form integration.
 
 ## Vanilla
 
@@ -150,6 +150,13 @@ editor.setMaxLength(300); editor.setCounter(false); editor.isOverLimit();
 - Web component: attributes `maxlength="500"` and `counter`, events `ready` (detail: the instance) and `count` (detail: the stats). React: props `maxLength`, `counter`, `onReady`, `onCount`. Vue: props `max-length`, `counter` and events `@ready`, `@count`.
 - Text input through an input method (IME) cannot be cancelled while composing; the limit is then enforced by the validity check.
 - Texts are `ui.words.*`, `ui.characters.*` and `ui.limitReached` in `labels`.
+
+## Tables: merging cells and column widths
+
+- **Merge**: select across cells by dragging and press *Merge cells* in the table tools row; the text of the cells is kept, one after the other. The selection is read as a rectangle, and a merged cell that sticks out of it is taken in. **Split** turns a merged cell back into single cells (the text stays in the first). Both buttons are only on when they can do something. Merging and splitting are part of the undo history.
+- **Rows and columns** keep working in tables with merged cells: a row or column added inside a merged cell makes it bigger, one added beside it gets matching cells, and deleting shrinks a merged cell instead of breaking the table.
+- **Column widths**: drag the border between two columns (the pointer changes). Widths are stored as percentages in a `<colgroup>` (`<col style="width: 40%">`), so the table keeps its proportions when the editor is resized; a column never gets narrower than 5%. Dragging is a direct DOM edit, so Ctrl+Z does not undo it, and it needs a mouse or pen (not touch yet). Adding or deleting a column keeps the other widths in proportion.
+- The sanitizer keeps `colspan`/`rowspan` (plain numbers) and `<col>` widths in percent; a `<colgroup>` without usable widths (Word writes one) is removed. Markdown cannot merge cells: the text goes in the first position a merged cell covers, the rest stays empty.
 
 ## Output formats: HTML, Markdown, text
 

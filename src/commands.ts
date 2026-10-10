@@ -3,10 +3,10 @@ import { currentColumns, setColumns } from './columns';
 import { currentDirection, setDirection } from './direction';
 import { currentLink, isInlineCode, setLink, toggleInlineCode } from './inline';
 import { insertImage, insertVideo, insertVideoFile, setImageAlign, setImageAlt, setImageWidth } from './media';
-import { addColumn, addRow, deleteColumn, deleteRow, deleteTable, insertTable, toggleHeaderRow } from './table';
+import { addColumn, addRow, canMerge, canSplit, deleteColumn, deleteRow, deleteTable, insertTable, mergeCells, splitCell, toggleHeaderRow } from './table';
 
 /** Shown in a second toolbar row while the cursor is inside a table. */
-export const TABLE_TOOLS = ['tableHeader', 'tableRowAdd', 'tableColAdd', 'tableRowDel', 'tableColDel', 'tableDel'];
+export const TABLE_TOOLS = ['tableHeader', 'tableRowAdd', 'tableColAdd', 'tableRowDel', 'tableColDel', 'tableMerge', 'tableSplit', 'tableDel'];
 
 export interface CommandDef {
   name: string;
@@ -16,6 +16,8 @@ export interface CommandDef {
   run: (arg?: string, extra?: string) => void;
   /** Whether the command is active at the current selection. */
   isActive?: () => boolean;
+  /** Whether the command can do anything at the current selection; the button is disabled when not. */
+  isEnabled?: () => boolean;
 }
 
 const exec = (cmd: string, value?: string) => document.execCommand(cmd, false, value);
@@ -144,6 +146,8 @@ export const COMMANDS: Record<string, CommandDef> = {
   tableHeader: { name: 'tableHeader', label: 'Header', title: 'Toggle header row', run: () => toggleHeaderRow() },
   tableRowAdd: { name: 'tableRowAdd', label: '+ Row', title: 'Insert row below', run: () => addRow() },
   tableColAdd: { name: 'tableColAdd', label: '+ Col', title: 'Insert column right', run: () => addColumn() },
+  tableMerge: { name: 'tableMerge', label: 'Merge', title: 'Merge cells', run: () => mergeCells(), isEnabled: canMerge },
+  tableSplit: { name: 'tableSplit', label: 'Split', title: 'Split cell', run: () => splitCell(), isEnabled: canSplit },
   tableRowDel: { name: 'tableRowDel', label: '− Row', title: 'Delete row', run: () => deleteRow() },
   tableColDel: { name: 'tableColDel', label: '− Col', title: 'Delete column', run: () => deleteColumn() },
   tableDel: { name: 'tableDel', label: 'Delete table', title: 'Delete table', run: () => deleteTable() },

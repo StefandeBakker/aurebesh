@@ -24,6 +24,8 @@ export const CSS = `
 .aurebesh-content table{border-collapse:collapse;margin:.5em 0;width:100%;table-layout:fixed}
 .aurebesh-content td,.aurebesh-content th{border:1px solid var(--aurebesh-border,#d0d5dd);padding:6px 8px;vertical-align:top;min-width:30px}
 .aurebesh-content th{background:var(--aurebesh-toolbar-bg,#f8f9fb);font-weight:600;text-align:start}
+.aurebesh-content.aurebesh-col-resize,.aurebesh-content.aurebesh-col-resize *{cursor:col-resize}
+.aurebesh-content.aurebesh-col-resizing{user-select:none}
 .aurebesh-swatch-btn{border-bottom:3px solid var(--swatch,transparent)!important;border-radius:4px 4px 0 0!important}
 .aurebesh-swatch-color{font-weight:700}
 .aurebesh-swatch-highlight{background:#fef08a!important;color:#111!important}

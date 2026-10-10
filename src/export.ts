@@ -1,5 +1,6 @@
 /** Output formats besides HTML: Markdown and plain text. Both need a DOM (browser, or jsdom on the server). */
 import { plainText } from './stats';
+import { modelOf } from './table';
 
 export type OutputFormat = 'html' | 'markdown' | 'text';
 
@@ -143,7 +144,16 @@ function cell(el: Element): string {
 }
 
 function table(el: Element): string {
-  const rows = Array.from(el.querySelectorAll('tr')).map((tr) => Array.from(tr.children).map(cell));
+  // Markdown tables cannot merge cells: the text stays in the first position a merged cell covers, the rest is empty.
+  const model = modelOf(el as HTMLTableElement);
+  const seen = new Set<Element>();
+  const rows = model.m.map((row) =>
+    row.map((c) => {
+      if (!c || seen.has(c)) return '';
+      seen.add(c);
+      return cell(c);
+    }),
+  );
   if (!rows.length) return '';
   const width = Math.max(...rows.map((r) => r.length));
   const pad = (r: string[]) => Array.from({ length: width }, (_, i) => r[i] ?? '');

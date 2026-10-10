@@ -136,6 +136,8 @@ export const LABELS_NL: Labels = {
   tableHeader: 'Koprij aan/uit',
   tableRowAdd: 'Rij eronder invoegen',
   tableColAdd: 'Kolom rechts invoegen',
+  tableMerge: 'Cellen samenvoegen',
+  tableSplit: 'Cel splitsen',
   tableRowDel: 'Rij verwijderen',
   tableColDel: 'Kolom verwijderen',
   tableDel: 'Tabel verwijderen',

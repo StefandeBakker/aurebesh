@@ -5,7 +5,7 @@ import { IFRAME_ATTRS, isEmbedSrc, isSafeImageSrc, isSafeVideoSrc } from './medi
 const ALLOWED_TAGS = new Set([
   'p', 'br', 'div', 'span', 'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del',
   'h1', 'h2', 'h3', 'blockquote', 'ul', 'ol', 'li', 'a', 'code', 'pre', 'hr',
-  'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th',
+  'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'colgroup', 'col',
   'img', 'video', 'sup', 'sub', 'aside',
 ]);
 const DROP_WITH_CONTENT = new Set(['script', 'style', 'iframe', 'object', 'embed', 'noscript', 'template']);
@@ -65,6 +65,8 @@ const ASIDE_STYLES: StyleRules = {
   'margin-right': /^auto$/,
 };
 const STYLES_BY_TAG: Record<string, StyleRules> = {
+  /** Column widths, in percent: what dragging a column border sets. */
+  col: { width: /^\d{1,3}(?:\.\d{1,2})?%$/ },
   aside: ASIDE_STYLES,
   span: SPAN_STYLES,
   img: IMG_STYLES,
@@ -166,6 +168,11 @@ function clean(parent: Node): void {
       }
     }
     clean(el);
+    // A <col> without a usable width says nothing (Word writes one per column), and a <colgroup> of those is noise.
+    if ((tag === 'col' && !el.getAttribute('style')) || (tag === 'colgroup' && !el.children.length)) {
+      el.remove();
+      continue;
+    }
     // A <span> that lost all its styles carries nothing: keep its content, drop the wrapper.
     if (tag === 'span' && !el.attributes.length) {
       while (el.firstChild) el.parentNode!.insertBefore(el.firstChild, el);

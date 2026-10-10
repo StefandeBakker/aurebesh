@@ -12,7 +12,8 @@ import { canOpenLink, currentLink, normalizeLink, openLink } from './inline';
 import { DEFAULT_LABELS } from './labels';
 import type { Labels } from './labels';
 import { selectedImage } from './media';
-import { currentCell, handleTab } from './table';
+import { currentCell, handleTab, trackCellDrag } from './table';
+import { attachColumnResize } from './table-resize';
 import { DEFAULT_FONTS, firstFamily, SAFE_FAMILY } from './fonts';
 import type { FontDef } from './fonts';
 import { base64Adapter, resultUrl } from './media';
@@ -116,6 +117,7 @@ export class Aurebesh {
   private counterEl: HTMLElement | null = null;
   private stats: TextStats = { characters: 0, charactersNoSpaces: 0, words: 0 };
   private isReady = false;
+  private pointerHeld = false;
 
   constructor(private container: HTMLElement, options: AurebeshOptions = {}) {
     const doc = container.ownerDocument;
@@ -178,6 +180,25 @@ export class Aurebesh {
     this.listen(this.content, 'drop', (e) => this.onDrop(e as DragEvent));
     this.listen(this.content, 'click', (e) => this.onClick(e as MouseEvent));
     this.listen(doc, 'selectionchange', () => this.updateToolbar());
+    // The table tools row appears when a cell is clicked, which moves the table down. Doing that in the middle of a drag
+    // across cells would put the pointer on other cells, so the row waits until the button is released.
+    this.cleanup.push(trackCellDrag(this.content)); // before the mouseup below, which needs what it found
+    this.listen(this.content, 'mousedown', () => (this.pointerHeld = true));
+    this.listen(doc, 'mouseup', () => {
+      if (!this.pointerHeld) return;
+      this.pointerHeld = false;
+      this.updateToolbar();
+    });
+    this.cleanup.push(
+      attachColumnResize(
+        this.content,
+        () => this.content.isContentEditable,
+        () => {
+          this.emit('change', this.getHTML());
+          this.updateToolbar();
+        },
+      ),
+    );
 
     this.statusEl = doc.createElement('div');
     this.statusEl.className = 'aurebesh-status';
@@ -1122,7 +1143,7 @@ export class Aurebesh {
     const sel = this.container.ownerDocument.getSelection();
     const inside = !!sel && sel.rangeCount > 0 && this.content.contains(sel.anchorNode);
     if (inside) this.lastRange = sel!.getRangeAt(0).cloneRange();
-    if (this.tableTools) this.tableTools.hidden = !(inside && currentCell());
+    if (this.tableTools && !this.pointerHeld) this.tableTools.hidden = !(inside && currentCell());
     if (this.linkTools) {
       const link = inside && this.content.isContentEditable ? currentLink() : null;
       if (link) {
@@ -1163,6 +1184,8 @@ export class Aurebesh {
     this.buttons.forEach((btn, name) => {
       const active = inside && (COMMANDS[name].isActive?.() ?? false);
       btn.setAttribute('aria-pressed', String(active));
+      const enabled = COMMANDS[name].isEnabled;
+      if (enabled) btn.disabled = !this.content.isContentEditable || !(inside && enabled());
     });
   }
 
