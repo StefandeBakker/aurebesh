@@ -83,7 +83,8 @@
     "test": "vitest run",
     "test:e2e": "tsup && playwright test",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run typecheck && npm test && npm run build"
+    "prepublishOnly": "npm run typecheck && npm test && npm run build",
+    "capture": "node scripts/capture-server.mjs"
   },
   "keywords": [
     "wysiwyg",

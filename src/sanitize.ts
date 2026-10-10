@@ -6,7 +6,7 @@ const ALLOWED_TAGS = new Set([
   'p', 'br', 'div', 'span', 'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del',
   'h1', 'h2', 'h3', 'blockquote', 'ul', 'ol', 'li', 'a', 'code', 'pre', 'hr',
   'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th',
-  'img', 'video', 'sup', 'sub',
+  'img', 'video', 'sup', 'sub', 'aside',
 ]);
 const DROP_WITH_CONTENT = new Set(['script', 'style', 'iframe', 'object', 'embed', 'noscript', 'template']);
 const ALLOWED_ATTRS: Record<string, string[]> = {
@@ -27,12 +27,18 @@ export function sanitize(html: string): string {
 
 type StyleRules = Record<string, RegExp>;
 
+const TEXT_TRANSFORM = /^(?:uppercase|lowercase|capitalize)$/;
 const SPAN_STYLES: StyleRules = {
   'font-family': SAFE_FAMILY,
   color: SAFE_COLOR,
   'background-color': SAFE_COLOR,
   'font-size': /^(?:x-small|small|medium|large|x-large|xx-large|xxx-large)$/,
+  'text-transform': TEXT_TRANSFORM,
 };
+/** Padding of a filled box: one to four lengths in pt, px or em. */
+const PADDING = /^\d{1,3}(?:\.\d{1,2})?(?:pt|px|em)(?:\s+\d{1,3}(?:\.\d{1,2})?(?:pt|px|em)){0,3}$/;
+/** The look of a filled box (a Word text box): background, text colour, padding. */
+const BOX_STYLES: StyleRules = { 'background-color': SAFE_COLOR, color: SAFE_COLOR, padding: PADDING };
 const BLOCK_STYLES: StyleRules = { 'text-align': /^(?:left|center|right|justify)$/ };
 const IMG_STYLES: StyleRules = {
   width: /^\d{1,3}%$/,
@@ -40,10 +46,29 @@ const IMG_STYLES: StyleRules = {
   'margin-left': /^(?:auto|0|0px)$/,
   'margin-right': /^(?:auto|0|0px)$/,
 };
+/** A <div> may also be a newspaper-style column block: 2-4 columns with an optional gap. */
+const COLUMN_STYLES: StyleRules = {
+  ...BLOCK_STYLES,
+  ...BOX_STYLES,
+  'column-count': /^[2-4]$/,
+  'column-gap': /^\d{1,3}(?:\.\d{1,2})?(?:px|pt|em|rem)$/,
+};
+/** An <aside> is a sidebar or pull quote beside the text: it may float left or right with a width. */
+const ASIDE_STYLES: StyleRules = {
+  ...BOX_STYLES,
+  float: /^(?:left|right)$/,
+  width: /^\d{1,3}%$/,
+  // a pull quote between columns: spans all of them, centred
+  'column-span': /^all$/,
+  'margin-left': /^auto$/,
+  'margin-right': /^auto$/,
+};
 const STYLES_BY_TAG: Record<string, StyleRules> = {
+  aside: ASIDE_STYLES,
   span: SPAN_STYLES,
   img: IMG_STYLES,
-  ...Object.fromEntries(['p', 'div', 'h1', 'h2', 'h3', 'li', 'blockquote', 'td', 'th'].map((t) => [t, BLOCK_STYLES])),
+  ...Object.fromEntries(['p', 'h1', 'h2', 'h3', 'li', 'blockquote', 'td', 'th'].map((t) => [t, BLOCK_STYLES])),
+  div: COLUMN_STYLES,
 };
 
 /** Keeps only the few style properties each tag may carry, with safe values; everything else is dropped. */

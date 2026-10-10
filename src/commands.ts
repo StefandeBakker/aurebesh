@@ -1,4 +1,5 @@
 import { SAFE_COLOR } from './colors';
+import { currentColumns, setColumns } from './columns';
 import { currentLink, isInlineCode, setLink, toggleInlineCode } from './inline';
 import { insertImage, insertVideo, insertVideoFile, setImageAlign, setImageAlt, setImageWidth } from './media';
 import { addColumn, addRow, deleteColumn, deleteRow, deleteTable, insertTable, toggleHeaderRow } from './table';
@@ -86,6 +87,14 @@ export const COMMANDS: Record<string, CommandDef> = {
       if (family) withCss(() => exec('fontName', family));
     },
   },
+  /** run('1'..'4'): newspaper-style columns for the selected blocks (1 removes them). */
+  columns: {
+    name: 'columns',
+    label: 'Columns',
+    title: 'Columns',
+    run: (count) => setColumns(Number(count) || 1),
+    isActive: () => currentColumns() > 1,
+  },
   /** run('1'..'7'): the browser's seven size steps (small .. huge). */
   size: {
     name: 'size',
@@ -144,7 +153,7 @@ export const DEFAULT_TOOLBAR = [
   'bold', 'italic', 'underline', 'strike', 'code', '|',
   'color', 'highlight', '|',
   'h1', 'h2', 'quote', 'codeblock', '|',
-  'ul', 'ol', 'alignLeft', 'alignCenter', 'alignRight', '|',
+  'ul', 'ol', 'alignLeft', 'alignCenter', 'alignRight', 'columns', '|',
   'link', 'image', 'video', 'table', 'hr', '|',
   'clear', 'undo', 'redo',
 ];

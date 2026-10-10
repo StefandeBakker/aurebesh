@@ -27,8 +27,10 @@ function lineStartText(sel: Selection): Text | null {
   const parent = node.parentElement;
   if (!parent || !parent.closest(ROOT)) return null;
   const content = parent.closest(ROOT)!;
-  // A paragraph/div directly in the editor, with nothing before this text...
-  if ((parent.tagName === 'P' || parent.tagName === 'DIV') && parent.parentElement === content) return node.previousSibling ? null : (node as Text);
+  // A paragraph/div directly in the editor (or in a column block), with nothing before this text...
+  const container = parent.parentElement;
+  const inEditor = container === content || !!container?.matches('div[style*="column-count"]');
+  if ((parent.tagName === 'P' || parent.tagName === 'DIV') && inEditor) return node.previousSibling ? null : (node as Text);
   // ...or bare text directly in the editor (a fresh editor has no paragraph yet) that starts a line.
   if (parent === content) {
     const prev = node.previousSibling;

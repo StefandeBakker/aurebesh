@@ -1,6 +1,8 @@
 export { Aurebesh } from './editor';
 export type { AurebeshOptions, AurebeshEvents } from './editor';
 export { insertTable, addRow, addColumn, deleteRow, deleteColumn, deleteTable } from './table';
+export { preparePaste, extractRtfImages, extractRtfShapePictures } from './paste';
+export type { PasteImagePolicy, PendingImage, PreparedPaste } from './paste';
 export { tokenize, highlightCode } from './highlight';
 export type { Token, TokenType } from './highlight';
 export {

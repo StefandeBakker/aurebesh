@@ -1,4 +1,5 @@
 import { gridNavigation, rovingToolbar } from './a11y';
+import { columnsOf, currentColumns } from './columns';
 import { handleListKey } from './lists';
 import { applyMarkdown } from './markdown';
 import { shortcutFor } from './shortcuts';
@@ -16,7 +17,9 @@ import { DEFAULT_FONTS, firstFamily, SAFE_FAMILY } from './fonts';
 import type { FontDef } from './fonts';
 import { base64Adapter, resultUrl } from './media';
 import type { MediaAdapter, MediaKind, MediaUploadFn } from './media';
-import { IMAGE_TYPES, VIDEO_TYPES } from './media-urls';
+import { IMAGE_TYPES, isSafeImageSrc, VIDEO_TYPES } from './media-urls';
+import { MARKER, preparePaste } from './paste';
+import type { PasteImagePolicy, PendingImage } from './paste';
 import { sanitize } from './sanitize';
 import { CSS } from './styles';
 
@@ -29,6 +32,12 @@ export interface MediaOptions {
   adapter?: MediaAdapter | MediaUploadFn | null;
   /** Allow adding images/videos by link. Default true. */
   allowUrl?: boolean;
+  /**
+   * What happens to images in pasted content (Word, Google Docs, web pages): `'upload'` copies them through the
+   * adapter (default), `'link'` keeps links to the source for web images, `'remove'` leaves them out.
+   * Pictures from Word's clipboard have no link and can only be uploaded.
+   */
+  pasteImages?: PasteImagePolicy;
 }
 
 export interface AurebeshOptions {
@@ -75,10 +84,12 @@ export class Aurebesh {
   private imageAltInput: HTMLInputElement | null = null;
   private lastImage: HTMLImageElement | null = null;
   private sizeSelect: HTMLSelectElement | null = null;
+  private columnsSelect: HTMLSelectElement | null = null;
   private labels: Labels;
   private colors: string[];
   private adapter: MediaAdapter | null;
   private allowUrl: boolean;
+  private pasteImages: PasteImagePolicy;
   private statusEl: HTMLElement | null = null;
   private statusTimer: ReturnType<typeof setTimeout> | undefined;
   private pendingUploads = 0;
@@ -91,6 +102,7 @@ export class Aurebesh {
     const adapter = options.media?.adapter;
     this.adapter = adapter === undefined ? base64Adapter() : typeof adapter === 'function' ? { upload: adapter } : adapter;
     this.allowUrl = options.media?.allowUrl ?? true;
+    this.pasteImages = options.media?.pasteImages ?? 'upload';
     this.colors = (options.colors ?? DEFAULT_COLORS).filter((c) => SAFE_COLOR.test(c));
     this.fonts = (options.fonts ?? DEFAULT_FONTS).filter((f) => SAFE_FAMILY.test(f.family));
     this.root = doc.createElement('div');
@@ -208,6 +220,7 @@ export class Aurebesh {
     this.buttons.forEach((b) => (b.disabled = readOnly));
     if (this.fontSelect) this.fontSelect.disabled = readOnly;
     if (this.sizeSelect) this.sizeSelect.disabled = readOnly;
+    if (this.columnsSelect) this.columnsSelect.disabled = readOnly;
   }
 
   setPlaceholder(text: string): void {
@@ -283,6 +296,10 @@ export class Aurebesh {
       }
       if (item === 'size') {
         bar.appendChild(this.buildSizeSelect());
+        continue;
+      }
+      if (item === 'columns') {
+        bar.appendChild(this.buildColumnsSelect());
         continue;
       }
       if (item === 'link') {
@@ -743,6 +760,24 @@ export class Aurebesh {
     return select;
   }
 
+  /** Number of newspaper columns for the selected blocks; always shows the current value (1 = no columns). */
+  private buildColumnsSelect(): HTMLSelectElement {
+    const doc = this.container.ownerDocument;
+    const select = doc.createElement('select');
+    select.className = 'aurebesh-columns';
+    select.title = this.title(COMMANDS.columns);
+    select.setAttribute('aria-label', this.t('ui.columns'));
+    for (const n of ['1', '2', '3', '4']) {
+      const opt = doc.createElement('option');
+      opt.value = n;
+      opt.textContent = this.t(`columns.${n}`);
+      select.appendChild(opt);
+    }
+    select.addEventListener('change', () => this.exec('columns', select.value));
+    this.columnsSelect = select;
+    return select;
+  }
+
   /** The select's title ("Font", "Size"): shown while nothing is chosen, but not offered as a choice in the list. */
   private asPlaceholder(option: HTMLOptionElement): void {
     option.value = '';
@@ -918,7 +953,8 @@ export class Aurebesh {
       }
       // Stay visible while the alt-text field has focus (it takes the selection with it).
       this.imageTools.hidden = !img && !this.imageTools.contains(this.container.ownerDocument.activeElement);
-    }    if (this.sizeSelect && inside) {
+    }    if (this.columnsSelect && inside) this.columnsSelect.value = String(currentColumns());
+    if (this.sizeSelect && inside) {
       const step = this.currentSizeStep(sel!.getRangeAt(0));
       this.sizeSelect.value = Array.from(this.sizeSelect.options).some((o) => o.value === step) ? step : '';
     }
@@ -960,10 +996,141 @@ export class Aurebesh {
       return;
     }
     const html = data.getData('text/html');
-    if (html) {
-      document.execCommand('insertHTML', false, sanitize(html));
-      this.tidyStyles();
+    if (!html) {
+      document.execCommand('insertText', false, data.getData('text/plain'));
+      return;
     }
-    else document.execCommand('insertText', false, data.getData('text/plain'));
+    // Word, Google Docs and web pages: keep the meaningful formatting, drop the rest, and bring the images along.
+    const prepared = preparePaste(html, data.getData('text/rtf'), this.pasteImages, !!this.adapter);
+    document.execCommand('insertHTML', false, sanitize(prepared.html));
+    this.tidyStyles();
+    const found = this.placePlaceholders(prepared.images);
+    this.snapFloatsToGutter();
+    void this.importPastedImages(prepared.images, found, prepared.dropped);
+  }
+
+  /**
+   * In Word a pull quote hangs over the gutter between two columns, with text on both sides. Text columns can't flow around
+   * an object that straddles them, so a box inside the columns is put against the gutter instead: floated right when it is in
+   * a column to the left of the middle, left when it is to the right of it. Which column a box lands in depends on how the text
+   * flows, so this is measured after the content is in place (and again once the images have loaded).
+   */
+  private snapFloatsToGutter(): void {
+    const view = this.container.ownerDocument.defaultView;
+    if (!view) return;
+    const snap = () => {
+      this.content.querySelectorAll<HTMLElement>('div[style*="column-count"] > aside[style*="float"]').forEach((box) => {
+        const block = box.parentElement as HTMLElement;
+        const columns = columnsOf(block);
+        if (columns < 2) return;
+        const gap = parseFloat(view.getComputedStyle(block).columnGap) || 0;
+        const blockRect = block.getBoundingClientRect();
+        const boxRect = box.getBoundingClientRect();
+        const columnWidth = (blockRect.width - gap * (columns - 1)) / columns;
+        const index = Math.floor((boxRect.left + boxRect.width / 2 - blockRect.left) / (columnWidth + gap));
+        const middle = (columns - 1) / 2;
+        if (index < middle) box.style.cssFloat = 'right';
+        else if (index > middle) box.style.cssFloat = 'left';
+      });
+    };
+    view.requestAnimationFrame(() => {
+      snap();
+      view.requestAnimationFrame(snap); // a second pass: moving a box can change what flows where
+    });
+  }
+
+  /** Swaps the markers `preparePaste` left in the HTML for visible "importing" placeholders. */
+  private placePlaceholders(images: PendingImage[]): Map<number, HTMLElement> {
+    const found = new Map<number, HTMLElement>();
+    if (!images.length) return found;
+    const doc = this.container.ownerDocument;
+    const walker = doc.createTreeWalker(this.content, NodeFilter.SHOW_TEXT);
+    const nodes: Text[] = [];
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) if ((n as Text).data.includes('')) nodes.push(n as Text);
+    for (const node of nodes) {
+      const parts: Node[] = [];
+      let last = 0;
+      for (const m of node.data.matchAll(MARKER)) {
+        parts.push(doc.createTextNode(node.data.slice(last, m.index)));
+        const span = doc.createElement('span');
+        span.className = 'aurebesh-pending'; // removed again by the sanitizer if it is still there when you read the HTML
+        span.contentEditable = 'false';
+        span.setAttribute('data-label', this.t('ui.importingImage'));
+        found.set(Number(m[1]), span);
+        parts.push(span);
+        last = (m.index ?? 0) + m[0].length;
+      }
+      parts.push(doc.createTextNode(node.data.slice(last)));
+      node.replaceWith(...parts);
+    }
+    return found;
+  }
+
+  /**
+   * Copies pasted images through the upload adapter, a few at a time, replacing each placeholder when its image is
+   * ready. A remote image that can't be copied (blocked by CORS, too big...) stays a link to its source; an image from
+   * Word's clipboard data has no source to fall back on and is removed. Problems are reported once, at the end.
+   */
+  private async importPastedImages(images: PendingImage[], found: Map<number, HTMLElement>, dropped: number): Promise<void> {
+    let linked = 0;
+    let failed = 0;
+    if (images.length && this.adapter) {
+      const adapter = this.adapter;
+      this.pendingUploads++;
+      this.showStatus(this.t('ui.importingImages', { count: String(images.length) }));
+      const queue = images.map((item, i) => ({ item, place: found.get(i) }));
+      const worker = async () => {
+        for (let next = queue.shift(); next; next = queue.shift()) {
+          const { item, place } = next;
+          try {
+            const file = item.blob ? this.toFile(item.blob) : await this.fetchRemoteImage(item.src);
+            this.swapPlaceholder(place, resultUrl(await adapter.upload(file, { kind: 'image' })), item.alt, item.width);
+          } catch {
+            if (item.kind === 'remote' && isSafeImageSrc(item.src)) {
+              linked++;
+              this.swapPlaceholder(place, item.src, item.alt, item.width);
+            } else {
+              failed++;
+              place?.remove();
+            }
+          }
+        }
+      };
+      await Promise.all([worker(), worker(), worker()]);
+      if (--this.pendingUploads === 0) this.hideStatus();
+      this.syncEmpty();
+      this.snapFloatsToGutter(); // the images are in: the text may have flowed differently
+      this.emit('change', this.getHTML());
+    }
+    const problems = [
+      dropped && this.t('ui.imagesDropped', { count: String(dropped) }),
+      failed && this.t('ui.imagesFailed', { count: String(failed) }),
+      linked && this.t('ui.imagesLinked', { count: String(linked) }),
+    ].filter(Boolean) as string[];
+    if (problems.length) this.fail(new Error(problems.join(' ')));
+  }
+
+  private swapPlaceholder(place: HTMLElement | undefined, url: string, alt: string, widthPct?: number): void {
+    if (!place?.isConnected) return; // the person deleted it meanwhile
+    if (!isSafeImageSrc(url)) throw new Error('Unsupported image URL.');
+    const img = this.container.ownerDocument.createElement('img');
+    img.setAttribute('src', url);
+    if (alt) img.setAttribute('alt', alt);
+    if (widthPct && widthPct < 100) img.style.width = `${widthPct}%`;
+    place.replaceWith(img);
+  }
+
+  private toFile(blob: Blob): File {
+    const ext = blob.type === 'image/jpeg' ? 'jpg' : blob.type.split('/')[1] || 'png';
+    return new File([blob], `pasted-image.${ext}`, { type: blob.type });
+  }
+
+  private async fetchRemoteImage(url: string): Promise<File> {
+    // No cookies and no referrer: a pasted image link must not identify this page or the person to its host.
+    const res = await fetch(url, { credentials: 'omit', referrerPolicy: 'no-referrer' });
+    if (!res.ok) throw new Error(`Could not download the image (${res.status})`);
+    const blob = await res.blob();
+    if (!IMAGE_TYPES.includes(blob.type)) throw new Error('Not a supported image type');
+    return this.toFile(blob);
   }
 }
