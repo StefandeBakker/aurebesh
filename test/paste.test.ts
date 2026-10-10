@@ -19,6 +19,13 @@ const bytesOf = (blob: Blob): Promise<Uint8Array> =>
     reader.readAsArrayBuffer(blob);
   });
 
+describe('pasted text direction', () => {
+  it('drops the left-to-right mark every paragraph carries, but keeps right-to-left', () => {
+    const { out } = pasted('<p dir="ltr">a</p><p dir="RTL">b</p><p dir="rtl">c</p>');
+    expect(out).toBe('<p>a</p><p dir="rtl">b</p><p dir="rtl">c</p>');
+  });
+});
+
 describe('pasting from Google Docs', () => {
   const { out, images } = pasted(GOOGLE_DOCS_HTML);
 

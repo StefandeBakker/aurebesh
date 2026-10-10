@@ -16,7 +16,8 @@ const ALLOWED_ATTRS: Record<string, string[]> = {
   img: ['src', 'alt', 'title', 'width', 'height'],
   video: ['src', 'width'],
 };
-const SAFE_URL = /^(https?:|mailto:|tel:|#|\/)/i;
+const DIR_TAGS = new Set(['p', 'h1', 'h2', 'h3', 'blockquote', 'pre', 'ul', 'ol', 'li', 'table', 'td', 'th', 'div', 'aside']);
+const SAFE_URL =/^(https?:|mailto:|tel:|#|\/)/i;
 
 /** Strips everything outside a small allow-list (scripts, event handlers, javascript: urls...). */
 export function sanitize(html: string): string {
@@ -123,12 +124,18 @@ function clean(parent: Node): void {
       }
       continue;
     }
-    const allowed = ALLOWED_ATTRS[tag] ?? [];
+    const allowed = DIR_TAGS.has(tag) ? [...(ALLOWED_ATTRS[tag] ?? []), 'dir'] : ALLOWED_ATTRS[tag] ?? [];
     const style = safeStyle(el.getAttribute('style'), STYLES_BY_TAG[tag]);
     for (const attr of Array.from(el.attributes)) {
       if (!allowed.includes(attr.name)) el.removeAttribute(attr.name);
     }
     if (style) el.setAttribute('style', style);
+    // Text direction (Word and Docs paste `dir="RTL"`): on blocks only, and only a known value.
+    if (DIR_TAGS.has(tag)) {
+      const dir = el.getAttribute('dir')?.toLowerCase();
+      if (dir === 'ltr' || dir === 'rtl') el.setAttribute('dir', dir);
+      else el.removeAttribute('dir');
+    }
     for (const name of ['colspan', 'rowspan', 'width', 'height']) {
       if (el.hasAttribute(name) && !/^\d{1,4}$/.test(el.getAttribute(name)!)) el.removeAttribute(name);
     }

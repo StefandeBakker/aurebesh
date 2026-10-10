@@ -107,6 +107,8 @@ export class AurebeshElement extends BaseElement {
       value: initial,
       placeholder: this.getAttribute('placeholder') ?? '',
       readOnly: this.hasAttribute('readonly'),
+      // `dir` is a global attribute, so the host element (or the page) already passes it on; only an explicit one is an option.
+      dir: ['ltr', 'rtl', 'auto'].includes(this.getAttribute('dir') ?? '') ? (this.getAttribute('dir') as 'ltr' | 'rtl' | 'auto') : undefined,
       maxLength: this.maxLengthAttr(),
       counter: this.hasAttribute('counter'),
       toolbar: toolbarAttr === null ? undefined : toolbarAttr.split(',').map((s) => s.trim()).filter(Boolean),

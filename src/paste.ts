@@ -349,6 +349,11 @@ function normalizeLinks(root: HTMLElement): void {
 }
 
 function tidy(root: HTMLElement): void {
+  // Google Docs and Word mark every paragraph left-to-right. That is the default, and keeping it would stop a
+  // pasted Hebrew or Arabic paragraph from finding its own direction; right-to-left is meaningful and stays.
+  root.querySelectorAll('[dir]').forEach((el) => {
+    if (el.getAttribute('dir')?.toLowerCase() === 'ltr') el.removeAttribute('dir');
+  });
   // Leftovers of section breaks directly in the document or in a Word section: stray breaks and empty spans.
   const containers = [root, ...Array.from(root.querySelectorAll('div')).filter(isSection)];
   containers.forEach((c) =>

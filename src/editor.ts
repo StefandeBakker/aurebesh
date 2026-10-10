@@ -46,6 +46,8 @@ export interface MediaOptions {
 
 export interface AurebeshOptions {
   /** Most characters allowed (spaces count, line breaks don't). Typing and pasting stop at the limit. */
+  /** Direction of the editor itself (toolbar and base alignment): 'ltr', 'rtl' or 'auto'. Default: the page's. */
+  dir?: 'ltr' | 'rtl' | 'auto';
   maxLength?: number;
   /** Show a line under the text with the number of words and characters (and the limit, if there is one). */
   counter?: boolean;
@@ -127,6 +129,8 @@ export class Aurebesh {
     this.fonts = (options.fonts ?? DEFAULT_FONTS).filter((f) => SAFE_FAMILY.test(f.family));
     this.root = doc.createElement('div');
     this.root.className = 'aurebesh';
+    // Without it the editor follows the page's direction (<html dir="rtl"> mirrors the toolbar too).
+    if (options.dir) this.root.setAttribute('dir', options.dir);
 
     if (!doc.head.querySelector('style[data-aurebesh]')) {
       const style = doc.createElement('style');

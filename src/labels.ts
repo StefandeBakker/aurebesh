@@ -122,6 +122,8 @@ export const LABELS_NL: Labels = {
   alignCenter: 'Centreren',
   alignRight: 'Rechts uitlijnen',
   alignJustify: 'Uitvullen',
+  ltr: 'Links naar rechts',
+  rtl: 'Rechts naar links',
   link: 'Link',
   font: 'Lettertype',
   size: 'Grootte',

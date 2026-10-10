@@ -1,5 +1,6 @@
 import { SAFE_COLOR } from './colors';
 import { currentColumns, setColumns } from './columns';
+import { currentDirection, setDirection } from './direction';
 import { currentLink, isInlineCode, setLink, toggleInlineCode } from './inline';
 import { insertImage, insertVideo, insertVideoFile, setImageAlign, setImageAlt, setImageWidth } from './media';
 import { addColumn, addRow, deleteColumn, deleteRow, deleteTable, insertTable, toggleHeaderRow } from './table';
@@ -77,6 +78,9 @@ export const COMMANDS: Record<string, CommandDef> = {
   alignCenter: align('alignCenter', '≣', 'Align center', 'justifyCenter'),
   alignRight: align('alignRight', '≢', 'Align right', 'justifyRight'),
   alignJustify: align('alignJustify', '☰', 'Justify', 'justifyFull'),
+  /** Not in the default toolbar: paragraphs already find their own direction; these force one (a second click goes back to automatic). */
+  ltr: { name: 'ltr', label: '¶→', title: 'Left to right', run: () => setDirection('ltr'), isActive: () => currentDirection() === 'ltr' },
+  rtl: { name: 'rtl', label: '←¶', title: 'Right to left', run: () => setDirection('rtl'), isActive: () => currentDirection() === 'rtl' },
   /** run(url): set or change the link; an empty url removes it. */
   link: { name: 'link', label: 'Link', title: 'Link', run: (url) => setLink(url ?? ''), isActive: () => !!currentLink() },
   font: {

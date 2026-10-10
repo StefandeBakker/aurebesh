@@ -165,6 +165,14 @@ import { toMarkdown, toText } from 'aurebesh'; // the same for any HTML string (
 - Markdown covers headings, bold, italic, strikethrough, inline code, code blocks, links, images, quotes, lists (nested too) and tables (GFM; the first row becomes the header row). Underline and sub/superscript stay as inline HTML. Colours, fonts, sizes, alignment and columns are dropped, since Markdown cannot express them. A video becomes a link; sidebars become quotes.
 - Output only for now: there is no `setMarkdown()`.
 
+## Right-to-left languages (Arabic, Hebrew, …)
+
+- **Automatic**: every paragraph, heading, list item and table cell takes its direction from its first strong letter, so Arabic and Hebrew are right-to-left (and aligned right) without doing anything, and a document that mixes languages works. Code blocks always stay left-to-right.
+- **Explicit**: the `rtl` and `ltr` toolbar items (not in the default toolbar; add them to `toolbar`) set `dir` on the selected blocks; clicking the active one goes back to automatic. For a list the direction is set on the whole list, so the bullets move too. This is a direct DOM edit, so the browser's undo does not cover it.
+- **The editor itself**: it follows the page, so `<html dir="rtl">` mirrors the toolbar, quote bar and popovers. Set `dir: 'rtl'` (option) or `dir="rtl"` (attribute) to do it for one editor.
+- Pasting keeps `dir="rtl"` from Word and Docs; the `dir="ltr"` they put on every paragraph is dropped, so a pasted Hebrew paragraph still finds its own direction.
+- The sanitizer keeps `dir` (only `ltr`/`rtl`) on blocks. Counting words and characters works for these scripts; Markdown and text output keep the letters, but Markdown has no way to express direction, so that is dropped.
+
 ## Texts and languages
 
 Every tooltip and popover text can be changed. Dutch is included:
