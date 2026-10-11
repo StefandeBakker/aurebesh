@@ -1,6 +1,10 @@
 import { Aurebesh } from './editor';
 import type { AurebeshOptions } from './editor';
 import type { OutputFormat } from './export';
+import { PAGE_NAMES } from './page';
+import type { PageFormat, PagePreset } from './page';
+
+const isPageName = (s: string): s is PagePreset => (PAGE_NAMES as string[]).includes(s.toLowerCase());
 
 // On the server (SSR) there is no HTMLElement: fall back to an empty class so importing this file doesn't throw.
 const BaseElement: typeof HTMLElement = typeof HTMLElement === 'undefined' ? (class {} as unknown as typeof HTMLElement) : HTMLElement;
@@ -10,6 +14,9 @@ const BaseElement: typeof HTMLElement = typeof HTMLElement === 'undefined' ? (cl
  *
  * - Emits a `change` CustomEvent whose `detail` is the HTML string, an `error` event, a `ready` event (detail: the
  *   Aurebesh instance) and a `count` event (detail: `{ characters, charactersNoSpaces, words }`).
+ * - `page="a4"` (or `a5`, `a6`, `a3`, `letter`, `legal`, `ticket-80`, `ticket-58`, `responsive`, or a width like `80mm` / `600px`)
+ *   shows the editor as a sheet of that size; `page-orientation="landscape"` and `page-margin="15mm"` adjust it. A `page` event
+ *   (detail: the page, or null) fires when it changes, also from the toolbar's `page` item.
  * - `maxlength="500"` limits the characters (typing and pasting are cut off, longer text is invalid in a form);
  *   `counter` shows "12 words · 80 / 500 characters" under the text.
  * - `value` property: get/set the HTML.
@@ -18,7 +25,7 @@ const BaseElement: typeof HTMLElement = typeof HTMLElement === 'undefined' ? (cl
  * - Works inside a <form>: with a `name` its HTML is submitted, `required` is validated, reset restores the initial content.
  */
 export class AurebeshElement extends BaseElement {
-  static observedAttributes = ['placeholder', 'readonly', 'required', 'maxlength', 'counter', 'format'];
+  static observedAttributes = ['placeholder', 'readonly', 'required', 'maxlength', 'counter', 'format', 'page', 'page-orientation', 'page-margin'];
   static formAssociated = true;
 
   private editor: Aurebesh | null = null;
@@ -63,6 +70,23 @@ export class AurebeshElement extends BaseElement {
       this.syncForm();
     }
     if (name === 'counter') this.editor.setCounter(value !== null);
+    if (name === 'page' || name === 'page-orientation' || name === 'page-margin') {
+      try {
+        this.editor.setPage(this.pageFromAttributes());
+      } catch (err) {
+        this.dispatchEvent(new CustomEvent('error', { detail: err, bubbles: true }));
+      }
+    }
+  }
+
+  /** `page="a4"`, `page="80mm"`, `page="a4" page-orientation="landscape" page-margin="15mm"`. */
+  private pageFromAttributes(): PageFormat | undefined {
+    const page = this.getAttribute('page')?.trim();
+    if (!page) return undefined;
+    const orientation = this.getAttribute('page-orientation') === 'landscape' ? 'landscape' : undefined;
+    const margin = this.getAttribute('page-margin') ?? undefined;
+    if (!orientation && margin === undefined) return page;
+    return { ...(isPageName(page) ? { format: page.toLowerCase() as PagePreset } : { width: page }), orientation, margin };
   }
 
   private maxLengthAttr(): number | undefined {
@@ -109,6 +133,7 @@ export class AurebeshElement extends BaseElement {
       readOnly: this.hasAttribute('readonly'),
       // `dir` is a global attribute, so the host element (or the page) already passes it on; only an explicit one is an option.
       dir: ['ltr', 'rtl', 'auto'].includes(this.getAttribute('dir') ?? '') ? (this.getAttribute('dir') as 'ltr' | 'rtl' | 'auto') : undefined,
+      page: this.pageFromAttributes(),
       maxLength: this.maxLengthAttr(),
       counter: this.hasAttribute('counter'),
       toolbar: toolbarAttr === null ? undefined : toolbarAttr.split(',').map((s) => s.trim()).filter(Boolean),
@@ -121,6 +146,7 @@ export class AurebeshElement extends BaseElement {
       this.dispatchEvent(new CustomEvent('change', { detail: html, bubbles: true }));
     });
     this.editor.on('error', (error) => this.dispatchEvent(new CustomEvent('error', { detail: error, bubbles: true })));
+    this.editor.on('page', (page) => this.dispatchEvent(new CustomEvent('page', { detail: page, bubbles: true })));
     this.editor.on('ready', () => this.dispatchEvent(new CustomEvent('ready', { detail: this.editor })));
     this.editor.on('count', (stats) => {
       this.syncForm();
