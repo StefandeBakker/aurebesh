@@ -13,6 +13,7 @@ import type { CSSProperties } from 'react';
 import { defineAurebeshElement } from './element';
 import type { AurebeshElement } from './element';
 import type { Aurebesh, AurebeshOptions } from './editor';
+import type { ResolvedPage } from './page';
 import type { TextStats } from './stats';
 
 export interface AurebeshEditorProps {
@@ -27,6 +28,12 @@ export interface AurebeshEditorProps {
   /** Called when the words / characters change. */
   onCount?: (stats: TextStats) => void;
   options?: AurebeshOptions;
+  /** Page format: 'a4', 'a5', 'ticket-80', ..., or a width such as '600px' / '80mm' (a number is px). The editor shows a sheet of that size. */
+  page?: string | number;
+  pageOrientation?: 'portrait' | 'landscape';
+  pageMargin?: string;
+  /** Called when the page format changes (also from the toolbar's `page` item); null is responsive. */
+  onPageChange?: (page: ResolvedPage | null) => void;
   /** Maximum number of characters; typing and pasting stop at the limit. */
   maxLength?: number;
   /** Show "12 words · 80 / 500 characters" under the text. */
@@ -44,11 +51,11 @@ export interface AurebeshEditorProps {
 
 export const AurebeshEditor = forwardRef<AurebeshElement, AurebeshEditorProps>(function AurebeshEditor(props, ref) {
   defineAurebeshElement();
-  const { value, defaultValue, onChange, onError, onReady, onCount, options, maxLength, counter, placeholder, readOnly, required, name, toolbar, id, className, style } = props;
+  const { value, defaultValue, onChange, onError, onReady, onCount, onPageChange, options, page, pageOrientation, pageMargin, maxLength, counter, placeholder, readOnly, required, name, toolbar, id, className, style } = props;
   const el = useRef<AurebeshElement | null>(null);
   useImperativeHandle(ref, () => el.current as AurebeshElement);
-  const handlers = useRef({ onChange, onError, onReady, onCount });
-  handlers.current = { onChange, onError, onReady, onCount };
+  const handlers = useRef({ onChange, onError, onReady, onCount, onPageChange });
+  handlers.current = { onChange, onError, onReady, onCount, onPageChange };
 
   // Layout effects run right after the element is inserted, before it creates its editor.
   useLayoutEffect(() => {
@@ -69,11 +76,14 @@ export const AurebeshEditor = forwardRef<AurebeshElement, AurebeshEditorProps>(f
     const error = (e: Event) => handlers.current.onError?.((e as CustomEvent<Error>).detail);
     const ready = (e: Event) => handlers.current.onReady?.((e as CustomEvent<Aurebesh>).detail);
     const count = (e: Event) => handlers.current.onCount?.((e as CustomEvent<TextStats>).detail);
+    const pageChange = (e: Event) => handlers.current.onPageChange?.((e as CustomEvent<ResolvedPage | null>).detail);
+    node.addEventListener('page', pageChange);
     node.addEventListener('change', change);
     node.addEventListener('error', error);
     node.addEventListener('ready', ready);
     node.addEventListener('count', count);
     return () => {
+      node.removeEventListener('page', pageChange);
       node.removeEventListener('change', change);
       node.removeEventListener('error', error);
       node.removeEventListener('ready', ready);
@@ -88,6 +98,9 @@ export const AurebeshEditor = forwardRef<AurebeshElement, AurebeshEditorProps>(f
     class: className,
     style,
     placeholder,
+    page: page === undefined ? undefined : String(page),
+    'page-orientation': pageOrientation,
+    'page-margin': pageMargin,
     maxlength: maxLength,
     counter: counter ? '' : undefined,
     toolbar: toolbar?.join(','),

@@ -129,7 +129,7 @@ import 'aurebesh/element'; // registers <aurebesh-editor>
 | `media` | Image and video settings, see below |
 
 Toolbar items (default order): `font size | bold italic underline strike code | color highlight | h1 h2 quote codeblock | ul ol alignLeft alignCenter alignRight columns | link image video table hr | clear undo redo`.
-Also available: `sup sub alignJustify`.
+Also available: `sup sub alignJustify ltr rtl page orientation`.
 
 Theme via CSS variables: `--aurebesh-border`, `--aurebesh-bg`, `--aurebesh-color`, `--aurebesh-accent`, `--aurebesh-toolbar-bg`, `--aurebesh-code-bg`, `--aurebesh-min-height`, and `--aurebesh-hl-keyword|string|comment|number|function|type|tag` for code colours.
 
@@ -150,6 +150,30 @@ editor.setMaxLength(300); editor.setCounter(false); editor.isOverLimit();
 - Web component: attributes `maxlength="500"` and `counter`, events `ready` (detail: the instance) and `count` (detail: the stats). React: props `maxLength`, `counter`, `onReady`, `onCount`. Vue: props `max-length`, `counter` and events `@ready`, `@count`.
 - Text input through an input method (IME) cannot be cancelled while composing; the limit is then enforced by the validity check.
 - Texts are `ui.words.*`, `ui.characters.*` and `ui.limitReached` in `labels`.
+
+## Page format
+
+By default the editor is responsive: as wide as its container. A page format makes it show a sheet of a fixed size on a grey desk, so you see the document the way it will be printed or shown.
+
+```js
+new Aurebesh(el, { page: 'a4' });
+editor.setPage('ticket-80');                        // or in code later; setPage(null) goes back to responsive
+editor.setPage({ format: 'a4', orientation: 'landscape', margin: '15mm' });
+editor.setPage('600px');                            // a width: 600, '600px', '80mm', '21cm', '8.5in', '300pt'
+```
+
+```html
+<aurebesh-editor page="a4"></aurebesh-editor>
+<aurebesh-editor page="a4" page-orientation="landscape" page-margin="15mm"></aurebesh-editor>
+<aurebesh-editor page="80mm"></aurebesh-editor>
+```
+
+- **Presets**: `a3`, `a4`, `a5`, `a6`, `letter`, `legal` (paper, with a height) and `ticket-80`, `ticket-58` (thermal rolls: 80 / 58 mm wide, as long as the content), plus `responsive`. Each has a margin of its own (20 mm for A4, 4 mm for an 80 mm ticket); `margin` overrides it with one to four lengths, like CSS padding. A width you give yourself has no height. Anything that is not a plain number or a length in px, mm, cm, in or pt is refused.
+- **Page breaks**: for paper with a height, a line marks the end of every page, and `editor.getPageCount()` tells how many pages the content takes. It is an approximation: text is not moved to keep a line or a table together, so a line can straddle the mark. Continuous paper (tickets) and responsive have no page breaks.
+- **Not in the HTML**: the format is a setting of the editor, not part of `getHTML()`; your app stores it next to the document. The `page` event (`editor.on('page', ...)`, or a `page` CustomEvent on the element; React `onPageChange`, Vue `@page-change`) tells you when it changes, also when a user picks one in the toolbar.
+- **Toolbar**: add the `page` item (not in the default toolbar) for a select with all presets, and `orientation` for a button that turns the sheet between portrait and landscape: `toolbar: ['page', 'orientation', '|', 'bold', ...]`. The button is only on for paper with a height; picking another paper keeps the sheet turned the way it is. In code: `editor.setPageOrientation('landscape')`.
+- **Print and PDF**: `editor.print()` opens the print dialog with the right paper size and margins (choose "Save as PDF" there). `editor.getPrintHTML()` gives a standalone HTML document with that `@page` size, for a server that makes PDFs: `page.pdf({ preferCSSPageSize: true })` in Puppeteer or Playwright gives A4 pages for an A4 format. A ticket gets one page of its width and the length of the text: browsers cannot say "as long as needed" in `@page`, so that length is measured. Code colours are not printed, and `print()` needs a page whose content security policy allows an inline `srcdoc` frame.
+- The sheet is as wide as the paper (an A4 sheet is 794 px). In a container that is narrower the sheet shrinks to fit, and then the page breaks are no longer where the paper would break.
 
 ## Tables: merging cells and column widths
 

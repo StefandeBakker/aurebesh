@@ -21,6 +21,8 @@ import type { MediaAdapter, MediaKind, MediaUploadFn } from './media';
 import { IMAGE_TYPES, isSafeImageSrc, VIDEO_TYPES } from './media-urls';
 import { countCharacters, countText, plainText, truncateCharacters } from './stats';
 import type { TextStats } from './stats';
+import { PAGE_NAMES, countPages, printDocument, resolvePage, toSpec } from './page';
+import type { PageFormat, PagePreset, PageSpec, ResolvedPage } from './page';
 import { toMarkdown } from './export';
 import type { OutputFormat } from './export';
 import { MARKER, preparePaste } from './paste';
@@ -68,6 +70,12 @@ export interface AurebeshOptions {
   readOnly?: boolean;
   /** Toolbar item names, '|' is a separator. Pass [] for no toolbar. */
   toolbar?: string[];
+  /**
+   * Page format: the editor shows a sheet of that width (and height, with page breaks marked). A preset
+   * ('a4', 'a5', 'a6', 'a3', 'letter', 'legal', 'ticket-80', 'ticket-58', 'responsive'), a width (a number of px, or
+   * '600px', '80mm'), or `{ format, width, height, margin, orientation }`. Default: 'responsive', no sheet.
+   */
+  page?: PageFormat;
 }
 
 export interface AurebeshEvents {
@@ -76,6 +84,8 @@ export interface AurebeshEvents {
   ready: Aurebesh;
   /** Words and characters, after each change (only worked out while someone listens, or the counter or a limit is on). */
   count: TextStats;
+  /** The page format changed (through `setPage` or the toolbar). null is responsive. */
+  page: ResolvedPage | null;
   focus: undefined;
   blur: undefined;
   /** An upload failed or a link was rejected. */
@@ -118,6 +128,11 @@ export class Aurebesh {
   private stats: TextStats = { characters: 0, charactersNoSpaces: 0, words: 0 };
   private isReady = false;
   private pointerHeld = false;
+  private stage: HTMLElement;
+  private page: ResolvedPage | null = null;
+  private pageSelect: HTMLSelectElement | null = null;
+  private pageSpec: PageSpec | null = null;
+  private orientationBtn: HTMLButtonElement | null = null;
 
   constructor(private container: HTMLElement, options: AurebeshOptions = {}) {
     const doc = container.ownerDocument;
@@ -149,7 +164,11 @@ export class Aurebesh {
     this.content.setAttribute('role', 'textbox');
     this.content.setAttribute('aria-multiline', 'true');
     this.content.setAttribute('aria-label', this.t('ui.editor'));
-    this.root.appendChild(this.content);
+    // The stage is the "desk" the sheet lies on when a page format is set; without one it is invisible.
+    this.stage = doc.createElement('div');
+    this.stage.className = 'aurebesh-stage';
+    this.stage.appendChild(this.content);
+    this.root.appendChild(this.stage);
 
     this.counterEl = doc.createElement('div');
     this.counterEl.className = 'aurebesh-count';
@@ -206,6 +225,12 @@ export class Aurebesh {
     this.statusEl.hidden = true;
     this.root.appendChild(this.statusEl);
 
+    try {
+      this.setPage(options.page);
+    } catch (err) {
+      this.fail(err); // a wrong format leaves the editor responsive, and says why
+    }
+
     container.appendChild(this.root);
     this.scheduleHighlight();
     this.updateStats();
@@ -219,6 +244,118 @@ export class Aurebesh {
   /** Resolves once the editor is ready (immediately when it already is). */
   whenReady(): Promise<this> {
     return new Promise((resolve) => this.on('ready', () => resolve(this)));
+  }
+
+  /**
+   * Sets the page format (see the `page` option); `null`, `undefined` or 'responsive' removes the sheet.
+   * Throws for an invalid format and then changes nothing.
+   */
+  setPage(format?: PageFormat | null): void {
+    const page = resolvePage(format);
+    this.page = page;
+    this.pageSpec = page ? toSpec(format) : null;
+    const root = this.root;
+    if (!page) {
+      for (const v of ['--aurebesh-page-w', '--aurebesh-page-h', '--aurebesh-page-m']) root.style.removeProperty(v);
+      root.removeAttribute('data-page');
+      root.removeAttribute('data-paged');
+    } else {
+      root.style.setProperty('--aurebesh-page-w', page.width);
+      root.style.setProperty('--aurebesh-page-m', page.margin);
+      if (page.height) root.style.setProperty('--aurebesh-page-h', page.height);
+      else root.style.removeProperty('--aurebesh-page-h');
+      root.setAttribute('data-page', page.name);
+      if (page.height) root.setAttribute('data-paged', '');
+      else root.removeAttribute('data-paged');
+    }
+    this.syncPageUi();
+    this.emit('page', page);
+  }
+
+  /** Turns the sheet to portrait or landscape. Only paper with a height turns (a ticket roll or a plain width does not); without a page format nothing happens. */
+  setPageOrientation(orientation: 'portrait' | 'landscape'): void {
+    if (this.pageSpec) this.setPage({ ...this.pageSpec, orientation });
+  }
+
+  /** The page format in use as CSS lengths, or null when the editor is responsive. */
+  getPage(): ResolvedPage | null {
+    return this.page;
+  }
+
+  /** How many pages the content takes on the current paper (1 for responsive and for continuous paper). Page breaks are approximate: text is not moved to keep a line whole. */
+  getPageCount(): number {
+    return countPages(this.page, this.content.offsetHeight);
+  }
+
+  private printHTML(heightPx?: number): string {
+    const doc = this.container.ownerDocument;
+    const style = doc.defaultView!.getComputedStyle(this.content);
+    const clean = (v: string) => v.replace(/[<>{};]/g, '');
+    const font = `font-family:${clean(style.fontFamily)};font-size:${clean(style.fontSize)};line-height:${clean(style.lineHeight)}`;
+    const h = heightPx ?? (this.page && !this.page.height ? this.content.offsetHeight : undefined);
+    return printDocument(this.page, this.getHTML(), CSS, font, h);
+  }
+
+  /**
+   * A standalone HTML document of the content with the page format as `@page` size and margins: for printing, or for
+   * turning into a PDF on a server (Puppeteer, Playwright: `page.pdf({ preferCSSPageSize: true })`). Code colours are not
+   * included. For continuous paper (a ticket) the length is taken from the editor's own content.
+   */
+  getPrintHTML(): string {
+    return this.printHTML();
+  }
+
+  /** Opens the print dialog for the content on the current paper (choose "Save as PDF" there for a PDF). */
+  print(): Promise<void> {
+    const doc = this.container.ownerDocument;
+    const frame = doc.createElement('iframe');
+    frame.setAttribute('aria-hidden', 'true');
+    frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+    frame.srcdoc = this.printHTML();
+    return new Promise((resolve) => {
+      const done = () => {
+        frame.remove();
+        resolve();
+      };
+      frame.addEventListener('load', async () => {
+        const win = frame.contentWindow;
+        const inner = frame.contentDocument;
+        if (!win || !inner) return done();
+        await Promise.all(
+          Array.from(inner.images).map((img) => (img.complete ? null : new Promise<void>((r) => void (img.onload = img.onerror = () => r())))),
+        );
+        if (this.page && !this.page.height) {
+          // measured in the print document itself, where the width is exactly the paper's
+          const style = inner.createElement('style');
+          style.textContent = `@page{size:${this.page.width} ${Math.ceil((inner.body.scrollHeight * 25.4) / 96) + 1}mm;margin:0}`;
+          inner.head.appendChild(style);
+        }
+        win.addEventListener('afterprint', done, { once: true });
+        win.focus();
+        win.print();
+        setTimeout(done, 120_000); // a browser that never reports afterprint
+      });
+      doc.body.appendChild(frame);
+    });
+  }
+
+  private syncPageUi(): void {
+    const btn = this.orientationBtn;
+    if (btn) {
+      btn.disabled = !this.page?.height;
+      btn.setAttribute('aria-pressed', String(!!this.page?.landscape));
+    }
+    const select = this.pageSelect;
+    if (!select) return;
+    const name = this.page?.name ?? 'responsive';
+    select.querySelector('option[value="custom"]')?.remove();
+    if (name === 'custom') {
+      const opt = select.ownerDocument.createElement('option');
+      opt.value = 'custom';
+      opt.textContent = this.t('page.custom');
+      select.appendChild(opt);
+    }
+    select.value = name;
   }
 
   /** Words and characters of the current content. */
@@ -449,6 +586,14 @@ export class Aurebesh {
       }
       if (item === 'columns') {
         bar.appendChild(this.buildColumnsSelect());
+        continue;
+      }
+      if (item === 'orientation') {
+        bar.appendChild(this.buildOrientationButton());
+        continue;
+      }
+      if (item === 'page') {
+        bar.appendChild(this.buildPageSelect());
         continue;
       }
       if (item === 'link') {
@@ -974,6 +1119,49 @@ export class Aurebesh {
     }
     select.addEventListener('change', () => this.exec('columns', select.value));
     this.columnsSelect = select;
+    return select;
+  }
+
+  /** Turns the sheet: pressed is landscape. Off when there is no paper with a height to turn. */
+  private buildOrientationButton(): HTMLButtonElement {
+    const doc = this.container.ownerDocument;
+    const btn = doc.createElement('button');
+    btn.type = 'button';
+    btn.className = 'aurebesh-orientation';
+    btn.textContent = COMMANDS.orientation.label;
+    const title = this.title(COMMANDS.orientation);
+    btn.title = title;
+    btn.setAttribute('aria-label', title);
+    btn.setAttribute('aria-pressed', 'false');
+    btn.disabled = true;
+    btn.addEventListener('mousedown', (e) => e.preventDefault());
+    btn.addEventListener('click', () => this.setPageOrientation(this.page?.landscape ? 'portrait' : 'landscape'));
+    this.orientationBtn = btn;
+    return btn;
+  }
+
+  /** Page format: choosing one sets it for the whole document (not for the selection). */
+  private buildPageSelect(): HTMLSelectElement {
+    const doc = this.container.ownerDocument;
+    const select = doc.createElement('select');
+    select.className = 'aurebesh-pagesel';
+    select.title = this.title(COMMANDS.page);
+    select.setAttribute('aria-label', this.t('ui.page'));
+    for (const name of PAGE_NAMES) {
+      const opt = doc.createElement('option');
+      opt.value = name;
+      opt.textContent = this.t(`page.${name}`);
+      select.appendChild(opt);
+    }
+    select.addEventListener('change', () => {
+      try {
+        // choosing another paper keeps the sheet turned the way it is
+        this.setPage(select.value === 'responsive' ? null : { format: select.value as PagePreset, orientation: this.page?.landscape ? 'landscape' : 'portrait' });
+      } catch (err) {
+        this.fail(err);
+      }
+    });
+    this.pageSelect = select;
     return select;
   }
 
