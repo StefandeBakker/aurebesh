@@ -101,6 +101,10 @@ export const COMMANDS: Record<string, CommandDef> = {
     run: (count) => setColumns(Number(count) || 1),
     isActive: () => currentColumns() > 1,
   },
+  /** A button that turns the sheet to landscape and back; like `page` it is handled by the editor. */
+  orientation: { name: 'orientation', label: '▭', title: 'Landscape', run: () => {} },
+  /** A select in the toolbar, not in the default one; it is handled by the editor (`setPage`), since the format belongs to the editor, not the selection. */
+  page: { name: 'page', label: 'Page', title: 'Page format', run: () => {} },
   /** run('1'..'7'): the browser's seven size steps (small .. huge). */
   size: {
     name: 'size',

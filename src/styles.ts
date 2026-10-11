@@ -12,7 +12,7 @@ export const CSS = `
 .aurebesh-content aside>:last-child{margin-bottom:0}
 .aurebesh-content div[style*="column-count"]{margin:.5em 0;padding:4px 0;outline:1px dashed var(--aurebesh-border,#d0d5dd);outline-offset:4px}
 .aurebesh-content div[style*="column-count"] :is(table,pre,blockquote,aside,img,video,iframe){break-inside:avoid}
-.aurebesh-font,.aurebesh-size,.aurebesh-columns{height:28px;max-width:130px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:var(--aurebesh-bg,#fff);color:inherit;font:inherit;font-size:13px}
+.aurebesh-font,.aurebesh-size,.aurebesh-columns,.aurebesh-pagesel{height:28px;max-width:130px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:var(--aurebesh-bg,#fff);color:inherit;font:inherit;font-size:13px}
 .aurebesh-toolbar[hidden],.aurebesh-table-pop[hidden]{display:none}
 .aurebesh-table-tools{background:var(--aurebesh-table-tools-bg,#eef3ff)}
 .aurebesh-table-picker{position:relative;display:inline-block}
@@ -35,7 +35,7 @@ export const CSS = `
 .aurebesh-toolbar button:focus-visible,.aurebesh-toolbar select:focus-visible,.aurebesh-table-pop input:focus-visible,.aurebesh-table-pop button:focus-visible,.aurebesh-alt:focus-visible{outline:2px solid var(--aurebesh-accent,#2563eb);outline-offset:1px}
 @media (pointer:coarse){
 .aurebesh-toolbar button{min-width:40px;height:40px}
-.aurebesh-font,.aurebesh-size,.aurebesh-columns{height:40px}
+.aurebesh-font,.aurebesh-size,.aurebesh-columns,.aurebesh-pagesel{height:40px}
 .aurebesh-table-pop{--aurebesh-cell:28px}
 }
 .aurebesh-color-reset{display:block;width:100%;margin-top:6px;padding:4px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:transparent;color:inherit;cursor:pointer;font:inherit;font-size:12px}
@@ -64,6 +64,10 @@ export const CSS = `
 .aurebesh-alt{flex:1;min-width:120px;max-width:260px;height:28px;padding:0 8px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:var(--aurebesh-bg,#fff);color:inherit;font:inherit;font-size:13px}
 .aurebesh-sep{width:1px;margin:4px;background:var(--aurebesh-border,#d0d5dd)}
 .aurebesh-content{min-height:var(--aurebesh-min-height,150px);padding:10px 12px;outline:0;overflow:auto}
+/* A page format: the content becomes a sheet of that width on a desk; with a height, page breaks are marked every page. */
+.aurebesh[data-page] .aurebesh-stage{padding:16px;overflow:auto;background:var(--aurebesh-desk,#e4e7ec)}
+.aurebesh[data-page] .aurebesh-content{box-sizing:border-box;width:var(--aurebesh-page-w);max-width:100%;min-height:var(--aurebesh-page-h,var(--aurebesh-min-height,150px));margin:0 auto;padding:var(--aurebesh-page-m);overflow:visible;background-color:var(--aurebesh-bg,#fff);box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.aurebesh[data-paged] .aurebesh-content{background-image:repeating-linear-gradient(to bottom,transparent 0,transparent calc(var(--aurebesh-page-h) - 2px),var(--aurebesh-pagebreak,#9aa3b2) calc(var(--aurebesh-page-h) - 2px),var(--aurebesh-pagebreak,#9aa3b2) var(--aurebesh-page-h))}
 .aurebesh-content.is-empty::before{content:attr(data-placeholder);color:#9aa1ab;pointer-events:none;position:absolute}
 .aurebesh-content blockquote{margin:.5em 0;padding-inline-start:12px;border-inline-start:3px solid #d0d5dd;color:#555}
 .aurebesh-content pre{margin:.5em 0;padding:10px 12px;border-radius:6px;background:var(--aurebesh-code-bg,#f3f4f6);overflow-x:auto;tab-size:2;font-family:ui-monospace,'Cascadia Code','Source Code Pro',Menlo,Consolas,'DejaVu Sans Mono',monospace;font-size:.9em}

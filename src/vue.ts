@@ -12,6 +12,7 @@ import type { PropType } from 'vue';
 import { defineAurebeshElement } from './element';
 import type { AurebeshElement } from './element';
 import type { Aurebesh, AurebeshOptions } from './editor';
+import type { ResolvedPage } from './page';
 import type { TextStats } from './stats';
 
 export const AurebeshEditor = defineComponent({
@@ -20,6 +21,10 @@ export const AurebeshEditor = defineComponent({
     modelValue: { type: String, default: undefined },
     options: { type: Object as PropType<AurebeshOptions>, default: undefined },
     placeholder: { type: String, default: undefined },
+    /** Page format: 'a4', 'a5', 'ticket-80', ..., or a width such as '600px' / '80mm' (a number is px). */
+    page: { type: [String, Number] as PropType<string | number>, default: undefined },
+    pageOrientation: { type: String as PropType<'portrait' | 'landscape'>, default: undefined },
+    pageMargin: { type: String, default: undefined },
     maxLength: { type: Number, default: undefined },
     counter: { type: Boolean, default: false },
     readOnly: { type: Boolean, default: false },
@@ -33,6 +38,7 @@ export const AurebeshEditor = defineComponent({
     error: (error: Error) => error instanceof Error,
     ready: (editor: Aurebesh) => !!editor,
     count: (stats: TextStats) => !!stats,
+    pageChange: (page: ResolvedPage | null) => page === null || typeof page === 'object',
   },
   setup(props, { emit }) {
     defineAurebeshElement();
@@ -43,6 +49,9 @@ export const AurebeshEditor = defineComponent({
         options: props.options,
         name: props.name,
         placeholder: props.placeholder,
+        page: props.page === undefined ? undefined : String(props.page),
+        'page-orientation': props.pageOrientation,
+        'page-margin': props.pageMargin,
         maxlength: props.maxLength,
         counter: props.counter ? '' : undefined,
         toolbar: props.toolbar?.join(','),
@@ -55,6 +64,7 @@ export const AurebeshEditor = defineComponent({
         onError: (e: CustomEvent<Error>) => emit('error', e.detail),
         onReady: (e: CustomEvent<Aurebesh>) => emit('ready', e.detail),
         onCount: (e: CustomEvent<TextStats>) => emit('count', e.detail),
+        onPage: (e: CustomEvent<ResolvedPage | null>) => emit('pageChange', e.detail),
       });
   },
 });
