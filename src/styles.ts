@@ -1,11 +1,11 @@
 export const CSS = `
 .aurebesh{border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:6px;background:var(--aurebesh-bg,#fff);color:var(--aurebesh-color,#111);font-family:inherit}
 .aurebesh-toolbar{display:flex;flex-wrap:wrap;gap:4px 6px;padding:4px;border-bottom:1px solid var(--aurebesh-border,#d0d5dd);background:var(--aurebesh-toolbar-bg,#f8f9fb)}
-/* the toolbar is blocks (like the groups of the ribbon in Word) of one or two rows; a block moves as a whole when the toolbar is narrow */
-.aurebesh-group{display:flex;flex:none;flex-direction:column;gap:2px;align-items:flex-start;padding-inline-end:6px;border-inline-end:1px solid var(--aurebesh-border,#d0d5dd)}
+/* the toolbar is blocks of one or two rows; a block moves as a whole when the toolbar is narrow */
+.aurebesh-group{display:flex;flex:0 1 auto;min-width:0;max-width:100%;flex-direction:column;gap:2px;align-items:flex-start;padding-inline-end:6px;border-inline-end:1px solid var(--aurebesh-border,#d0d5dd)}
 .aurebesh-group:last-child{padding-inline-end:0;border-inline-end:0}
 .aurebesh-row{display:flex;flex-wrap:wrap;align-items:center;gap:2px}
-/* the strip above the toolbar, like the Quick Access Toolbar of Word: small, and apart from the formatting */
+/* the strip above the toolbar: small, and apart from the formatting */
 .aurebesh-quickbar{flex-wrap:nowrap;gap:0;padding:2px 4px;border-bottom:0}
 .aurebesh-quickbar button{min-width:26px;height:26px}
 .aurebesh-quickbar .aurebesh-icon{width:16px;height:16px}
@@ -14,9 +14,64 @@ export const CSS = `
 .aurebesh-icon{display:block;width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
 .aurebesh-toolbar button:has(>.aurebesh-icon){display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
 .aurebesh-toolbar button{min-width:28px;height:28px;padding:0 6px;border:0;border-radius:4px;background:transparent;color:inherit;cursor:pointer;font:inherit;font-size:13px}
-.aurebesh-toolbar button:hover{background:rgba(0,0,0,.08)}
+.aurebesh-toolbar button:hover{background:var(--aurebesh-hover,rgba(0,0,0,.08))}
 .aurebesh-toolbar button[aria-pressed="true"]{background:var(--aurebesh-accent,#2563eb);color:#fff}
 .aurebesh-toolbar button:disabled{opacity:.4;cursor:default}
+.aurebesh-cmd-bold{font-weight:700}
+.aurebesh-cmd-italic{font-style:italic}
+.aurebesh-cmd-underline{text-decoration:underline}
+.aurebesh-cmd-strike{text-decoration:line-through}
+/* a toolbar whose blocks have a name (#Name in the toolbar option): the larger look of a ribbon, with the name above the buttons */
+.aurebesh-ribbon .aurebesh-toolbar:not(.aurebesh-quickbar){align-items:flex-start;gap:12px 0;padding:14px 24px}
+.aurebesh-ribbon .aurebesh-group{gap:8px;padding-inline:13px}
+.aurebesh-ribbon .aurebesh-group:first-child{padding-inline-start:0}
+.aurebesh-ribbon .aurebesh-group:has(+.aurebesh-group-end){border-inline-end:0}
+.aurebesh-group-end{margin-inline-start:auto}
+.aurebesh-group-label{font-size:12px;font-weight:500;line-height:1;color:var(--aurebesh-label,#667085);white-space:nowrap}
+.aurebesh-ribbon .aurebesh-row{gap:4px}
+.aurebesh-ribbon .aurebesh-group button{min-width:40px;height:40px;border-radius:8px;color:var(--aurebesh-icon,inherit)}
+.aurebesh-ribbon .aurebesh-group .aurebesh-icon{width:20px;height:20px;stroke-width:1.6}
+.aurebesh-ribbon .aurebesh-group button[aria-pressed="true"]{background:var(--aurebesh-active-bg,#e0e9ff);color:var(--aurebesh-active-color,#1d4ed8)}
+.aurebesh-ribbon .aurebesh-group button[aria-pressed="true"]:hover{background:var(--aurebesh-active-bg,#e0e9ff)}
+.aurebesh-ribbon .aurebesh-group button:not(:has(>.aurebesh-icon)){font-size:14px;font-weight:600}
+.aurebesh-ribbon .aurebesh-group button.aurebesh-cmd-italic{font-weight:500}
+.aurebesh-ribbon .aurebesh-group button.aurebesh-cmd-underline{text-underline-offset:3px}
+/* the layout panel beside the text */
+.aurebesh-body{display:flex;align-items:stretch}
+.aurebesh-body>.aurebesh-stage{flex:1 1 auto;min-width:0}
+.aurebesh-panel{box-sizing:border-box;flex:none;width:280px;max-width:45%;padding:16px;overflow:auto;border-inline-start:1px solid var(--aurebesh-border,#d0d5dd);background:var(--aurebesh-toolbar-bg,#f8f9fb);font-size:13px}
+.aurebesh-panel[hidden]{display:none}
+.aurebesh-panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-size:15px}
+.aurebesh-panel-close{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--aurebesh-icon,inherit);cursor:pointer}
+.aurebesh-panel-close:hover{background:var(--aurebesh-hover,rgba(0,0,0,.08))}
+.aurebesh-panel-close .aurebesh-icon{width:16px;height:16px}
+.aurebesh-panel-section{display:flex;flex-direction:column;gap:12px;padding-bottom:16px}
+.aurebesh-panel-section+.aurebesh-panel-section{padding-top:16px;border-top:1px solid var(--aurebesh-border,#d0d5dd)}
+.aurebesh-field{display:flex;flex-direction:column;gap:6px}
+.aurebesh-field-label{color:var(--aurebesh-label,#667085)}
+.aurebesh-field-box{display:flex;align-items:center;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:8px;background:var(--aurebesh-field-bg,var(--aurebesh-bg,#fff))}
+.aurebesh-field-box:focus-within{border-color:var(--aurebesh-accent,#2563eb)}
+.aurebesh-field-box input{flex:1 1 auto;min-width:0;height:38px;padding:0 10px;border:0;background:transparent;color:inherit;font:inherit;outline:0}
+.aurebesh-field-unit{padding-inline-end:10px;color:var(--aurebesh-label,#667085);font-size:12px}
+.aurebesh-panel select{width:100%;max-width:none;height:38px;padding:0 8px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:8px;background:var(--aurebesh-field-bg,var(--aurebesh-bg,#fff));color:inherit;font:inherit}
+.aurebesh-panel :is(input,select,button):focus-visible{outline:2px solid var(--aurebesh-accent,#2563eb);outline-offset:1px}
+.aurebesh-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.aurebesh-tile{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 4px 6px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:8px;background:var(--aurebesh-field-bg,var(--aurebesh-bg,#fff));color:var(--aurebesh-label,#667085);cursor:pointer;font:inherit;font-size:12px}
+.aurebesh-tile:hover{background:var(--aurebesh-hover,rgba(0,0,0,.06))}
+.aurebesh-tile[aria-checked="true"]{border-color:var(--aurebesh-accent,#2563eb);background:var(--aurebesh-active-bg,#e0e9ff);color:var(--aurebesh-active-color,#1d4ed8)}
+.aurebesh-tile:disabled{opacity:.4;cursor:default}
+.aurebesh-tile-bars{display:flex;gap:3px;width:100%;height:22px}
+.aurebesh-tile-bars span{flex:1;border-radius:3px;background:currentColor;opacity:.55}
+.aurebesh-hint{color:var(--aurebesh-label,#667085);font-size:12px;line-height:1.4}
+.aurebesh-fullscreen .aurebesh-body{flex:1 1 auto;min-height:0}
+/* the tooltip of a button: its name and its shortcut */
+.aurebesh-tip{position:absolute;z-index:30;display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:6px;background:var(--aurebesh-tip-bg,#1f2937);color:var(--aurebesh-tip-color,#f3f4f6);font-size:12px;line-height:16px;white-space:nowrap;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.aurebesh-tip[hidden]{display:none}
+.aurebesh-tip kbd{font:inherit;opacity:.7}
+/* full screen: the editor fills the window, and the text scrolls inside it */
+.aurebesh-fullscreen{position:fixed!important;inset:0;z-index:2147483000;display:flex;flex-direction:column;border-radius:0;max-height:none}
+.aurebesh-fullscreen .aurebesh-stage{flex:1 1 auto;min-height:0;max-height:none!important;overflow:auto}
+.aurebesh-fullscreen:not([data-page]) .aurebesh-content{max-height:none;min-height:100%;box-sizing:border-box}
 .aurebesh-content aside{box-sizing:border-box;margin:.25em 0 .5em;padding:.6em .9em;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:6px;background:var(--aurebesh-toolbar-bg,#f8f9fb);font-size:.95em}
 .aurebesh-content aside[style*="float: right"]{margin-left:1em}
 .aurebesh-content aside[style*="float: left"]{margin-right:1em}
@@ -81,7 +136,7 @@ export const CSS = `
 .aurebesh-pending::before{content:attr(data-label)}
 .aurebesh-image-tools{align-items:center}
 .aurebesh-alt{flex:1;min-width:120px;max-width:260px;height:28px;padding:0 8px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:var(--aurebesh-bg,#fff);color:inherit;font:inherit;font-size:13px}
-.aurebesh-content{min-height:var(--aurebesh-min-height,150px);max-height:var(--aurebesh-max-height,none);padding:10px 12px;outline:0;overflow:auto}
+.aurebesh-content{min-height:var(--aurebesh-min-height,150px);max-height:var(--aurebesh-max-height,none);line-height:var(--aurebesh-line,inherit);padding-block:var(--aurebesh-pad-y,10px);padding-inline:max(var(--aurebesh-pad-x,12px),calc((100% - var(--aurebesh-text-width,100%)) / 2));outline:0;overflow:auto}
 /* A page format: the content becomes a sheet of that width on a desk; with a height, page breaks are marked every page. */
 .aurebesh[data-page] .aurebesh-stage{max-height:var(--aurebesh-max-height,none);padding:16px;overflow:auto;background:var(--aurebesh-desk,#e4e7ec)}
 .aurebesh[data-page] .aurebesh-content{box-sizing:border-box;max-height:none;width:var(--aurebesh-page-w);max-width:100%;min-height:var(--aurebesh-page-h,var(--aurebesh-min-height,150px));margin:0 auto;padding:var(--aurebesh-page-m);overflow:visible;background-color:var(--aurebesh-bg,#fff);box-shadow:0 1px 4px rgba(0,0,0,.3)}

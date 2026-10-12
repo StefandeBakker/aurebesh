@@ -56,6 +56,12 @@ export const ICONS: Record<string, Shape[]> = {
   hr: [['rect', { x: 5, y: 3.5, width: 14, height: 4.5, rx: 1.2 }], ['path', { d: 'M2.5 12h19', 'stroke-width': 2.6 }], ['rect', { x: 5, y: 16, width: 14, height: 4.5, rx: 1.2 }]],
   ltr: LTR,
   rtl: mirror(LTR),
+  indent: [['path', { d: 'M4 5h16M12 9.5h8M12 14.5h8M4 19h16' }], ['path', { d: 'M4 9l3.5 3L4 15z' }]],
+  outdent: [['path', { d: 'M4 5h16M12 9.5h8M12 14.5h8M4 19h16' }], ['path', { d: 'M7.5 9 4 12l3.5 3z' }]],
+  // two sliders
+  layout: [['path', { d: 'M4 8h9M19 8h1M4 16h1M11 16h9' }], ['circle', { cx: 16, cy: 8, r: 2.6 }], ['circle', { cx: 8, cy: 16, r: 2.6 }]],
+  close: [['path', { d: 'M6 6l12 12M18 6 6 18' }]],
+  fullscreen: [['path', { d: 'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5' }]],
   fullWidth: [['path', { d: 'M3 5v14M21 5v14M7.5 12h9M10.5 8.5 7 12l3.5 3.5M13.5 8.5 17 12l-3.5 3.5' }]],
   trash: [['path', { d: 'M4 7h16M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v5.5M14 11v5.5' }]],
   landscape: [['rect', { x: 3, y: 6.5, width: 18, height: 11, rx: 2 }], ['path', { d: 'M7 10.5h6M7 13.5h10' }]],

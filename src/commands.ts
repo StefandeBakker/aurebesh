@@ -2,6 +2,7 @@ import { SAFE_COLOR } from './colors';
 import { currentColumns, setColumns } from './columns';
 import { currentDirection, setDirection } from './direction';
 import { currentLink, isInlineCode, setLink, toggleInlineCode } from './inline';
+import { canIndent, indent } from './indent';
 import { insertImage, insertVideo, insertVideoFile, setImageAlign, setImageAlt, setImageWidth } from './media';
 import { addColumn, addRow, canMerge, canSplit, deleteColumn, deleteRow, deleteTable, insertTable, mergeCells, splitCell, toggleHeaderRow } from './table';
 
@@ -105,6 +106,12 @@ export const COMMANDS: Record<string, CommandDef> = {
     run: (count) => setColumns(Number(count) || 1),
     isActive: () => currentColumns() > 1,
   },
+  indent: { name: 'indent', icon: 'indent', label: '→', title: 'Indent', run: () => indent(1), isEnabled: () => canIndent(1) },
+  outdent: { name: 'outdent', icon: 'outdent', label: '←', title: 'Outdent', run: () => indent(-1), isEnabled: () => canIndent(-1) },
+  /** Opens and closes the layout panel beside the text; handled by the editor. */
+  layout: { name: 'layout', icon: 'layout', label: '⚙', title: 'Layout', run: () => {} },
+  /** A button that makes the editor fill the window and back; handled by the editor, which owns the view. */
+  fullscreen: { name: 'fullscreen', icon: 'fullscreen', label: '⛶', title: 'Full screen', run: () => {} },
   /** A button that turns the sheet to landscape and back; like `page` it is handled by the editor. */
   orientation: { name: 'orientation', icon: 'landscape', label: '▭', title: 'Landscape', run: () => {} },
   /** A select in the toolbar, not in the default one; it is handled by the editor (`setPage`), since the format belongs to the editor, not the selection. */
@@ -168,10 +175,10 @@ export const COMMANDS: Record<string, CommandDef> = {
 };
 
 /**
- * The default toolbar: blocks of two rows, like the groups of the Home tab of Word. `|` starts a block and `/` a second row in it.
+ * The default toolbar: blocks of two rows. `|` starts a block and `/` a second row in it.
  * The font (typeface, size, clear formatting on top; character styles, highlight and colour below), the paragraph (lists; alignment),
  * the styles (headings and quote; inline code and code block, the two kinds of code side by side), what can be inserted (link, picture, video; table, line) and the layout (columns).
- * Undo and redo are not in it: like the Quick Access Toolbar of Word they sit in a small strip of their own above it
+ * Undo and redo are not in it: they sit in a small strip of their own above it
  * (see DEFAULT_QUICKBAR). Items that are not in it have a place in the same blocks: `sub` `sup` after `strike`, `alignJustify`
  * `ltr` `rtl` after `alignRight`, `h3` after `h2`, and `page` `orientation` after `columns`.
  */
@@ -183,5 +190,5 @@ export const DEFAULT_TOOLBAR = [
   'columns',
 ];
 
-/** The strip above the toolbar (the Quick Access Toolbar of Word). It is on when the default toolbar is used; set `quickbar` to change it. */
+/** The strip above the toolbar. It is on when the default toolbar is used; set `quickbar` to change it. */
 export const DEFAULT_QUICKBAR = ['undo', 'redo'];
