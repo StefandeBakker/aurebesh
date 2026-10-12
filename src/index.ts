@@ -1,5 +1,5 @@
 export { Aurebesh } from './editor';
-export type { AurebeshOptions, AurebeshEvents } from './editor';
+export type { AurebeshOptions, AurebeshEvents, Layout } from './editor';
 export { PAGE_PRESETS, resolvePage } from './page';
 export type { PageFormat, PagePreset, PageSpec, ResolvedPage } from './page';
 export { toMarkdown, toText } from './export';

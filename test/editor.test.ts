@@ -261,6 +261,29 @@ describe('the default toolbar', () => {
     expect(count({ toolbar: [], quickbar: ['undo'] })).toEqual({ strip: 1, undo: 1 }); // a strip without a toolbar
   });
 
+  it('keeps a command that is in the strip and in the toolbar in step: both are disabled when read-only', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const ed = new Aurebesh(el, { toolbar: ['bold', 'undo'], quickbar: ['undo'] });
+    const both = Array.from(el.querySelectorAll('button[title="Undo"]')) as HTMLButtonElement[];
+    expect(both).toHaveLength(2);
+    ed.setReadOnly(true);
+    expect(both.map((b) => b.disabled)).toEqual([true, true]);
+    ed.setReadOnly(false);
+    expect(both.map((b) => b.disabled)).toEqual([false, false]);
+    el.remove();
+  });
+
+  it('builds the strip from the same controls as the toolbar, so a picker stays a picker', () => {
+    const el = build({ toolbar: ['bold'], quickbar: ['link', 'table', 'color', 'undo'] });
+    const strip = el.querySelector('.aurebesh-quickbar')!;
+    expect(strip.querySelector('button[title="Link"]')!.getAttribute('aria-haspopup')).toBe('true');
+    expect(strip.querySelector('button[title="Table"]')!.getAttribute('aria-haspopup')).toBe('true');
+    expect(strip.querySelector('.aurebesh-swatch-color')).not.toBeNull();
+    expect(strip.querySelector('input[inputmode="url"]')).not.toBeNull(); // the link box
+    el.remove();
+  });
+
   it('makes a block of every | and a row of every /, and skips empty ones', () => {
     const t = (toolbar: string[]) => {
       const e = build({ toolbar });

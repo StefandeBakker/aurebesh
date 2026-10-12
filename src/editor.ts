@@ -2,7 +2,7 @@ import { gridNavigation, rovingToolbar } from './a11y';
 import { columnsOf, currentColumns } from './columns';
 import { handleListKey } from './lists';
 import { applyMarkdown } from './markdown';
-import { shortcutFor } from './shortcuts';
+import { shortcutFor, shortcutLabel } from './shortcuts';
 import { DEFAULT_COLORS, SAFE_COLOR } from './colors';
 import { COMMANDS, DEFAULT_QUICKBAR, DEFAULT_TOOLBAR, TABLE_TOOLS } from './commands';
 import { iconElement } from './icons';
@@ -48,7 +48,19 @@ export interface MediaOptions {
   pasteImages?: PasteImagePolicy;
 }
 
+/** How the text is shown. Not part of the HTML. null is the default of the editor (or the stylesheet of the page). */
+export interface Layout {
+  /** The widest the text gets, in px; the text is centred in a wider editor. */
+  textWidth: number | null;
+  /** Space around the text, in px. */
+  padding: number | null;
+  /** Line height as a multiple of the font size. */
+  lineHeight: number | null;
+}
+
 export interface AurebeshOptions {
+  /** The initial layout (see `Layout`); the 'layout' toolbar item opens a panel to change it. */
+  layout?: Partial<Layout>;
   /** Most characters allowed (spaces count, line breaks don't). Typing and pasting stop at the limit. */
   /** Direction of the editor itself (toolbar and base alignment): 'ltr', 'rtl' or 'auto'. Default: the page's. */
   dir?: 'ltr' | 'rtl' | 'auto';
@@ -72,7 +84,7 @@ export interface AurebeshOptions {
   /** Toolbar item names, '|' is a separator. Pass [] for no toolbar. */
   toolbar?: string[];
   /**
-   * Items in a small strip above the toolbar, like the Quick Access Toolbar of Word. Default: undo and redo when the default
+   * Items in a small strip above the toolbar. Default: undo and redo when the default
    * toolbar is used, nothing when you give a `toolbar` of your own (so they are not there twice). Pass [] for no strip.
    */
   quickbar?: string[];
@@ -92,6 +104,8 @@ export interface AurebeshEvents {
   count: TextStats;
   /** The page format changed (through `setPage` or the toolbar). null is responsive. */
   page: ResolvedPage | null;
+  /** A setting of the layout panel changed (through `setLayout` or the panel). */
+  layout: Layout;
   focus: undefined;
   blur: undefined;
   /** An upload failed or a link was rejected. */
@@ -103,7 +117,8 @@ type Listener<T> = (payload: T) => void;
 export class Aurebesh {
   readonly root: HTMLElement;
   readonly content: HTMLElement;
-  private buttons = new Map<string, HTMLButtonElement>();
+  /** The buttons of each command: more than one when a command is both in the quickbar and in the toolbar. */
+  private buttons = new Map<string, HTMLButtonElement[]>();
   private listeners = new Map<keyof AurebeshEvents, Set<Listener<any>>>();
   private cleanup: Array<() => void> = [];
   private highlightTimer: ReturnType<typeof setTimeout> | undefined;
@@ -118,10 +133,17 @@ export class Aurebesh {
   private linkOpen: HTMLButtonElement | null = null;
   private lastLink: HTMLAnchorElement | null = null;
   private linkForm: HTMLElement | null = null;
+  private tip: HTMLElement | null = null;
+  private fullscreen = false;
   private formLink: HTMLAnchorElement | null = null;
   private lastImage: HTMLImageElement | null = null;
   private sizeSelect: HTMLSelectElement | null = null;
-  private columnsSelect: HTMLSelectElement | null = null;
+  private columnsSelects: HTMLSelectElement[] = [];
+  private layoutPanel: HTMLElement | null = null;
+  private layoutTiles: HTMLButtonElement[] = [];
+  private layoutNote: HTMLElement | null = null;
+  private layoutInputs: { textWidth?: HTMLInputElement; padding?: HTMLInputElement; lineHeight?: HTMLSelectElement } = {};
+  private layout: Layout = { textWidth: null, padding: null, lineHeight: null };
   private labels: Labels;
   private colors: string[];
   private adapter: MediaAdapter | null;
@@ -138,7 +160,7 @@ export class Aurebesh {
   private pointerHeld = false;
   private stage: HTMLElement;
   private page: ResolvedPage | null = null;
-  private pageSelect: HTMLSelectElement | null = null;
+  private pageSelects: HTMLSelectElement[] = [];
   private pageSpec: PageSpec | null = null;
   private orientationBtn: HTMLButtonElement | null = null;
 
@@ -178,7 +200,15 @@ export class Aurebesh {
     this.stage = doc.createElement('div');
     this.stage.className = 'aurebesh-stage';
     this.stage.appendChild(this.content);
-    this.root.appendChild(this.stage);
+    if (items.includes('layout')) {
+      // the text with the layout panel beside it
+      const body = doc.createElement('div');
+      body.className = 'aurebesh-body';
+      body.append(this.stage, this.buildLayoutPanel());
+      this.root.appendChild(body);
+    } else {
+      this.root.appendChild(this.stage);
+    }
 
     this.counterEl = doc.createElement('div');
     this.counterEl.className = 'aurebesh-count';
@@ -209,6 +239,10 @@ export class Aurebesh {
     this.listen(this.content, 'drop', (e) => this.onDrop(e as DragEvent));
     this.listen(this.content, 'click', (e) => this.onClick(e as MouseEvent));
     this.listen(doc, 'selectionchange', () => this.updateToolbar());
+    // Escape leaves full screen, unless it is closing a popover
+    this.listen(this.root, 'keydown', (e) => {
+      if ((e as KeyboardEvent).key === 'Escape' && this.fullscreen && !this.root.querySelector('.aurebesh-table-pop:not([hidden])')) this.setFullscreen(false);
+    });
     // the link popover hangs on its link, so it follows when the page or an inner scroll area moves, or the window changes size
     if (doc.defaultView) {
       this.listen(doc.defaultView, 'scroll', () => this.placeLinkTools(), true);
@@ -245,6 +279,7 @@ export class Aurebesh {
     } catch (err) {
       this.fail(err); // a wrong format leaves the editor responsive, and says why
     }
+    if (options.layout) this.setLayout(options.layout);
 
     container.appendChild(this.root);
     this.scheduleHighlight();
@@ -360,17 +395,19 @@ export class Aurebesh {
       btn.disabled = !this.page?.height;
       btn.setAttribute('aria-pressed', String(!!this.page?.landscape));
     }
-    const select = this.pageSelect;
-    if (!select) return;
     const name = this.page?.name ?? 'responsive';
-    select.querySelector('option[value="custom"]')?.remove();
-    if (name === 'custom') {
-      const opt = select.ownerDocument.createElement('option');
-      opt.value = 'custom';
-      opt.textContent = this.t('page.custom');
-      select.appendChild(opt);
+    for (const select of this.pageSelects) {
+      select.querySelector('option[value="custom"]')?.remove();
+      if (name === 'custom') {
+        const opt = select.ownerDocument.createElement('option');
+        opt.value = 'custom';
+        opt.textContent = this.t('page.custom');
+        select.appendChild(opt);
+      }
+      select.value = name;
     }
-    select.value = name;
+    // on a sheet the width and the space around the text are the sheet's own
+    for (const input of [this.layoutInputs.textWidth, this.layoutInputs.padding]) if (input) input.disabled = !!this.page;
   }
 
   /** Words and characters of the current content. */
@@ -465,7 +502,7 @@ export class Aurebesh {
     const shortcut = shortcutFor(e);
     if (shortcut) {
       if (shortcut === 'link') {
-        const link = this.buttons.get('link');
+        const link = this.buttons.get('link')?.[0];
         if (link) {
           e.preventDefault();
           link.click();
@@ -512,10 +549,11 @@ export class Aurebesh {
   setReadOnly(readOnly: boolean): void {
     this.content.contentEditable = readOnly ? 'false' : 'true';
     this.content.setAttribute('aria-readonly', String(readOnly));
-    this.buttons.forEach((b) => (b.disabled = readOnly));
+    this.buttons.forEach((list) => list.forEach((b) => (b.disabled = readOnly)));
     if (this.fontSelect) this.fontSelect.disabled = readOnly;
     if (this.sizeSelect) this.sizeSelect.disabled = readOnly;
-    if (this.columnsSelect) this.columnsSelect.disabled = readOnly;
+    this.columnsSelects.forEach((s) => (s.disabled = readOnly));
+    this.layoutTiles.forEach((t) => (t.disabled = readOnly));
   }
 
   setPlaceholder(text: string): void {
@@ -584,8 +622,8 @@ export class Aurebesh {
     bar.setAttribute('role', 'toolbar');
     bar.setAttribute('aria-label', this.t('ui.quickbar'));
     for (const item of items) {
-      const cmd = COMMANDS[item];
-      if (cmd) bar.appendChild(this.makeButton(cmd));
+      const control = this.buildToolbarItem(item); // the same control as in the toolbar: a picker stays a picker
+      if (control) bar.appendChild(control);
     }
     this.root.appendChild(bar);
     rovingToolbar(bar, () => this.content.focus());
@@ -599,6 +637,8 @@ export class Aurebesh {
     if (item === 'size') return this.buildSizeSelect();
     if (item === 'columns') return this.buildColumnsSelect();
     if (item === 'orientation') return this.buildOrientationButton();
+    if (item === 'layout') return this.buildLayoutButton(cmd);
+    if (item === 'fullscreen') return this.makeButton(cmd, () => this.setFullscreen(!this.fullscreen));
     if (item === 'page') return this.buildPageSelect();
     if (item === 'link') return this.buildLinkPicker(cmd);
     if (item === 'color') return this.buildColorPicker(cmd, 'inherit', this.t('ui.automatic'));
@@ -609,7 +649,7 @@ export class Aurebesh {
   }
 
   /**
-   * The toolbar is blocks, like the groups of the ribbon in Word: `|` starts a new block and `/` a new row inside the block, so a
+   * The toolbar is blocks: `|` starts a new block and `/` a new row inside the block, so a
    * block can be two rows of buttons on top of each other. A block moves as a whole when the toolbar is narrow, it is never cut in two.
    * Without any `/` every block is a single row, which wraps like before.
    */
@@ -619,10 +659,17 @@ export class Aurebesh {
     bar.className = 'aurebesh-toolbar';
     bar.setAttribute('role', 'toolbar');
     const groups: HTMLElement[][][] = [[[]]]; // blocks of rows of elements
+    const labels = new Map<HTMLElement[][], string>(); // the name above a block
+    const atEnd = new Set<HTMLElement[][]>(); // blocks that go to the far end of the toolbar
     for (const item of items) {
       const group = groups[groups.length - 1];
-      if (item === '|') {
-        if (group.some((row) => row.length)) groups.push([[]]);
+      if (item === '|' || item === '>') {
+        if (item === '>') atEnd.add(group.some((row) => row.length) ? (groups.push([[]]), groups[groups.length - 1]) : group);
+        else if (group.some((row) => row.length)) groups.push([[]]);
+        continue;
+      }
+      if (item.startsWith('#')) {
+        labels.set(group, item.slice(1).trim());
         continue;
       }
       if (item === '/') {
@@ -638,6 +685,18 @@ export class Aurebesh {
       const block = doc.createElement('div');
       block.className = 'aurebesh-group';
       block.setAttribute('role', 'group');
+      const label = labels.get(rows);
+      if (label) {
+        // like the groups of a ribbon: the name of the block above its buttons
+        const name = doc.createElement('div');
+        name.className = 'aurebesh-group-label';
+        name.setAttribute('aria-hidden', 'true');
+        name.textContent = label;
+        block.setAttribute('aria-label', label);
+        block.appendChild(name);
+        this.root.classList.add('aurebesh-ribbon');
+      }
+      if (atEnd.has(rows)) block.classList.add('aurebesh-group-end');
       for (const nodes of filled) {
         const row = doc.createElement('div');
         row.className = 'aurebesh-row';
@@ -690,7 +749,7 @@ export class Aurebesh {
       return b;
     };
     this.linkOpen = add(this.t('ui.openLink'), () => openLink(this.lastLink?.getAttribute('href')));
-    add(this.t('ui.editLink'), () => this.buttons.get('link')?.click());
+    add(this.t('ui.editLink'), () => this.buttons.get('link')?.[0]?.click());
     add(this.t('ui.removeLink'), () => this.exec('link', ''));
 
     this.linkTools = tools;
@@ -834,9 +893,215 @@ export class Aurebesh {
     else btn.textContent = cmd.label;
   }
 
+  /** The tooltip of a button: its name, and its shortcut next to it. It replaces the browser's own title while it shows. */
+  private tooltip(btn: HTMLElement, command: string): void {
+    const show = (swap: boolean) => {
+      const name = btn.getAttribute('title') ?? btn.dataset.title;
+      if (!name) return;
+      const doc = btn.ownerDocument;
+      if (!this.tip) {
+        this.tip = doc.createElement('div');
+        this.tip.className = 'aurebesh-tip';
+        this.tip.setAttribute('aria-hidden', 'true');
+        this.root.appendChild(this.tip);
+      }
+      const tip = this.tip;
+      // The browser shows its own tooltip for a title after a moment; with the pointer on the button ours replaces it. The title
+      // comes back as soon as the pointer leaves or clicks, so it is there for anything that looks for it (and for the keyboard).
+      if (swap) {
+        btn.dataset.title = name;
+        btn.removeAttribute('title');
+      }
+      tip.textContent = name;
+      const keys = shortcutLabel(command);
+      if (keys) {
+        const kbd = doc.createElement('kbd');
+        kbd.textContent = keys;
+        tip.appendChild(kbd);
+      }
+      tip.hidden = false;
+      const root = this.root.getBoundingClientRect();
+      const r = btn.getBoundingClientRect();
+      const x = Math.max(root.left, Math.min(r.left + r.width / 2 - tip.offsetWidth / 2, root.right - tip.offsetWidth));
+      tip.style.left = `${Math.round(x - root.left - this.root.clientLeft)}px`;
+      tip.style.top = `${Math.round(r.bottom - root.top - this.root.clientTop + 6)}px`;
+    };
+    const hide = () => {
+      if (btn.dataset.title) {
+        btn.setAttribute('title', btn.dataset.title);
+        delete btn.dataset.title;
+      }
+      if (this.tip) this.tip.hidden = true;
+    };
+    btn.addEventListener('pointerenter', () => show(true));
+    btn.addEventListener('pointerleave', hide);
+    btn.addEventListener('pointerdown', () => {
+      if (btn.dataset.title) {
+        btn.setAttribute('title', btn.dataset.title);
+        delete btn.dataset.title;
+      }
+    });
+    btn.addEventListener('focus', () => btn.matches(':focus-visible') && show(false));
+    btn.addEventListener('blur', hide);
+    btn.addEventListener('keydown', (e) => e.key === 'Escape' && hide());
+  }
+
+  /** The toolbar button that opens and closes the layout panel. */
+  private buildLayoutButton(cmd: CommandDef): HTMLButtonElement {
+    const btn = this.makeButton(cmd, () => this.setLayoutPanel(!!this.layoutPanel?.hidden));
+    btn.setAttribute('aria-expanded', 'false');
+    return btn;
+  }
+
+  private setLayoutPanel(open: boolean): void {
+    const panel = this.layoutPanel;
+    if (!panel) return;
+    panel.hidden = !open;
+    this.buttons.get('layout')?.forEach((b) => b.setAttribute('aria-expanded', String(open)));
+    this.placeLinkTools();
+  }
+
+  /** The panel beside the text: the columns, and how the text is shown. */
+  private buildLayoutPanel(): HTMLElement {
+    const doc = this.container.ownerDocument;
+    const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string) => {
+      const e = doc.createElement(tag);
+      if (className) e.className = className;
+      if (text) e.textContent = text;
+      return e;
+    };
+    const panel = el('aside', 'aurebesh-panel');
+    panel.hidden = true;
+    panel.id = `aurebesh-panel-${Math.random().toString(36).slice(2, 8)}`;
+    panel.setAttribute('aria-label', this.t('ui.layout'));
+
+    const head = el('div', 'aurebesh-panel-head');
+    const title = el('strong', undefined, this.t('ui.layout'));
+    const close = el('button', 'aurebesh-panel-close');
+    close.type = 'button';
+    close.setAttribute('aria-label', this.t('ui.close'));
+    close.title = this.t('ui.close');
+    close.appendChild(iconElement(doc, 'close')!);
+    close.addEventListener('click', () => {
+      this.setLayoutPanel(false);
+      this.buttons.get('layout')?.[0]?.focus();
+    });
+    head.append(title, close);
+
+    const field = (label: string, control: HTMLElement, unit?: string) => {
+      const wrap = el('label', 'aurebesh-field');
+      wrap.appendChild(el('span', 'aurebesh-field-label', label));
+      if (unit) {
+        const box = el('span', 'aurebesh-field-box');
+        box.append(control, el('span', 'aurebesh-field-unit', unit));
+        wrap.appendChild(box);
+      } else wrap.appendChild(control);
+      return wrap;
+    };
+
+    // the columns: tiles that show the number of columns
+    const cols = el('div', 'aurebesh-panel-section');
+    cols.appendChild(el('div', 'aurebesh-field-label', this.t('ui.columns')));
+    const tiles = el('div', 'aurebesh-tiles');
+    tiles.setAttribute('role', 'radiogroup');
+    tiles.setAttribute('aria-label', this.t('ui.columns'));
+    for (const n of [1, 2, 3, 4]) {
+      const tile = el('button', 'aurebesh-tile');
+      tile.type = 'button';
+      tile.setAttribute('role', 'radio');
+      tile.setAttribute('aria-checked', 'false');
+      tile.setAttribute('aria-label', this.t(`columns.${n}`));
+      tile.title = this.t(`columns.${n}`);
+      tile.dataset.columns = String(n);
+      const bars = el('span', 'aurebesh-tile-bars');
+      for (let i = 0; i < n; i++) bars.appendChild(el('span'));
+      tile.append(bars, el('span', 'aurebesh-tile-n', String(n)));
+      tile.addEventListener('mousedown', (e) => e.preventDefault()); // the caret stays in the text
+      tile.addEventListener('click', () => this.exec('columns', String(n)));
+      tiles.appendChild(tile);
+      this.layoutTiles.push(tile);
+    }
+    this.layoutNote = el('div', 'aurebesh-hint', this.t('columns.1'));
+    this.layoutNote.setAttribute('aria-live', 'polite');
+    cols.append(tiles, this.layoutNote);
+
+    // how the text is shown
+    const view = el('div', 'aurebesh-panel-section');
+    view.appendChild(field(this.t('ui.layoutWidth'), this.buildPageSelect()));
+    const number = (key: 'textWidth' | 'padding', min: number, max: number) => {
+      const input = el('input');
+      input.type = 'number';
+      input.min = String(min);
+      input.max = String(max);
+      input.step = '4';
+      input.placeholder = '–';
+      input.addEventListener('change', () => {
+        const v = input.value === '' ? null : Number(input.value);
+        this.setLayout({ [key]: v === null || Number.isNaN(v) ? null : Math.max(min, Math.min(max, v)) });
+      });
+      this.layoutInputs[key] = input;
+      return input;
+    };
+    view.appendChild(field(this.t('ui.textWidth'), number('textWidth', 240, 2400), 'px'));
+    view.appendChild(field(this.t('ui.padding'), number('padding', 0, 200), 'px'));
+    const line = el('select');
+    for (const v of ['', '1.2', '1.4', '1.5', '1.7', '2']) {
+      const opt = el('option', undefined, v ? v.replace('.', ',') : '–');
+      opt.value = v;
+      line.appendChild(opt);
+    }
+    line.addEventListener('change', () => this.setLayout({ lineHeight: line.value ? Number(line.value) : null }));
+    this.layoutInputs.lineHeight = line;
+    view.appendChild(field(this.t('ui.lineHeight'), line));
+    view.appendChild(el('div', 'aurebesh-hint', this.t('ui.layoutNote')));
+
+    panel.append(head, cols, view);
+    panel.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation(); // not also out of full screen
+      close.click();
+    });
+    this.layoutPanel = panel;
+    return panel;
+  }
+
+  private syncLayoutTiles(n: number): void {
+    for (const t of this.layoutTiles) t.setAttribute('aria-checked', String(t.dataset.columns === String(n)));
+    if (this.layoutNote) this.layoutNote.textContent = this.t(`columns.${n}`);
+  }
+
+  /** Changes how the text is shown (what you leave out stays as it is). Nothing of it goes into the HTML. */
+  setLayout(layout: Partial<Layout>): void {
+    this.layout = { ...this.layout, ...layout };
+    const { textWidth, padding, lineHeight } = this.layout;
+    const set = (name: string, value: string | null) => (value === null ? this.root.style.removeProperty(name) : this.root.style.setProperty(name, value));
+    set('--aurebesh-text-width', textWidth === null ? null : `${textWidth}px`);
+    set('--aurebesh-pad-x', padding === null ? null : `${padding}px`);
+    set('--aurebesh-pad-y', padding === null ? null : `${padding}px`);
+    set('--aurebesh-line', lineHeight === null ? null : String(lineHeight));
+    const { textWidth: w, padding: p, lineHeight: l } = this.layoutInputs;
+    if (w) w.value = textWidth === null ? '' : String(textWidth);
+    if (p) p.value = padding === null ? '' : String(padding);
+    if (l) l.value = lineHeight === null ? '' : String(lineHeight);
+    this.placeLinkTools();
+    this.emit('layout', { ...this.layout });
+  }
+
+  getLayout(): Layout {
+    return { ...this.layout };
+  }
+
+  private setFullscreen(on: boolean): void {
+    this.fullscreen = on;
+    this.root.classList.toggle('aurebesh-fullscreen', on);
+    this.buttons.get('fullscreen')?.forEach((b) => b.setAttribute('aria-pressed', String(on)));
+    this.placeLinkTools();
+  }
+
   private makeButton(cmd: CommandDef, onClick: (e: MouseEvent) => void = () => this.exec(cmd.name)): HTMLButtonElement {
     const btn = this.container.ownerDocument.createElement('button');
     btn.type = 'button';
+    btn.classList.add(`aurebesh-cmd-${cmd.name}`);
     this.face(btn, cmd);
     btn.title = this.title(cmd);
     btn.setAttribute('aria-label', this.title(cmd));
@@ -844,7 +1109,8 @@ export class Aurebesh {
     // Keep the selection in the editor when clicking a button.
     btn.addEventListener('mousedown', (e) => e.preventDefault());
     btn.addEventListener('click', onClick);
-    this.buttons.set(cmd.name, btn);
+    this.tooltip(btn, cmd.name);
+    this.buttons.set(cmd.name, [...(this.buttons.get(cmd.name) ?? []), btn]);
     return btn;
   }
 
@@ -1217,7 +1483,7 @@ export class Aurebesh {
       select.appendChild(opt);
     }
     select.addEventListener('change', () => this.exec('columns', select.value));
-    this.columnsSelect = select;
+    this.columnsSelects.push(select);
     return select;
   }
 
@@ -1260,7 +1526,7 @@ export class Aurebesh {
         this.fail(err);
       }
     });
-    this.pageSelect = select;
+    this.pageSelects.push(select);
     return select;
   }
 
@@ -1396,6 +1662,7 @@ export class Aurebesh {
     const toggle = this.makeButton(cmd, () => {
       pop.hidden = !pop.hidden;
       if (pop.hidden) return;
+      this.linkForm = pop;
       const existing = currentLink();
       this.formLink = existing;
       this.updateToolbar(); // the small popover on the link makes way for the form
@@ -1458,7 +1725,12 @@ export class Aurebesh {
       }
       // Stay visible while the alt-text field has focus (it takes the selection with it).
       this.imageTools.hidden = !img && !this.imageTools.contains(this.container.ownerDocument.activeElement);
-    }    if (this.columnsSelect && inside) this.columnsSelect.value = String(currentColumns());
+    }
+    if (inside) {
+      const n = currentColumns();
+      this.columnsSelects.forEach((s) => (s.value = String(n)));
+      this.syncLayoutTiles(n);
+    }
     if (this.sizeSelect && inside) {
       const step = this.currentSizeStep(sel!.getRangeAt(0));
       this.sizeSelect.value = Array.from(this.sizeSelect.options).some((o) => o.value === step) ? step : '';
@@ -1474,11 +1746,13 @@ export class Aurebesh {
       const match = this.fonts.find((f) => firstFamily(f.family) === current);
       this.fontSelect.value = match ? match.family : '';
     }
-    this.buttons.forEach((btn, name) => {
-      const active = inside && (COMMANDS[name].isActive?.() ?? false);
-      btn.setAttribute('aria-pressed', String(active));
+    this.buttons.forEach((list, name) => {
+      const active = name === 'fullscreen' ? this.fullscreen : inside && (COMMANDS[name].isActive?.() ?? false);
       const enabled = COMMANDS[name].isEnabled;
-      if (enabled) btn.disabled = !this.content.isContentEditable || !(inside && enabled());
+      for (const btn of list) {
+        btn.setAttribute('aria-pressed', String(active));
+        if (enabled) btn.disabled = !this.content.isContentEditable || !(inside && enabled());
+      }
     });
   }
 

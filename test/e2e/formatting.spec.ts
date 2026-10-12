@@ -1,5 +1,5 @@
 import { test } from '@playwright/test';
-import { button, content, expect, html, open, selectAll, type } from './helpers';
+import { button, content, expect, html, open, selectAll, setHtml, type } from './helpers';
 
 test.describe('formatting', () => {
   test('bold from the toolbar', async ({ page }) => {
@@ -561,5 +561,127 @@ test.describe('a fixed maximum height', () => {
     await expect(pop).toBeVisible();
     await content(page).evaluate((el) => (el.scrollTop = el.scrollHeight));
     await expect(pop).toBeHidden(); // visibility: hidden once the link is out of the visible text
+  });
+});
+
+test('a wide block wraps inside a narrow toolbar instead of running out of it', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 360, height: 700 });
+  const over = await page.evaluate(() => {
+    const bar = document.querySelector('.aurebesh-toolbar:not(.aurebesh-quickbar)') as HTMLElement;
+    return bar.scrollWidth - bar.clientWidth;
+  });
+  expect(over).toBeLessThanOrEqual(0);
+});
+
+test.describe('ribbon toolbar', () => {
+  const RIBBON = ['#History', 'undo', 'redo', '|', '#Alinea', 'alignLeft', 'indent', 'outdent', '|', '#Lijsten', 'ul', '>', '#View', 'fullscreen'];
+  const openRibbon = async (page: import('@playwright/test').Page, html: string) => {
+    await open(page, html);
+    await page.evaluate((toolbar) => {
+      const w = window as any;
+      w.ed.options = { toolbar };
+    }, RIBBON);
+    await page.locator('.aurebesh-ribbon').waitFor();
+  };
+
+  test('shows a tooltip with the name and the shortcut, and gives the browser title back', async ({ page }) => {
+    await openRibbon(page, '<p>text</p>');
+    const btn = page.locator('.aurebesh-cmd-undo');
+    await btn.hover();
+    const tip = page.locator('.aurebesh-tip');
+    await expect(tip).toBeVisible();
+    await expect(tip).toContainText('Undo');
+    await expect(tip.locator('kbd')).toHaveText(/Ctrl\+Z|⌘Z/);
+    await page.mouse.move(5, 5);
+    await expect(tip).toBeHidden();
+    await expect(btn).toHaveAttribute('title', 'Undo');
+  });
+
+  test('indents a paragraph in steps and back, and a list item into a nested list', async ({ page }) => {
+    await openRibbon(page, '<p>text</p>');
+    await content(page).locator('p').click();
+    await page.locator('.aurebesh-cmd-indent').click();
+    await page.locator('.aurebesh-cmd-indent').click();
+    expect(await html(page)).toBe('<p style="margin-inline-start: 48px;">text</p>');
+    await page.locator('.aurebesh-cmd-outdent').click();
+    await page.locator('.aurebesh-cmd-outdent').click();
+    expect(await html(page)).toBe('<p>text</p>');
+    await expect(page.locator('.aurebesh-cmd-outdent')).toBeDisabled();
+
+    await setHtml(page, '<ul><li>one</li><li>two</li></ul>');
+    await content(page).locator('li').nth(1).click();
+    await page.locator('.aurebesh-cmd-indent').click();
+    await expect(content(page).locator('ul ul li')).toHaveText('two'); // nested one level
+  });
+
+  test('full screen fills the window, keeps the toolbar, and Escape brings it back', async ({ page }) => {
+    await openRibbon(page, '<p>text</p>');
+    const root = page.locator('.aurebesh');
+    const before = (await root.boundingBox())!;
+    await page.locator('.aurebesh-cmd-fullscreen').click();
+    const full = (await root.boundingBox())!;
+    const view = page.viewportSize()!;
+    expect(full.width).toBe(view.width);
+    expect(full.height).toBe(view.height);
+    await expect(page.locator('.aurebesh-cmd-fullscreen')).toHaveAttribute('aria-pressed', 'true');
+    await content(page).click();
+    await page.keyboard.press('Escape');
+    expect((await root.boundingBox())!.height).toBe(before.height);
+  });
+
+  test('the block after > sits at the far end', async ({ page }) => {
+    await openRibbon(page, '<p>text</p>');
+    const bar = (await page.locator('.aurebesh-toolbar').first().boundingBox())!;
+    const last = (await page.locator('.aurebesh-group-end').boundingBox())!;
+    expect(bar.x + bar.width - (last.x + last.width)).toBeLessThan(40); // against the right edge (the padding of the toolbar)
+  });
+});
+
+test.describe('layout panel', () => {
+  const openPanel = async (page: import('@playwright/test').Page, html: string) => {
+    await open(page, html);
+    await page.evaluate(() => ((window as any).ed.options = { toolbar: ['bold', 'layout'] }));
+    await page.locator('.aurebesh-cmd-layout').click();
+    await expect(page.locator('.aurebesh-panel')).toBeVisible();
+  };
+
+  test('opens beside the text, and a tile puts the paragraph in that many columns', async ({ page }) => {
+    await openPanel(page, '<p>one</p><p>two</p>');
+    const text = (await page.locator('.aurebesh-stage').boundingBox())!;
+    const panel = (await page.locator('.aurebesh-panel').boundingBox())!;
+    expect(panel.x).toBeGreaterThanOrEqual(text.x + text.width - 1); // beside, not over
+    await content(page).locator('p').first().click();
+    await page.locator('.aurebesh-tile[data-columns="2"]').click();
+    expect(await html(page)).toContain('column-count: 2');
+    await expect(page.locator('.aurebesh-tile[data-columns="2"]')).toHaveAttribute('aria-checked', 'true');
+    await page.locator('.aurebesh-tile[data-columns="1"]').click();
+    expect(await html(page)).not.toContain('column-count');
+    await expect(page.locator('.aurebesh-tile[data-columns="1"]')).toHaveAttribute('aria-checked', 'true');
+  });
+
+  test('the maximum text width centres the text, and the line spacing changes the lines', async ({ page }) => {
+    await openPanel(page, '<p>one</p>');
+    const field = page.locator('.aurebesh-panel .aurebesh-field', { hasText: 'Maximum text width' }).locator('input');
+    await field.fill('400');
+    await field.press('Tab');
+    const width = await content(page).evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    });
+    expect(Math.round(width)).toBeLessThanOrEqual(400);
+    expect(Math.round(width)).toBeGreaterThan(380);
+    await page.locator('.aurebesh-panel select').last().selectOption('2');
+    expect(await content(page).evaluate((el) => getComputedStyle(el).lineHeight)).not.toBe('normal');
+    expect(await html(page)).toBe('<p>one</p>'); // not in the HTML
+  });
+
+  test('Escape closes the panel and gives the focus back to its button', async ({ page }) => {
+    await openPanel(page, '<p>one</p>');
+    await page.locator('.aurebesh-tile').first().focus();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.aurebesh-panel')).toBeHidden();
+    await expect(page.locator('.aurebesh-cmd-layout')).toBeFocused();
+    await expect(page.locator('.aurebesh-cmd-layout')).toHaveAttribute('aria-expanded', 'false');
   });
 });
