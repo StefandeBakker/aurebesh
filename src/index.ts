@@ -2,6 +2,7 @@ export { Aurebesh } from './editor';
 export type { AurebeshOptions, AurebeshEvents } from './editor';
 export { PAGE_PRESETS, resolvePage } from './page';
 export type { PageFormat, PagePreset, PageSpec, ResolvedPage } from './page';
+export type { Align, Item as TemplateItem, Line as TemplateLine, OutLine, PreviewContext, Problem as TemplateProblem, ResolvedTicket, TicketCommand, TicketData, TicketKeyword, TicketOptions, TicketPart, TicketSize } from './ticket/engine';
 export { toMarkdown, toText } from './export';
 export type { OutputFormat } from './export';
 export { plainText, countText } from './stats';

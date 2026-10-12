@@ -25,6 +25,9 @@
       ],
       "vue": [
         "./dist/vue.d.ts"
+      ],
+      "ticket": [
+        "./dist/ticket.d.ts"
       ]
     }
   },
@@ -67,6 +70,16 @@
       "require": {
         "types": "./dist/vue.d.cts",
         "default": "./dist/vue.cjs"
+      }
+    },
+    "./ticket": {
+      "import": {
+        "types": "./dist/ticket.d.ts",
+        "default": "./dist/ticket.js"
+      },
+      "require": {
+        "types": "./dist/ticket.d.cts",
+        "default": "./dist/ticket.cjs"
       }
     },
     "./package.json": "./package.json"

@@ -2,7 +2,7 @@
 import { plainText } from './stats';
 import { modelOf } from './table';
 
-export type OutputFormat = 'html' | 'markdown' | 'text';
+export type OutputFormat = 'html' | 'markdown' | 'text' | 'template';
 
 function toElement(input: string | Element): Element {
   if (typeof input !== 'string') return input;

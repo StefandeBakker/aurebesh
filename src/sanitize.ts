@@ -9,14 +9,33 @@ const ALLOWED_TAGS = new Set([
   'img', 'video', 'sup', 'sub', 'aside',
 ]);
 const DROP_WITH_CONTENT = new Set(['script', 'style', 'iframe', 'object', 'embed', 'noscript', 'template']);
+/** The ticket layout's chips and size groups (see cleanTicketAttrs). */
+const TICKET_ATTRS = ['data-t', 'data-name', 'data-fmt', 'data-size', 'data-arg', 'data-field', 'data-val', 'data-not'];
 const ALLOWED_ATTRS: Record<string, string[]> = {
   a: ['href', 'title', 'target', 'rel'],
   td: ['colspan', 'rowspan'],
   th: ['colspan', 'rowspan'],
   img: ['src', 'alt', 'title', 'width', 'height'],
   video: ['src', 'width'],
+  span: TICKET_ATTRS,
 };
 const DIR_TAGS = new Set(['p', 'h1', 'h2', 'h3', 'blockquote', 'pre', 'ul', 'ol', 'li', 'table', 'td', 'th', 'div', 'aside']);
+/** The ticket layout's chips and size groups: <span data-t="field" data-name="..." data-fmt="...">. Only these, with safe values. */
+const TICKET_KINDS = new Set(['field', 'cmd', 'if', 'endif']);
+const TICKET_NAME = /^[A-Za-z][\w.]{0,63}$/;
+const TICKET_FIELD = /^[^,\s"<>&\u0000-\u001f]{1,64}$/;
+const TICKET_TEXT = /^[^"<>&\u0000-\u001f\u007f]{0,60}$/;
+const TICKET_SIZE = /^[A-Za-z]\w{0,19}$/;
+
+function cleanTicketAttrs(el: Element): void {
+  const rules: [string, RegExp][] = [['data-name', TICKET_NAME], ['data-field', TICKET_FIELD], ['data-fmt', TICKET_TEXT], ['data-arg', TICKET_TEXT], ['data-val', TICKET_TEXT], ['data-size', TICKET_SIZE]];
+  for (const [attr, re] of rules) if (el.hasAttribute(attr) && !re.test(el.getAttribute(attr)!)) el.removeAttribute(attr);
+  if (el.hasAttribute('data-not')) el.setAttribute('data-not', '');
+  const kind = el.getAttribute('data-t');
+  const ok = kind !== null && TICKET_KINDS.has(kind) && (kind === 'endif' || (kind === 'if' ? el.hasAttribute('data-field') : el.hasAttribute('data-name')));
+  if (kind !== null && !ok) for (const a of TICKET_ATTRS) if (a !== 'data-size') el.removeAttribute(a);
+}
+
 const SAFE_URL =/^(https?:|mailto:|tel:|#|\/)/i;
 
 /** Strips everything outside a small allow-list (scripts, event handlers, javascript: urls...). */
@@ -132,6 +151,7 @@ function clean(parent: Node): void {
       if (!allowed.includes(attr.name)) el.removeAttribute(attr.name);
     }
     if (style) el.setAttribute('style', style);
+    if (tag === 'span') cleanTicketAttrs(el);
     // Text direction (Word and Docs paste `dir="RTL"`): on blocks only, and only a known value.
     if (DIR_TAGS.has(tag)) {
       const dir = el.getAttribute('dir')?.toLowerCase();

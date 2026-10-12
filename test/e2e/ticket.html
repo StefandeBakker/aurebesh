@@ -1,0 +1,22 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Aurebesh ticket e2e</title>
+<body style="font-family: system-ui; margin: 1rem">
+  <aurebesh-editor id="ed"></aurebesh-editor>
+  <script type="module">
+    import '/dist/element.js';
+    import '/dist/ticket.js';
+    const ed = document.getElementById('ed');
+    window.ed = ed;
+    window.KEYWORDS = [
+      { name: 'Order.Number', label: 'Order number', format: '%6s', sample: '4711' },
+      { name: 'Order.Type', label: 'Order type', sample: '1' },
+      { name: 'Order.Total', label: 'Total', format: '%8s', sample: '12.50' },
+      { name: 'Item.Name', label: 'Item', format: '%-18s', sample: 'Coffee' },
+      { name: 'Item.Price', label: 'Price', format: '%8s', sample: '2.50' },
+      { name: 'Now', label: 'Date and time', format: '%D-%M-%Y %h:%m', sample: '2026-10-11T14:05:00' },
+    ];
+    const params = new URLSearchParams(location.search);
+    ed.options = { ticket: { keywords: window.KEYWORDS, template: params.get('t') ?? undefined } };
+  </script>
+</body>

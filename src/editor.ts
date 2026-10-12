@@ -24,6 +24,9 @@ import type { TextStats } from './stats';
 import { PAGE_NAMES, countPages, printDocument, resolvePage, toSpec } from './page';
 import type { PageFormat, PagePreset, PageSpec, ResolvedPage } from './page';
 import { toMarkdown } from './export';
+import { TICKET_ITEMS, TICKET_TOOLBAR, getTicketClass } from './ticket/registry';
+import type { TicketController, TicketHost } from './ticket/controller';
+import type { Line, Problem, TicketData, TicketOptions } from './ticket/engine';
 import type { OutputFormat } from './export';
 import { MARKER, preparePaste } from './paste';
 import type { PasteImagePolicy, PendingImage } from './paste';
@@ -76,6 +79,12 @@ export interface AurebeshOptions {
    * '600px', '80mm'), or `{ format, width, height, margin, orientation }`. Default: 'responsive', no sheet.
    */
   page?: PageFormat;
+  /**
+   * Ticket mode (needs `import 'aurebesh/ticket'` once): a fixed-width layout for receipts and order slips, built from fields (`keywords`), sizes and conditions, that is
+   * written as a `[*tag*]` template (`getTemplate()`) and read from one (`template`, `setTemplate()`). The editor then has a
+   * side panel with the options, a preview and the code.
+   */
+  ticket?: TicketOptions;
 }
 
 export interface AurebeshEvents {
@@ -84,6 +93,10 @@ export interface AurebeshEvents {
   ready: Aurebesh;
   /** Words and characters, after each change (only worked out while someone listens, or the counter or a limit is on). */
   count: TextStats;
+  /** Ticket mode: the template code after a change. */
+  template: string;
+  /** Ticket mode: the test data after it was changed in the panel. */
+  ticketdata: TicketData;
   /** The page format changed (through `setPage` or the toolbar). null is responsive. */
   page: ResolvedPage | null;
   focus: undefined;
@@ -132,11 +145,12 @@ export class Aurebesh {
   private page: ResolvedPage | null = null;
   private pageSelect: HTMLSelectElement | null = null;
   private pageSpec: PageSpec | null = null;
+  private ticket: TicketController | null = null;
   private orientationBtn: HTMLButtonElement | null = null;
 
   constructor(private container: HTMLElement, options: AurebeshOptions = {}) {
     const doc = container.ownerDocument;
-    this.markdown = options.markdownShortcuts ?? true;
+    this.markdown = options.markdownShortcuts ?? !options.ticket;
     this.labels = { ...DEFAULT_LABELS, ...options.labels } as Labels;
     const adapter = options.media?.adapter;
     this.adapter = adapter === undefined ? base64Adapter() : typeof adapter === 'function' ? { upload: adapter } : adapter;
@@ -156,7 +170,12 @@ export class Aurebesh {
       doc.head.appendChild(style);
     }
 
-    const items = options.toolbar ?? DEFAULT_TOOLBAR;
+    if (options.ticket) {
+      const Ticket = getTicketClass();
+      if (!Ticket) throw new Error("Aurebesh: the `ticket` option needs the ticket add-on: import 'aurebesh/ticket' once");
+      this.ticket = new Ticket(options.ticket, (k, v) => this.t(k, v), (cmd) => this.labels[cmd] ?? COMMANDS[cmd]?.title ?? cmd);
+    }
+    const items = options.toolbar ?? (this.ticket ? TICKET_TOOLBAR : DEFAULT_TOOLBAR);
     if (items.length) this.buildToolbar(items);
 
     this.content = doc.createElement('div');
@@ -224,6 +243,33 @@ export class Aurebesh {
     this.statusEl.setAttribute('role', 'status');
     this.statusEl.hidden = true;
     this.root.appendChild(this.statusEl);
+
+    if (this.ticket) {
+      const host: TicketHost = {
+        doc,
+        root: this.root,
+        content: this.content,
+        stage: this.stage,
+        changed: () => {
+          this.syncEmpty();
+          this.emit('change', this.getHTML());
+          this.updateToolbar();
+        },
+        emitTemplate: (code) => this.emit('template', code),
+        emitData: (data) => this.emit('ticketdata', data),
+        fail: (err) => this.fail(err),
+        listen: (target, type, fn) => this.listen(target, type, fn),
+        focus: () => this.content.focus(),
+        restoreSelection: () => this.restoreSelection(),
+        closeOnOutside: (wrap, pop, toggle) => this.closeOnOutside(wrap, pop, toggle),
+        isEditable: () => this.content.isContentEditable,
+      };
+      try {
+        this.ticket.attach(host);
+      } catch (err) {
+        this.fail(err);
+      }
+    }
 
     try {
       this.setPage(options.page);
@@ -438,6 +484,7 @@ export class Aurebesh {
 
   /** The content in the given format: 'html' (default), 'markdown' or 'text'. */
   getValue(format: OutputFormat = 'html'): string {
+    if (format === 'template') return this.ticket ? this.ticket.getTemplate() : '';
     if (format === 'markdown') return this.getMarkdown();
     if (format === 'text') return this.isEmpty() ? '' : this.getText();
     return this.getHTML();
@@ -446,6 +493,11 @@ export class Aurebesh {
   private onKeyDown(e: KeyboardEvent): void {
     // While an input method (Chinese, Japanese, Korean...) is composing, Enter/Tab/Space belong to it.
     if (e.isComposing || e.keyCode === 229) return;
+
+    if (this.ticket) {
+      this.ticket.handleKey(e); // undo, redo; formatting keys do nothing here
+      return;
+    }
 
     const shortcut = shortcutFor(e);
     if (shortcut) {
@@ -478,6 +530,44 @@ export class Aurebesh {
     this.syncEmpty();
     this.scheduleHighlight();
     this.updateStats();
+    this.ticket?.adopt();
+  }
+
+  /** Ticket mode: the layout as template code. Throws in the normal editor. */
+  getTemplate(): string {
+    if (!this.ticket) throw new Error('Aurebesh: getTemplate() needs the `ticket` option');
+    return this.ticket.getTemplate();
+  }
+
+  /** Ticket mode: replaces the layout by a template (code with `[*tags*]`). */
+  setTemplate(code: string): void {
+    if (!this.ticket) throw new Error('Aurebesh: setTemplate() needs the `ticket` option');
+    this.ticket.setTemplate(code);
+  }
+
+  /** Ticket mode: the test data, as it is now (it can be changed in the panel). */
+  getTicketData(): TicketData {
+    return this.ticket?.getData() ?? {};
+  }
+
+  /** Ticket mode: replaces the test data. */
+  setTicketData(data: TicketData | undefined): void {
+    this.ticket?.setData(data);
+  }
+
+  /** Ticket mode: the code of another part of the ticket changed (to see the whole ticket). */
+  setTicketPart(name: string, code: string): void {
+    this.ticket?.setPartCode(name, code);
+  }
+
+  /** Ticket mode: conditions without an Endif and Endifs without a condition. */
+  getTemplateProblems(): Problem[] {
+    return this.ticket?.getProblems() ?? [];
+  }
+
+  /** Ticket mode: the lines of the layout, as the template is built from them. */
+  getTemplateLines(): Line[] {
+    return this.ticket?.getLines() ?? [];
   }
 
   /** True when there is no text and no image, video, table or list. */
@@ -501,6 +591,7 @@ export class Aurebesh {
     if (this.fontSelect) this.fontSelect.disabled = readOnly;
     if (this.sizeSelect) this.sizeSelect.disabled = readOnly;
     if (this.columnsSelect) this.columnsSelect.disabled = readOnly;
+    this.ticket?.sync();
   }
 
   setPlaceholder(text: string): void {
@@ -535,6 +626,7 @@ export class Aurebesh {
   }
 
   destroy(): void {
+    this.ticket?.destroy();
     clearTimeout(this.highlightTimer);
     clearHighlights(this.content);
     this.cleanup.forEach((fn) => fn());
@@ -574,6 +666,11 @@ export class Aurebesh {
         bar.appendChild(sep);
         continue;
       }
+      if (this.ticket && TICKET_ITEMS.includes(item)) {
+        bar.appendChild(this.ticket.buildItem(item));
+        continue;
+      }
+      if (!this.ticket && item.startsWith('ticket')) continue;
       const cmd = COMMANDS[item];
       if (!cmd) continue;
       if (item === 'font') {
@@ -919,6 +1016,7 @@ export class Aurebesh {
   }
 
   private onDrop(e: DragEvent): void {
+    if (this.ticket) return;
     const files = e.dataTransfer?.files;
     if (!files?.length || !this.content.isContentEditable) return;
     e.preventDefault();
@@ -1384,6 +1482,7 @@ export class Aurebesh {
 
   /** Paste as sanitized HTML (or plain text) instead of whatever the source app put on the clipboard. */
   private onPaste(e: ClipboardEvent): void {
+    if (this.ticket) return; // the ticket layout handles it
     const data = e.clipboardData;
     if (!data) return;
     e.preventDefault();

@@ -8,7 +8,7 @@ A vanilla TypeScript core plus an `<aurebesh-editor>` web component, with thin w
 npm install aurebesh
 ```
 
-**Features:** bold/italic/underline/strike, inline code, super/subscript, headings, quotes, lists, text alignment, font and text size, text and highlight colour, links (with a small editor), images (upload, paste, drag and drop, width/alignment/alt tools), YouTube/Vimeo/mp4 video, tables (size picker, header row, row/column tools, merge and split cells, drag column borders, Tab navigation, undo), code blocks with syntax highlighting, horizontal line, undo/redo, translatable UI, form integration.
+**Features:** bold/italic/underline/strike, inline code, super/subscript, headings, quotes, lists, text alignment, font and text size, text and highlight colour, links (with a small editor), images (upload, paste, drag and drop, width/alignment/alt tools), YouTube/Vimeo/mp4 video, ticket templates (receipt layouts for fixed-width printers), tables (size picker, header row, row/column tools, merge and split cells, drag column borders, Tab navigation, undo), code blocks with syntax highlighting, horizontal line, undo/redo, translatable UI, form integration.
 
 ## Vanilla
 
@@ -174,6 +174,88 @@ editor.setPage('600px');                            // a width: 600, '600px', '8
 - **Toolbar**: add the `page` item (not in the default toolbar) for a select with all presets, and `orientation` for a button that turns the sheet between portrait and landscape: `toolbar: ['page', 'orientation', '|', 'bold', ...]`. The button is only on for paper with a height; picking another paper keeps the sheet turned the way it is. In code: `editor.setPageOrientation('landscape')`.
 - **Print and PDF**: `editor.print()` opens the print dialog with the right paper size and margins (choose "Save as PDF" there). `editor.getPrintHTML()` gives a standalone HTML document with that `@page` size, for a server that makes PDFs: `page.pdf({ preferCSSPageSize: true })` in Puppeteer or Playwright gives A4 pages for an A4 format. A ticket gets one page of its width and the length of the text: browsers cannot say "as long as needed" in `@page`, so that length is measured. Code colours are not printed, and `print()` needs a page whose content security policy allows an inline `srcdoc` frame.
 - The sheet is as wide as the paper (an A4 sheet is 794 px). In a container that is narrower the sheet shrinks to fit, and then the page breaks are no longer where the paper would break.
+
+## Ticket templates
+
+An add-on for receipts, order slips and other fixed-width printouts: you build the layout visually, with fields, sizes, alignment and conditions, and it gives you a template in the `[*tag*]` text format that a ticket printer program reads. It also reads such a template back into the layout, and shows what it prints for chosen values. It is separate from the rest (about 12 KB gzipped), so you only get it when you ask for it:
+
+```js
+import 'aurebesh/ticket'; // once, anywhere before the editor is created
+import { Aurebesh } from 'aurebesh';
+
+const editor = new Aurebesh(el, {
+  ticket: {
+    keywords: [
+      { name: 'Order.Total', label: 'Total', format: '%8s', sample: '12.50' },
+      { name: 'Order.Type', label: 'Order type', sample: '1' },
+      { name: 'Now', label: 'Date and time', format: '%D-%M-%Y %h:%m', sample: '2026-10-11T14:05:00' },
+    ],
+    template: existingCode, // optional: start from a template
+  },
+});
+editor.getTemplate();       // the layout as template code
+editor.setTemplate(code);   // read code into the layout
+editor.on('template', (code) => save(code)); // after every change
+```
+
+The element: `el.options = { ticket: { ... } }`, `el.template` (get and set), a `template` event, and `format="template"` to submit the code with a form. React and Vue take the same `options`.
+
+**The format** (the words are the defaults, see "Your own words" below):
+
+| Tag | Meaning |
+| --- | --- |
+| `[*Order.Total*]`, `[*Order.Total,"%8s"*]` | a field, with an optional format: `%s`, `%8s` (right-aligned in 8), `%-18s` (left-aligned in 18), text around it (`-%5s`), and for dates `%D %M %Y %h %m` |
+| `[*groot*]`, `[*extragroot*]`, `[*normaal*]` | text size; it stays until the next size command |
+| `[*center*]`, `[*left*]`, `[*right*]` | alignment of a line, when it comes before the first printed character; later in a line it is for the next line, like on the printer |
+| `[*If Field,"value"*] … [*Endif*]`, `[*Ifnot …*]` | a condition, also in the middle of a line, over several lines and nested; `[*If Field*]` without a value tests that the field has a value |
+| `[*euro*]`, `[*crlf*]`, `[*cutbon*]`, `[*logo1*]`, `[*include "File.txt"*]` | commands |
+
+Tags are case-insensitive, may have spaces around the comma, and a tag the editor does not understand stays in the text as it is, so nothing is lost. Text, spaces and tabs are kept exactly.
+
+**In the editor**
+- The layout is a grid of 41 characters (`columns`), one printer column each, with a faint ruler line every 10 (a switch in the panel turns it off; `ticket.ruler: false` starts without it). A large size takes more room: by default `groot` is as wide as normal text and twice as high, `extragroot` twice as wide and twice as high. That was worked out from the layouts this was made for (a line of 8 + 21 large characters and 6 extra large ones is exactly 41 columns); change it with `sizes` if your printer differs.
+- **`[*]`** inserts a field from your `keywords` (or any name you type), **`[…]`** a command. A field shows its `sample` in the width of its format, or its name cut to that width, so the columns are where they will be on paper. Click a field to change its format or remove it. A field is one unit: Backspace removes all of it.
+- The size select and the alignment buttons work on the selection (or the line with the caret). Copying gives template code, so pasting into the editor brings fields, sizes and conditions back; pasting plain text takes the size around it.
+- **Conditions are not shown as text.** Select text (or put the caret in a line) and press **If**: you get a thin mark at the start and the end. The panel next to the layout lists them with Edit and Remove, highlights what one covers when you point at it, and has a control for each field a condition is about: choose a value and the **Preview** shows what that ticket prints. A condition that is not a plain comparison (a value like `{9000` or `-?`, or none) gets a switch. Conditions without an Endif, or an Endif without a condition, are reported.
+- **Code** shows the template; edit it there and press *Read code into the layout*.
+- Undo and redo have a history of their own (typing in one go is one step).
+
+**Test data and the whole ticket.** A real ticket is made of parts (a header, a line for each product, a line for each payment, footers) and the values come from the sale. To see what you are building, give the editor the other parts and some test data:
+
+```js
+new Aurebesh(el, {
+  ticket: {
+    keywords, // as above
+    part: 'lines',                    // the part this editor is for; its code is the editor's own
+    parts: [                          // in the order they print
+      { name: 'header', code: headerCode },
+      { name: 'lines', code: linesCode, repeat: 'items' },       // once for every row of the list "items"
+      { name: 'payments', code: paymentsCode, repeat: 'payments' },
+      { name: 'footer', code: footerCode },
+    ],
+    data: {
+      values: { 'Order.Total': '12.50', 'Shop.Address': 'Main Street 1', 'Order.Type': '1' },    // for the whole ticket
+      lists: { items: [{ 'Item.Name': 'Coffee', 'Item.Price': '2.50' }, ...], payments: [{ 'Pay.Kind': 'CARD', 'Pay.Amount': '12.50' }] },
+    },
+    commands: [{ name: 'logo1', kind: 'logo', image: 'data:image/png;base64,...' }, ...],
+    dots: 576,                        // the paper in printer dots: a logo is drawn at the size it prints
+  },
+});
+```
+
+- Two more tabs appear in the panel. **Ticket** is the whole ticket: the parts one after the other, a repeating part printed for each row, the size and alignment carrying on from one part to the next like on the printer. Your own part is the live code of the editor; the other parts come from `parts`. **Test data** is a form for the values and the lists (add or remove a row, change a cell), and switches for conditions that are not a plain comparison.
+- A field gets its value from its row, then from the values of the whole ticket, then from the keyword's `sample`, and shows its name when it has none. A plain condition (`[*If Order.Type,"1"*]`) is decided by the data, so changing a value there changes what prints. The layout shows the values too: those of the whole ticket, and the first row for a repeating part.
+- A **logo** is a command of `kind: 'logo'` with an `image` (a `data:` URI or an address). The preview draws it at its width in dots against the dots of the paper (a 192 dot logo on paper of 576 dots takes a third of the width), centred or aligned like text. Without an `image` it stays a label.
+- In code: `editor.getTicketData()`, `editor.setTicketData(data)`, `editor.setTicketPart(name, code)` (when the editor of another part changed), and a `ticketdata` event when the form changes the data. Without the browser: `previewTicket(parts, data, flags, R)` from `aurebesh/ticket`.
+- Without `parts` the data still fills in this one part. The data is copied in and out, so changing your object later does not change the editor.
+
+**What the code looks like.** A template you load comes back exactly as it was for as long as you change nothing in it. After a change the code is written again from the layout, and then a size or alignment command is repeated after any condition that contains such a command, because whether that ran is not known: the text after it then looks the same whatever the conditions are. That can add a few commands compared with a hand-written template; it never changes what the layout shows. The layout shows everything at once (every condition true); a size set inside a condition carries on after it in the layout, like it does when all conditions hold.
+
+**Your own words.** `ticket.sizes` (`[{ name, label, width, height }]`, the first is the normal one), `ticket.align` (`{ left, center, right }`), `ticket.commands` (`[{ name, label, kind, display }]`, with `kind` `text` (prints `display`), `include`, `break`, `cut` or `logo`), `ticket.columns`, `ticket.eol` (`'\r\n'` for Windows line endings). Names may only have letters, digits, `_` and `.`.
+
+**Without a browser** (a server, a build step): `parseTemplate`, `exportTemplate`, `interpretTemplate`, `previewText`, `validateTemplate`, `formatValue` and `resolveTicket` are exported from `aurebesh/ticket`. `previewText(interpretTemplate(tokens, { values, flags }, R), R)` gives the printout as plain text.
+
+Not included: the printer's own byte commands (ESC/POS) and sending to a printer. This produces the template for the program that does that. The condition values `{9000`, `}9000` and `-?` are kept and written back, but their meaning is not interpreted: they are switches in the preview.
 
 ## Tables: merging cells and column widths
 

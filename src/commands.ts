@@ -101,6 +101,11 @@ export const COMMANDS: Record<string, CommandDef> = {
     run: (count) => setColumns(Number(count) || 1),
     isActive: () => currentColumns() > 1,
   },
+  /** Ticket mode items: built by the ticket controller (see `ticket` in the options); these entries give them a label and tooltip. */
+  ticketTag: { name: 'ticketTag', label: '[*]', title: 'Insert field', run: () => {} },
+  ticketCmd: { name: 'ticketCmd', label: '[…]', title: 'Insert command', run: () => {} },
+  ticketSize: { name: 'ticketSize', label: 'Size', title: 'Text size', run: () => {} },
+  ticketCondition: { name: 'ticketCondition', label: 'If', title: 'Condition', run: () => {} },
   /** A button that turns the sheet to landscape and back; like `page` it is handled by the editor. */
   orientation: { name: 'orientation', label: '▭', title: 'Landscape', run: () => {} },
   /** A select in the toolbar, not in the default one; it is handled by the editor (`setPage`), since the format belongs to the editor, not the selection. */

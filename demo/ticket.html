@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aurebesh ticket layout</title>
+<meta name="description" content="Build a receipt or order slip layout visually, with fields, sizes and conditions, and get a template for a fixed-width printer.">
+<style>
+  :root {
+    --page-bg: #f6f7f9;
+    --page-color: #111827;
+    --muted: #5b6472;
+    --accent: #2563eb;
+    --aurebesh-bg: #fff;
+    --aurebesh-color: #111827;
+    --aurebesh-border: #d0d5dd;
+    --aurebesh-toolbar-bg: #f8f9fb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page-bg: #0f1218;
+      --page-color: #e6e8ec;
+      --muted: #9aa3b2;
+      --accent: #6ea0ff;
+    }
+  }
+  /* the editor stays light: it shows paper */
+  aurebesh-editor { display: block; color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page-bg); color: var(--page-color); font: 16px/1.55 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 32px 16px 56px; }
+  h1 { margin: 0 0 4px; font-size: 2rem; }
+  .tagline { margin: 0 0 16px; color: var(--muted); }
+  a { color: var(--accent); }
+  ol { color: var(--muted); padding-inline-start: 1.2em; }
+  .parts { display: flex; flex-wrap: wrap; gap: 4px; margin: 16px 0 -1px; position: relative; z-index: 1; }
+  .parts button { padding: 7px 16px; border: 1px solid #d0d5dd; border-bottom-color: transparent; border-radius: 8px 8px 0 0; background: transparent; color: var(--muted); font: inherit; font-size: .9rem; cursor: pointer; }
+  .parts button:hover { color: var(--page-color); }
+  .parts button[aria-selected="true"] { background: #f8f9fb; color: #111827; font-weight: 600; }
+  .parts button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  footer { margin-top: 32px; color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Ticket layout</h1>
+  <p class="tagline">Build a receipt visually, with fields, sizes and conditions. The panel shows what it prints and the template code.</p>
+  <ol>
+    <li>Pick a part of the ticket with the tabs above the editor. Click a line and use <b>[*]</b> to insert a field, or <b>[…]</b> for a command (euro sign, logo, cut, include).</li>
+    <li>Select text and pick a size or alignment. Select text and press <b>If</b> to make it depend on a field.</li>
+    <li>On the right: <b>Preview</b> is this part, <b>Ticket</b> is the whole ticket with the test data (products and payments repeat), <b>Test data</b> is where you change that data, <b>Code</b> is the template.</li>
+  </ol>
+  <div id="part" class="parts" role="tablist" aria-label="Part of the ticket to edit"></div>
+  <aurebesh-editor id="editor"></aurebesh-editor>
+  <footer>
+    <a href="./">Back to the editor demo</a> ·
+    <a href="https://github.com/StefandeBakker/aurebesh#ticket-templates">Documentation</a> ·
+    MIT licensed
+  </footer>
+</main>
+
+<script type="module">
+  import '../dist/element.js';
+  import '../dist/ticket.js';
+
+  // The ticket is made of parts. The editor edits one of them; the others are only there to see the whole ticket.
+  const parts = [
+    {
+      name: 'header',
+      label: 'Header',
+      code: [
+        '[*center*][*logo1*]',
+        '[*extragroot*]CAFE SAMPLE[*normaal*]',
+        '[*Shop.Address*]',
+        '[*Shop.City*]',
+        '[*left*]-----------------------------------------',
+        '[*If Order.Type,"1"*][*groot*]EAT IN  table [*Order.Table,"%3s"*][*normaal*][*Endif*][*If Order.Type,"2"*][*groot*]TAKE AWAY[*normaal*][*Endif*]',
+        'Order [*Order.Number,"%6s"*]            [*Now,"%D-%M-%Y %h:%m"*]',
+        '-----------------------------------------',
+        '',
+      ].join('\n'),
+    },
+    {
+      name: 'lines',
+      label: 'Product line',
+      hint: 'Printed once for every product',
+      repeat: 'items',
+      code: [
+        '[*Item.Name,"%-18s"*] [*Item.Count,"%3s"*]x [*Item.Price,"%8s"*]',
+        '[*Ifnot Item.Discount,"0"*]  discount                       -[*Item.Discount,"%6s"*]',
+        '[*Endif*]',
+      ].join('\n'),
+    },
+    {
+      name: 'payments',
+      label: 'Payment line',
+      hint: 'Printed once for every payment',
+      repeat: 'payments',
+      code: ['[*Pay.Kind,"%-20s"*]  [*euro*] [*Pay.Amount,"%8s"*]', ''].join('\n'),
+    },
+    {
+      name: 'footer',
+      label: 'Footer',
+      code: [
+        '-----------------------------------------',
+        '[*extragroot*]Total[*normaal*] [*extragroot*]     [*euro*][*Order.Total,"%8s"*][*normaal*]',
+        '-----------------------------------------',
+        '[*center*]Thank you, see you soon!',
+        '[*left*]',
+        '[*cutbon*]',
+      ].join('\n'),
+    },
+  ];
+
+  let data = {
+    values: {
+      'Shop.Address': 'Main Street 1',
+      'Shop.City': '1234 AB  Sampletown',
+      'Order.Type': '1',
+      'Order.Table': '12',
+      'Order.Number': '4711',
+      'Now': '2026-10-11T14:05:00',
+      'Order.Total': '12.50',
+    },
+    lists: {
+      items: [
+        { 'Item.Name': 'Coffee', 'Item.Count': '2', 'Item.Price': '5.00', 'Item.Discount': '0' },
+        { 'Item.Name': 'Apple pie', 'Item.Count': '1', 'Item.Price': '4.00', 'Item.Discount': '0' },
+        { 'Item.Name': 'Tea', 'Item.Count': '1', 'Item.Price': '3.50', 'Item.Discount': '0.50' },
+      ],
+      payments: [{ 'Pay.Kind': 'CARD', 'Pay.Amount': '12.50' }],
+    },
+  };
+
+  const ticket = {
+    keywords: [
+      { name: 'Shop.Address', label: 'Shop address', sample: 'Main Street 1' },
+      { name: 'Shop.City', label: 'Shop city', sample: '1234 AB  Sampletown' },
+      { name: 'Order.Number', label: 'Order number', format: '%6s', sample: '4711' },
+      { name: 'Order.Type', label: 'Order type (1 eat in, 2 take away)', sample: '1' },
+      { name: 'Order.Table', label: 'Table', format: '%3s', sample: '12' },
+      { name: 'Order.Total', label: 'Total', format: '%8s', sample: '12.50' },
+      { name: 'Item.Name', label: 'Product', format: '%-18s', sample: 'Coffee' },
+      { name: 'Item.Count', label: 'Count', format: '%3s', sample: '2' },
+      { name: 'Item.Price', label: 'Price', format: '%8s', sample: '5.00' },
+      { name: 'Item.Discount', label: 'Discount', format: '%6s', sample: '0' },
+      { name: 'Pay.Kind', label: 'Payment method', format: '%-20s', sample: 'CARD' },
+      { name: 'Pay.Amount', label: 'Paid amount', format: '%8s', sample: '12.50' },
+      { name: 'Now', label: 'Date and time', format: '%D-%M-%Y %h:%m', sample: '2026-10-11T14:05:00' },
+    ],
+    // a logo is a picture, drawn at the size it prints: its width in dots against the dots of the paper (576 for 80 mm)
+    commands: [
+      { name: 'euro', label: 'Euro sign', kind: 'text', display: '€' },
+      { name: 'logo1', label: 'Logo', kind: 'logo', image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAAA4CAAAAACOdqivAAAAvUlEQVR42u3YsRKEQAgD0Pz/T2NzxV2lgnAJZisLnMmbFV1EiC8YYAAnADi/ZgaM5W8CzOXvAQzmbwFM5u8AjOZvAMzmN2DhI6TfxPqv0QVfYv2zkAHuAU9kV3equid4Msqt9XUXByBV/6NRBNQ34f+AD0EZEBwAFMoLAg5AbABAGhAMAFSqDTBgAwD5YiwAhDIA4gCSs1BmoGE6jWYBNPNAYaTkmMjkZ+I0wP+FXgrA08sA94ABBhhgwBsBBxsf/Bqoj0MPAAAAAElFTkSuQmCC' },
+      { name: 'crlf', label: 'Line break', kind: 'break' },
+      { name: 'cutbon', label: 'Cut', kind: 'cut' },
+    ],
+  };
+
+  const ed = document.getElementById('editor');
+  const picker = document.getElementById('part');
+  let current = 'header';
+
+  /** Gives the editor one of the parts, keeping what was changed in the part and in the data. */
+  function edit(name) {
+    const inst = ed.instance;
+    if (inst) {
+      const part = parts.find((p) => p.name === current);
+      part.code = inst.getTemplate();
+      data = inst.getTicketData();
+    }
+    current = name;
+    ed.options = { ticket: { ...ticket, part: name, parts, data, template: parts.find((p) => p.name === name).code } };
+  }
+
+  const tabs = new Map();
+  for (const p of parts) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('role', 'tab');
+    b.textContent = p.label;
+    if (p.hint) b.title = p.hint;
+    b.addEventListener('click', () => show(p.name));
+    tabs.set(p.name, b);
+    picker.append(b);
+  }
+  // left and right arrows move between the tabs, like on any tab list
+  picker.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    const names = parts.map((p) => p.name);
+    const next = names[(names.indexOf(current) + (e.key === 'ArrowRight' ? 1 : names.length - 1)) % names.length];
+    show(next);
+    tabs.get(next).focus();
+  });
+
+  function show(name) {
+    if (name !== current || !ed.instance) edit(name);
+    for (const [n, b] of tabs) {
+      b.setAttribute('aria-selected', String(n === name));
+      b.tabIndex = n === name ? 0 : -1;
+    }
+  }
+  show('header');
+</script>
+</body>
+</html>

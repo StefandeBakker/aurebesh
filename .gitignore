@@ -8,3 +8,5 @@ playwright-report
 .claude/
 captures/
 _site
+test/fixtures/private/
+test/*.local.test.ts

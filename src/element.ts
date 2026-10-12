@@ -146,6 +146,8 @@ export class AurebeshElement extends BaseElement {
       this.dispatchEvent(new CustomEvent('change', { detail: html, bubbles: true }));
     });
     this.editor.on('error', (error) => this.dispatchEvent(new CustomEvent('error', { detail: error, bubbles: true })));
+    this.editor.on('template', (code) => this.dispatchEvent(new CustomEvent('template', { detail: code, bubbles: true })));
+    this.editor.on('ticketdata', (data) => this.dispatchEvent(new CustomEvent('ticketdata', { detail: data, bubbles: true })));
     this.editor.on('page', (page) => this.dispatchEvent(new CustomEvent('page', { detail: page, bubbles: true })));
     this.editor.on('ready', () => this.dispatchEvent(new CustomEvent('ready', { detail: this.editor })));
     this.editor.on('count', (stats) => {
@@ -189,10 +191,19 @@ export class AurebeshElement extends BaseElement {
     this.create(html);
   }
 
+  /** Ticket mode (the `ticket` option): the layout as template code. Setting it replaces the layout. */
+  get template(): string {
+    return this.editor ? this.editor.getTemplate() : '';
+  }
+
+  set template(code: string) {
+    this.editor?.setTemplate(code);
+  }
+
   /** What is submitted with a form: the `format` attribute, "html" (default), "markdown" or "text". `value` stays HTML. */
   get format(): OutputFormat {
     const f = this.getAttribute('format');
-    return f === 'markdown' || f === 'text' ? f : 'html';
+    return f === 'markdown' || f === 'text' || f === 'template' ? f : 'html';
   }
 
   set format(f: OutputFormat) {

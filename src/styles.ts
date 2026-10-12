@@ -80,6 +80,56 @@ export const CSS = `
 ::highlight(aurebesh-type){color:var(--aurebesh-hl-type,#953800)}
 ::highlight(aurebesh-tag){color:var(--aurebesh-hl-tag,#116329)}
 .aurebesh-content a{color:var(--aurebesh-accent,#2563eb)}
+/* ticket mode: a fixed-width layout (one column per printer character) next to a panel */
+.aurebesh[data-ticket] .aurebesh-body{display:flex;flex-wrap:wrap;align-items:flex-start}
+.aurebesh[data-ticket] .aurebesh-stage{flex:1 1 360px;min-width:0;padding:12px;overflow:auto;background:var(--aurebesh-desk,#e4e7ec)}
+.aurebesh[data-ticket] .aurebesh-content.aurebesh-ticket{box-sizing:content-box;width:calc(var(--tk-cols,41)*1ch);margin:0 auto;padding:12px 1ch;overflow:visible;font-family:ui-monospace,'Cascadia Code','Source Code Pro',Menlo,Consolas,'DejaVu Sans Mono',monospace;font-size:14px;line-height:1.3;white-space:pre-wrap;word-break:break-all;tab-size:8;background-color:var(--aurebesh-bg,#fff);background-image:repeating-linear-gradient(to right,transparent 0,transparent calc(10ch - 1px),var(--aurebesh-ruler,rgba(120,130,150,.25)) calc(10ch - 1px),var(--aurebesh-ruler,rgba(120,130,150,.25)) 10ch);background-origin:content-box;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.aurebesh[data-ticket] .aurebesh-content.aurebesh-ticket.no-ruler{background-image:none}
+.aurebesh-ticket p{margin:0;min-height:1.3em}
+.aurebesh-tk{display:inline;white-space:pre;border-radius:3px;background:rgba(37,99,235,.14);box-shadow:inset 0 -1px 0 rgba(37,99,235,.55);cursor:pointer}
+.aurebesh-tk-cmd{background:rgba(124,58,237,.14);box-shadow:inset 0 -1px 0 rgba(124,58,237,.55)}
+.aurebesh-tk-if{display:inline-block;width:0;height:1.05em;margin:0 -2px;padding:0 2px;box-sizing:content-box;vertical-align:text-bottom;border-radius:1px;background:linear-gradient(rgba(245,158,11,.75),rgba(245,158,11,.75)) center/2px 100% no-repeat;box-shadow:none;cursor:pointer}
+.aurebesh-ticket.show-conds .aurebesh-tk-if{width:auto;height:auto;margin:0;padding:0 .5ch;background:rgba(245,158,11,.25);box-shadow:inset 0 -1px 0 rgba(245,158,11,.8);font-size:.7em;line-height:1.4;vertical-align:baseline}
+.aurebesh-ticket.show-conds .aurebesh-tk-if::before{content:attr(data-label)}
+.aurebesh-tk-if.aurebesh-hot{background:linear-gradient(#f59e0b,#f59e0b) center/4px 100% no-repeat}
+::highlight(aurebesh-cond){background-color:rgba(245,158,11,.28)}
+.aurebesh-ticket-panel{flex:0 1 400px;min-width:280px;box-sizing:border-box;padding:10px 12px;font-size:13px}
+.aurebesh-ticket-switches label{display:block;margin-bottom:4px}
+.aurebesh-ticket-heading{margin:10px 0 4px;font-weight:600}
+.aurebesh-ticket-note{margin:6px 0;color:#667085}
+.aurebesh-ticket-option{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0}
+.aurebesh-ticket-option select{max-width:55%;font:inherit;font-size:12px}
+.aurebesh-ticket-cond{display:flex;align-items:center;gap:4px;margin:3px 0;padding:2px 4px;border-radius:4px}
+.aurebesh-ticket-cond:hover{background:rgba(245,158,11,.15)}
+.aurebesh-ticket-cond span{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aurebesh-ticket-cond button,.aurebesh-ticket-load,.aurebesh-ticket-form button,.aurebesh-ticket-pop button{font:inherit;font-size:12px;padding:2px 8px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:transparent;color:inherit;cursor:pointer}
+.aurebesh-ticket-form{display:flex;flex-wrap:wrap;gap:4px;flex:1 1 auto}
+.aurebesh-ticket-form input,.aurebesh-ticket-form select{font:inherit;font-size:12px;min-width:0;max-width:100%}
+.aurebesh-ticket-warn{margin:6px 0;color:#b42318}
+.aurebesh-ticket-tabs{display:flex;gap:4px;margin:10px 0 0;border-bottom:1px solid var(--aurebesh-border,#d0d5dd)}
+.aurebesh-ticket-tabs button{padding:4px 12px;border:0;border-bottom:2px solid transparent;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.aurebesh-ticket-tabs button[aria-selected="true"]{border-bottom-color:var(--aurebesh-accent,#2563eb);font-weight:600}
+.aurebesh-ticket-pane{padding-top:8px}
+.aurebesh-ticket-pane[hidden]{display:none}
+.aurebesh-ticket-paper{display:flex;flex-direction:column;align-items:flex-start;gap:14px;max-width:100%;padding:4px 0 8px;font-family:ui-monospace,'Cascadia Code','Source Code Pro',Menlo,Consolas,'DejaVu Sans Mono',monospace;font-size:13px;line-height:1.3;white-space:pre;overflow-x:auto;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))}
+.aurebesh-ticket-slip{box-sizing:content-box;flex:none;width:calc(var(--tk-cols,41)*1ch);padding:26px 1ch;background:#fff;color:#111}
+.aurebesh-ticket-pl.over{outline:1px solid #b42318}
+.aurebesh-ticket-slip .aurebesh-tk{background:transparent;box-shadow:none;cursor:default;color:#667085}
+.aurebesh-ticket-code{box-sizing:border-box;width:100%;min-height:260px;padding:6px;font:12px/1.4 ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;white-space:pre;overflow:auto;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:var(--aurebesh-bg,#fff);color:inherit}
+.aurebesh-ticket-load{margin-top:6px}
+.aurebesh-ticket-load:disabled{opacity:.5;cursor:default}
+.aurebesh-ticket-list{display:flex;flex-direction:column;gap:2px;max-height:260px;margin-top:6px;overflow:auto}
+.aurebesh-ticket-item{display:flex;justify-content:space-between;gap:16px;text-align:start}
+.aurebesh-ticket-item small{opacity:.6}
+.aurebesh-ticket-pop{min-width:260px}
+.aurebesh-ticket-chip-tools{align-items:center}
+.aurebesh-ticket-logo{display:inline-block;max-width:100%;height:auto;vertical-align:top;filter:grayscale(1) contrast(1.4)}
+.aurebesh-ticket-data input[type="text"]{box-sizing:border-box;min-width:0;width:100%;font:inherit;font-size:12px;padding:2px 4px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:3px;background:var(--aurebesh-bg,#fff);color:inherit}
+.aurebesh-ticket-data .aurebesh-ticket-option input[type="text"]{width:55%}
+.aurebesh-ticket-data table{width:100%;margin:4px 0;border-collapse:collapse;table-layout:auto}
+.aurebesh-ticket-data th{padding:2px 4px;font-size:11px;font-weight:600;text-align:start;white-space:nowrap}
+.aurebesh-ticket-data td{padding:1px 2px}
+.aurebesh-ticket-data button{font:inherit;font-size:12px;padding:2px 8px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:transparent;color:inherit;cursor:pointer}
 /* Every block finds its own direction from its first strong letter (Arabic, Hebrew); a dir attribute overrides it. */
 .aurebesh-content:not([dir]),.aurebesh-content :is(p,h1,h2,h3,blockquote,li,td,th):not([dir]){unicode-bidi:plaintext}
 .aurebesh-content pre{direction:ltr;text-align:left}
