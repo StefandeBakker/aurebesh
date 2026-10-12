@@ -63,6 +63,7 @@ export const DEFAULT_LABELS: Labels = {
   'ui.imagesFailed': '{count} pasted image(s) could not be imported.',
   'ui.imagesDropped': '{count} image(s) in the pasted content could not be brought along.',
   'ui.toolbar': 'Formatting',
+  'ui.quickbar': 'Quick access',
   'ui.tableTools': 'Table tools',
   'ui.imageTools': 'Image tools',
 };
@@ -117,6 +118,7 @@ export const LABELS_NL: Labels = {
   'ui.imagesFailed': '{count} geplakte afbeelding(en) konden niet worden geïmporteerd.',
   'ui.imagesDropped': '{count} afbeelding(en) uit de geplakte inhoud konden niet worden meegenomen.',
   'ui.toolbar': 'Opmaak',
+  'ui.quickbar': 'Snelle toegang',
   'ui.tableTools': 'Tabelgereedschap',
   'ui.imageTools': 'Afbeeldingsgereedschap',
   bold: 'Vet',

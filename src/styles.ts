@@ -1,6 +1,18 @@
 export const CSS = `
 .aurebesh{border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:6px;background:var(--aurebesh-bg,#fff);color:var(--aurebesh-color,#111);font-family:inherit}
-.aurebesh-toolbar{display:flex;flex-wrap:wrap;gap:2px;padding:4px;border-bottom:1px solid var(--aurebesh-border,#d0d5dd);background:var(--aurebesh-toolbar-bg,#f8f9fb)}
+.aurebesh-toolbar{display:flex;flex-wrap:wrap;gap:4px 6px;padding:4px;border-bottom:1px solid var(--aurebesh-border,#d0d5dd);background:var(--aurebesh-toolbar-bg,#f8f9fb)}
+/* the toolbar is blocks (like the groups of the ribbon in Word) of one or two rows; a block moves as a whole when the toolbar is narrow */
+.aurebesh-group{display:flex;flex:none;flex-direction:column;gap:2px;align-items:flex-start;padding-inline-end:6px;border-inline-end:1px solid var(--aurebesh-border,#d0d5dd)}
+.aurebesh-group:last-child{padding-inline-end:0;border-inline-end:0}
+.aurebesh-row{display:flex;flex-wrap:wrap;align-items:center;gap:2px}
+/* the strip above the toolbar, like the Quick Access Toolbar of Word: small, and apart from the formatting */
+.aurebesh-quickbar{flex-wrap:nowrap;gap:0;padding:2px 4px;border-bottom:0}
+.aurebesh-quickbar button{min-width:26px;height:26px}
+.aurebesh-quickbar .aurebesh-icon{width:16px;height:16px}
+.aurebesh-quickbar+.aurebesh-toolbar{border-top:1px solid var(--aurebesh-border,#d0d5dd)}
+/* icons: line drawings in the colour of the text, so they follow the theme and the pressed state */
+.aurebesh-icon{display:block;width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.aurebesh-toolbar button:has(>.aurebesh-icon){display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
 .aurebesh-toolbar button{min-width:28px;height:28px;padding:0 6px;border:0;border-radius:4px;background:transparent;color:inherit;cursor:pointer;font:inherit;font-size:13px}
 .aurebesh-toolbar button:hover{background:rgba(0,0,0,.08)}
 .aurebesh-toolbar button[aria-pressed="true"]{background:var(--aurebesh-accent,#2563eb);color:#fff}
@@ -62,7 +74,6 @@ export const CSS = `
 .aurebesh-pending::before{content:attr(data-label)}
 .aurebesh-image-tools{align-items:center}
 .aurebesh-alt{flex:1;min-width:120px;max-width:260px;height:28px;padding:0 8px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:var(--aurebesh-bg,#fff);color:inherit;font:inherit;font-size:13px}
-.aurebesh-sep{width:1px;margin:4px;background:var(--aurebesh-border,#d0d5dd)}
 .aurebesh-content{min-height:var(--aurebesh-min-height,150px);padding:10px 12px;outline:0;overflow:auto}
 /* A page format: the content becomes a sheet of that width on a desk; with a height, page breaks are marked every page. */
 .aurebesh[data-page] .aurebesh-stage{padding:16px;overflow:auto;background:var(--aurebesh-desk,#e4e7ec)}

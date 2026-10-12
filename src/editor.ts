@@ -4,7 +4,8 @@ import { handleListKey } from './lists';
 import { applyMarkdown } from './markdown';
 import { shortcutFor } from './shortcuts';
 import { DEFAULT_COLORS, SAFE_COLOR } from './colors';
-import { COMMANDS, DEFAULT_TOOLBAR, TABLE_TOOLS } from './commands';
+import { COMMANDS, DEFAULT_QUICKBAR, DEFAULT_TOOLBAR, TABLE_TOOLS } from './commands';
+import { iconElement } from './icons';
 import type { CommandDef } from './commands';
 import { currentPre, handleCodeKey, insertCode } from './codeblock';
 import { clearHighlights, highlightCode } from './highlight';
@@ -70,6 +71,11 @@ export interface AurebeshOptions {
   readOnly?: boolean;
   /** Toolbar item names, '|' is a separator. Pass [] for no toolbar. */
   toolbar?: string[];
+  /**
+   * Items in a small strip above the toolbar, like the Quick Access Toolbar of Word. Default: undo and redo when the default
+   * toolbar is used, nothing when you give a `toolbar` of your own (so they are not there twice). Pass [] for no strip.
+   */
+  quickbar?: string[];
   /**
    * Page format: the editor shows a sheet of that width (and height, with page breaks marked). A preset
    * ('a4', 'a5', 'a6', 'a3', 'letter', 'legal', 'ticket-80', 'ticket-58', 'responsive'), a width (a number of px, or
@@ -157,6 +163,8 @@ export class Aurebesh {
     }
 
     const items = options.toolbar ?? DEFAULT_TOOLBAR;
+    const quick = options.quickbar ?? (options.toolbar ? [] : DEFAULT_QUICKBAR);
+    if (quick.length) this.buildQuickbar(quick);
     if (items.length) this.buildToolbar(items);
 
     this.content = doc.createElement('div');
@@ -562,62 +570,74 @@ export class Aurebesh {
     this.cleanup.push(() => target.removeEventListener(type, fn));
   }
 
+  /** The small strip above the toolbar: buttons that are about the document rather than the text (undo, redo). */
+  private buildQuickbar(items: string[]): void {
+    const bar = this.container.ownerDocument.createElement('div');
+    bar.className = 'aurebesh-toolbar aurebesh-quickbar';
+    bar.setAttribute('role', 'toolbar');
+    bar.setAttribute('aria-label', this.t('ui.quickbar'));
+    for (const item of items) {
+      const cmd = COMMANDS[item];
+      if (cmd) bar.appendChild(this.makeButton(cmd));
+    }
+    this.root.appendChild(bar);
+    rovingToolbar(bar, () => this.content.focus());
+  }
+
+  /** One toolbar item as an element, or null for a name that is not a command (or an upload that is not available). */
+  private buildToolbarItem(item: string): HTMLElement | null {
+    const cmd = COMMANDS[item];
+    if (!cmd) return null;
+    if (item === 'font') return this.buildFontSelect();
+    if (item === 'size') return this.buildSizeSelect();
+    if (item === 'columns') return this.buildColumnsSelect();
+    if (item === 'orientation') return this.buildOrientationButton();
+    if (item === 'page') return this.buildPageSelect();
+    if (item === 'link') return this.buildLinkPicker(cmd);
+    if (item === 'color') return this.buildColorPicker(cmd, 'inherit', this.t('ui.automatic'));
+    if (item === 'highlight') return this.buildColorPicker(cmd, 'transparent', this.t('ui.noHighlight'));
+    if (item === 'table') return this.buildTablePicker();
+    if (item === 'image' || item === 'video') return this.buildMediaPicker(item, cmd);
+    return this.makeButton(cmd);
+  }
+
+  /**
+   * The toolbar is blocks, like the groups of the ribbon in Word: `|` starts a new block and `/` a new row inside the block, so a
+   * block can be two rows of buttons on top of each other. A block moves as a whole when the toolbar is narrow, it is never cut in two.
+   * Without any `/` every block is a single row, which wraps like before.
+   */
   private buildToolbar(items: string[]): void {
     const doc = this.container.ownerDocument;
     const bar = doc.createElement('div');
     bar.className = 'aurebesh-toolbar';
     bar.setAttribute('role', 'toolbar');
+    const groups: HTMLElement[][][] = [[[]]]; // blocks of rows of elements
     for (const item of items) {
+      const group = groups[groups.length - 1];
       if (item === '|') {
-        const sep = doc.createElement('span');
-        sep.className = 'aurebesh-sep';
-        bar.appendChild(sep);
+        if (group.some((row) => row.length)) groups.push([[]]);
         continue;
       }
-      const cmd = COMMANDS[item];
-      if (!cmd) continue;
-      if (item === 'font') {
-        bar.appendChild(this.buildFontSelect());
+      if (item === '/') {
+        if (group[group.length - 1].length) group.push([]);
         continue;
       }
-      if (item === 'size') {
-        bar.appendChild(this.buildSizeSelect());
-        continue;
+      const el = this.buildToolbarItem(item);
+      if (el) group[group.length - 1].push(el);
+    }
+    for (const rows of groups) {
+      const filled = rows.filter((row) => row.length);
+      if (!filled.length) continue;
+      const block = doc.createElement('div');
+      block.className = 'aurebesh-group';
+      block.setAttribute('role', 'group');
+      for (const nodes of filled) {
+        const row = doc.createElement('div');
+        row.className = 'aurebesh-row';
+        row.append(...nodes);
+        block.appendChild(row);
       }
-      if (item === 'columns') {
-        bar.appendChild(this.buildColumnsSelect());
-        continue;
-      }
-      if (item === 'orientation') {
-        bar.appendChild(this.buildOrientationButton());
-        continue;
-      }
-      if (item === 'page') {
-        bar.appendChild(this.buildPageSelect());
-        continue;
-      }
-      if (item === 'link') {
-        bar.appendChild(this.buildLinkPicker(cmd));
-        continue;
-      }
-      if (item === 'color') {
-        bar.appendChild(this.buildColorPicker(cmd, 'inherit', this.t('ui.automatic')));
-        continue;
-      }
-      if (item === 'highlight') {
-        bar.appendChild(this.buildColorPicker(cmd, 'transparent', this.t('ui.noHighlight')));
-        continue;
-      }
-      if (item === 'table') {
-        bar.appendChild(this.buildTablePicker());
-        continue;
-      }
-      if (item === 'image' || item === 'video') {
-        const picker = this.buildMediaPicker(item, cmd);
-        if (picker) bar.appendChild(picker);
-        continue;
-      }
-      bar.appendChild(this.makeButton(cmd));
+      bar.appendChild(block);
     }
     bar.setAttribute('aria-label', this.t('ui.toolbar'));
     this.root.appendChild(bar);
@@ -689,10 +709,11 @@ export class Aurebesh {
     tools.setAttribute('role', 'toolbar');
     tools.setAttribute('aria-label', this.t('ui.imageTools'));
     tools.hidden = true;
-    const add = (label: string, title: string, run: () => void) => {
+    const add = (face: string | { icon?: string; label: string }, title: string, run: () => void) => {
       const b = doc.createElement('button');
       b.type = 'button';
-      b.textContent = label;
+      if (typeof face === 'string') b.textContent = face;
+      else this.face(b, face);
       b.title = title;
       b.setAttribute('aria-label', title);
       b.addEventListener('mousedown', (e) => e.preventDefault());
@@ -700,9 +721,9 @@ export class Aurebesh {
       tools.appendChild(b);
     };
     for (const pct of ['25', '50', '75', '100']) add(`${pct}%`, `${pct}%`, () => this.exec('imageWidth', pct));
-    add('↔', this.t('ui.fullWidth'), () => this.exec('imageWidth', ''));
+    add({ icon: 'fullWidth', label: '↔' }, this.t('ui.fullWidth'), () => this.exec('imageWidth', ''));
     for (const [where, cmd] of [['left', 'alignLeft'], ['center', 'alignCenter'], ['right', 'alignRight']] as const) {
-      add(COMMANDS[cmd].label, this.labels[cmd] ?? COMMANDS[cmd].title, () => this.exec('imageAlign', where));
+      add(COMMANDS[cmd], this.labels[cmd] ?? COMMANDS[cmd].title, () => this.exec('imageAlign', where));
     }
     const alt = doc.createElement('input');
     alt.type = 'text';
@@ -719,7 +740,7 @@ export class Aurebesh {
     });
     this.imageAltInput = alt;
     tools.appendChild(alt);
-    add('✕', this.t('ui.removeImage'), () => {
+    add({ icon: 'trash', label: '✕' }, this.t('ui.removeImage'), () => {
       if (!this.lastImage) return;
       const range = doc.createRange();
       range.selectNode(this.lastImage);
@@ -737,10 +758,17 @@ export class Aurebesh {
     rovingToolbar(tools, () => this.content.focus());
   }
 
+  /** What a button shows: its icon, or its text when it has none. */
+  private face(btn: HTMLElement, cmd: { icon?: string; label: string }): void {
+    const icon = iconElement(btn.ownerDocument, cmd.icon);
+    if (icon) btn.replaceChildren(icon);
+    else btn.textContent = cmd.label;
+  }
+
   private makeButton(cmd: CommandDef, onClick: (e: MouseEvent) => void = () => this.exec(cmd.name)): HTMLButtonElement {
     const btn = this.container.ownerDocument.createElement('button');
     btn.type = 'button';
-    btn.textContent = cmd.label;
+    this.face(btn, cmd);
     btn.title = this.title(cmd);
     btn.setAttribute('aria-label', this.title(cmd));
     btn.setAttribute('aria-pressed', 'false');
@@ -1128,7 +1156,7 @@ export class Aurebesh {
     const btn = doc.createElement('button');
     btn.type = 'button';
     btn.className = 'aurebesh-orientation';
-    btn.textContent = COMMANDS.orientation.label;
+    this.face(btn, COMMANDS.orientation);
     const title = this.title(COMMANDS.orientation);
     btn.title = title;
     btn.setAttribute('aria-label', title);
