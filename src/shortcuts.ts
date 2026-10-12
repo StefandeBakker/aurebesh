@@ -31,3 +31,31 @@ export function shortcutFor(e: KeyboardEvent): string | null {
   }
   return null;
 }
+
+/** The shortcut of each toolbar command, as shown in its tooltip (`Mod` is Ctrl, or Cmd on a Mac). */
+const KEYS: Record<string, string> = {
+  bold: 'Mod+B',
+  italic: 'Mod+I',
+  underline: 'Mod+U',
+  strike: 'Mod+Shift+X',
+  undo: 'Mod+Z',
+  redo: 'Mod+Shift+Z',
+  link: 'Mod+K',
+  code: 'Mod+E',
+  codeblock: 'Mod+Alt+C',
+  h1: 'Mod+Alt+1',
+  h2: 'Mod+Alt+2',
+  h3: 'Mod+Alt+3',
+  ol: 'Mod+Shift+7',
+  ul: 'Mod+Shift+8',
+};
+
+export const isMac = (): boolean => typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
+/** "Ctrl+K" or, on a Mac, "⌘K"; null for a command without a shortcut. */
+export function shortcutLabel(command: string): string | null {
+  const keys = KEYS[command];
+  if (!keys) return null;
+  if (!isMac()) return keys.replace('Mod', 'Ctrl');
+  return keys.replace('Mod+', '⌘').replace('Shift+', '⇧').replace('Alt+', '⌥').replace('⌘⇧', '⇧⌘').replace('⌘⌥', '⌥⌘').replace('+', '');
+}

@@ -190,8 +190,11 @@ test.describe('accessibility', () => {
     await open(page);
     await expect(content(page)).toHaveAttribute('role', 'textbox');
     await expect(content(page)).toHaveAttribute('aria-label', 'Rich text editor');
-    await expect(page.locator('.aurebesh-toolbar').first()).toHaveAttribute('role', 'toolbar');
-    await expect(page.locator('.aurebesh-toolbar').first()).toHaveAttribute('aria-label', 'Formatting');
+    const main = page.locator('.aurebesh-toolbar:not(.aurebesh-quickbar)').first();
+    await expect(main).toHaveAttribute('role', 'toolbar');
+    await expect(main).toHaveAttribute('aria-label', 'Formatting');
+    await expect(page.locator('.aurebesh-quickbar')).toHaveAttribute('role', 'toolbar');
+    await expect(page.locator('.aurebesh-quickbar')).toHaveAttribute('aria-label', 'Quick access');
     // every button has an accessible name
     const unnamed = await page.evaluate(() =>
       Array.from(document.querySelectorAll('.aurebesh button')).filter((b) => !(b.getAttribute('aria-label') || b.textContent?.trim())).length,
@@ -201,19 +204,20 @@ test.describe('accessibility', () => {
 
   test('the toolbar is one tab stop and Left/Right/Home/End move between its buttons', async ({ page }) => {
     await open(page);
-    const bar = page.locator('.aurebesh-toolbar').first();
-    const stops = () => bar.locator(':scope > button, :scope > .aurebesh-table-picker > button').evaluateAll((bs) => bs.filter((b) => (b as HTMLButtonElement).tabIndex === 0).length);
+    const bar = page.locator('.aurebesh-toolbar:not(.aurebesh-quickbar)').first();
+    // the buttons of the toolbar, in its blocks and rows: not the ones inside a popover
+    const stops = () => bar.locator('button').evaluateAll((bs) => bs.filter((b) => !b.closest('.aurebesh-table-pop') && (b as HTMLButtonElement).tabIndex === 0).length);
     expect(await stops()).toBe(1);
 
-    const first = bar.locator(':scope > button, :scope > .aurebesh-table-picker > button').first();
+    const first = bar.locator('button').first();
     await first.focus();
     await page.keyboard.press('ArrowRight');
     const second = await page.evaluate(() => (document.activeElement as HTMLElement).getAttribute('title'));
-    expect(second).toBe('Italic'); // the first is Bold... after the font and size boxes
+    expect(second).toBe('Bold'); // the first is Clear formatting: the boxes for font and size are not buttons
     await page.keyboard.press('End');
-    expect(await page.evaluate(() => (document.activeElement as HTMLElement).getAttribute('title'))).toBe('Redo');
+    expect(await page.evaluate(() => (document.activeElement as HTMLElement).getAttribute('title'))).toBe('Horizontal line'); // columns is a box, so this is the last button
     await page.keyboard.press('Home');
-    expect(await page.evaluate(() => (document.activeElement as HTMLElement).getAttribute('title'))).toBe('Bold');
+    expect(await page.evaluate(() => (document.activeElement as HTMLElement).getAttribute('title'))).toBe('Clear formatting');
     expect(await stops()).toBe(1);
 
     await page.keyboard.press('Escape');
