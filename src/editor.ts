@@ -188,8 +188,10 @@ export class Aurebesh {
 
     const items = options.toolbar ?? DEFAULT_TOOLBAR;
     const quick = options.quickbar ?? (options.toolbar ? [] : DEFAULT_QUICKBAR);
+    const commands = [...items, ...quick];
     if (quick.length) this.buildQuickbar(quick);
     if (items.length) this.buildToolbar(items);
+    this.buildContextualTools(commands);
 
     this.content = doc.createElement('div');
     this.content.className = 'aurebesh-content';
@@ -200,7 +202,7 @@ export class Aurebesh {
     this.stage = doc.createElement('div');
     this.stage.className = 'aurebesh-stage';
     this.stage.appendChild(this.content);
-    if (items.includes('layout')) {
+    if (commands.includes('layout')) {
       // the text with the layout panel beside it
       const body = doc.createElement('div');
       body.className = 'aurebesh-body';
@@ -708,8 +710,11 @@ export class Aurebesh {
     bar.setAttribute('aria-label', this.t('ui.toolbar'));
     this.root.appendChild(bar);
     rovingToolbar(bar, () => this.content.focus());
+  }
 
-    if (items.includes('table')) {
+  private buildContextualTools(commands: string[]): void {
+    const doc = this.container.ownerDocument;
+    if (commands.includes('table')) {
       const tools = doc.createElement('div');
       tools.className = 'aurebesh-toolbar aurebesh-table-tools';
       tools.setAttribute('role', 'toolbar');
@@ -721,8 +726,8 @@ export class Aurebesh {
       rovingToolbar(tools, () => this.content.focus());
     }
 
-    if (items.includes('image')) this.buildImageTools();
-    if (items.includes('link')) this.buildLinkTools();
+    if (commands.includes('image')) this.buildImageTools();
+    if (commands.includes('link')) this.buildLinkTools();
   }
 
   /** Row that appears while the caret is in a link: its address, Open (new tab), Edit and Remove. */
