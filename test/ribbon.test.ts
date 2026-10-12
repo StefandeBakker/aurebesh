@@ -70,6 +70,15 @@ describe('shortcuts in the tooltips', () => {
 });
 
 describe('the layout panel', () => {
+  it('initializes contextual controls and the layout panel for quickbar-only items', () => {
+    const el = build({ toolbar: [], quickbar: ['table', 'image', 'link', 'layout'] });
+    expect(el.querySelector('.aurebesh-table-tools')).not.toBeNull();
+    expect(el.querySelector('.aurebesh-image-tools')).not.toBeNull();
+    expect(el.querySelector('.aurebesh-link-tools')).not.toBeNull();
+    expect(el.querySelector('.aurebesh-panel')).not.toBeNull();
+    el.remove();
+  });
+
   it('is only there with the layout item, closed, and its button opens and closes it', () => {
     const none = build({ toolbar: ['bold'] });
     expect(none.querySelector('.aurebesh-panel')).toBeNull();
