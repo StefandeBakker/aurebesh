@@ -17,6 +17,13 @@ const LTR: Shape[] = [
 ];
 
 export const ICONS: Record<string, Shape[]> = {
+  // the bar under the letter and the pen shows the colour that was chosen last (see .aurebesh-icon-swatch in the styles)
+  textColor: [['path', { d: 'M5 16 12 2.5 19 16M7.4 11.5h9.2' }], ['rect', { x: 3.5, y: 19.3, width: 17, height: 3, rx: 0.8, class: 'aurebesh-icon-swatch' }]],
+  highlight: [
+    ['path', { d: 'M14.3 2.8l6 6-8.4 8.4-6-6z' }],
+    ['path', { d: 'M5.9 11.2 3.6 16.4l1.7 1.5 5.3-2.3M9.4 7.7l6 6' }],
+    ['rect', { x: 3.5, y: 19.3, width: 17, height: 3, rx: 0.8, class: 'aurebesh-icon-swatch' }],
+  ],
   undo: [['path', { d: 'M9 14 4 9l5-5' }], ['path', { d: 'M4 9h10.5a5.5 5.5 0 0 1 0 11H11' }]],
   redo: [['path', { d: 'M15 14l5-5-5-5' }], ['path', { d: 'M20 9H9.5a5.5 5.5 0 0 0 0 11H13' }]],
   // a letter with an eraser: removes the formatting of the text

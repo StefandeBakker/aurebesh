@@ -136,7 +136,7 @@ font size clear / bold italic underline strike highlight color | ul ol / alignLe
 
 That is five blocks: the font (typeface, size and clear formatting on top, character styles, highlight and colour below), the paragraph (lists, then alignment), the styles (headings and quote on top, then the two kinds of code, inline and block), what you can insert (link, picture and video, then table and line) and the layout (columns). Leave out every `/` and each block is a single row that wraps like before; a toolbar without any `|` is one block.
 
-**Icons.** Buttons whose symbol was not obvious (undo and redo, clear formatting, lists, alignment, quote, the two kinds of code, link, picture, video, table, line, text direction) show a line drawing; the letters of bold, italic, underline and strikethrough, the headings and the colour swatches stay as they are. The drawings are inline SVG in the colour of the text, so they follow your theme and the pressed state, and the editor needs no icon font or image files. A button keeps its name for screen readers and as its tooltip (the `labels` option translates it).
+**Icons.** Buttons whose symbol was not obvious (undo and redo, clear formatting, lists, alignment, quote, the two kinds of code, link, picture, video, table, line, text direction) show a line drawing; the letters of bold, italic, underline and strikethrough and the headings stay as they are. The two colour buttons are a letter A (text colour) and a marker pen (highlight), each with a bar underneath that shows the colour chosen last (black and yellow to begin with, and again after "Automatic" or "No highlight") and a small arrow for the palette that opens. The drawings are inline SVG in the colour of the text, so they follow your theme and the pressed state, and the editor needs no icon font or image files. A button keeps its name for screen readers and as its tooltip (the `labels` option translates it).
 
 **Undo and redo** are in a small strip of their own above the toolbar, like the Quick Access Toolbar of Word: the `quickbar` option (default `['undo', 'redo']`) lists what is in it, and `quickbar: []` removes it. With a `toolbar` of your own the strip is empty, so they are not there twice; put `undo` and `redo` in `toolbar` or give `quickbar` yourself. On the element: `toolbar="font,size,/,bold,italic,|,link"` and `quickbar="undo,redo"`.
 
@@ -146,7 +146,7 @@ Items that are not in the default have a place in the same blocks, so a toolbar 
 font size clear / bold italic underline strike sub sup highlight color | ul ol / alignLeft alignCenter alignRight alignJustify ltr rtl | h1 h2 h3 quote / code codeblock | link image video / table hr | columns page orientation
 ```
 
-Theme via CSS variables: `--aurebesh-border`, `--aurebesh-bg`, `--aurebesh-color`, `--aurebesh-accent`, `--aurebesh-toolbar-bg`, `--aurebesh-code-bg`, `--aurebesh-min-height`, and `--aurebesh-hl-keyword|string|comment|number|function|type|tag` for code colours.
+Theme via CSS variables: `--aurebesh-border`, `--aurebesh-bg`, `--aurebesh-color`, `--aurebesh-accent`, `--aurebesh-toolbar-bg`, `--aurebesh-code-bg`, `--aurebesh-min-height`, `--aurebesh-max-height` (a fixed maximum height of the text area: the text then scrolls inside the editor while the toolbar stays in view; without it the editor grows with the text and the toolbar scrolls along with the page), and `--aurebesh-hl-keyword|string|comment|number|function|type|tag` for code colours.
 
 ## Counter, limit and ready
 
@@ -258,7 +258,7 @@ Enter, Tab and Space are left alone while an input method (Chinese, Japanese, Ko
 
 ## Links
 
-While the caret is in a link, a row under the toolbar shows its address with **Open link** (new tab), **Edit** (opens the link box with the address filled in) and **Remove link**.
+While the caret is in a link, a small popover hangs on the link (above it; beside it when the link is on the first line, below it when there is no room at the sides) and shows its address with **Open link** (new tab), **Edit** (opens the link box with the address filled in) and **Remove link**. The link box (Link button, **Edit** or the shortcut) opens in the same place, on the link or at the caret, instead of under the toolbar.
 Ctrl/Cmd+click opens a link directly, and in a read-only editor a plain click does. Links open with `noopener,noreferrer`, so the new page can't reach back into yours,
 and only `http(s):`, `mailto:`, `tel:` and site paths are opened (never `javascript:`; `#anchors` aren't opened either). The texts can be changed with the `labels` option
 (`ui.openLink`, `ui.editLink`, `ui.removeLink`).

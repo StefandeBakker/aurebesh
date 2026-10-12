@@ -206,6 +206,51 @@ test.describe('formatting', () => {
       await expect(row).toBeHidden();
     });
 
+    test('the row is a popover on the link: above it, and beside it when the link is on the first line', async ({ page }) => {
+      await open(page, '<p>x</p><p>y</p><p>see <a href="https://example.com/page">the link</a> here</p>');
+      const pop = page.locator('.aurebesh-link-tools');
+      const box = async (l: ReturnType<typeof page.locator>) => (await l.boundingBox())!;
+      await content(page).locator('a').click();
+      await expect(pop).toBeVisible();
+      let p = await box(pop);
+      let a = await box(content(page).locator('a'));
+      expect(p.y + p.height).toBeLessThanOrEqual(a.y); // above the link
+      expect(Math.abs(p.x - a.x)).toBeLessThan(2);
+      expect(await pop.evaluate((el) => (el as HTMLElement).dataset.place)).toBe('above');
+
+      await open(page, '<p><a href="https://example.com/page">first line</a> and more</p>');
+      await content(page).locator('a').click();
+      await expect(pop).toBeVisible();
+      p = await box(pop);
+      a = await box(content(page).locator('a'));
+      expect(p.x).toBeGreaterThanOrEqual(a.x + a.width); // beside it: there is no room above
+      expect(await pop.evaluate((el) => (el as HTMLElement).dataset.place)).toBe('beside');
+      const bar = await box(page.locator('.aurebesh-toolbar').first());
+      expect(p.y).toBeGreaterThanOrEqual(bar.y + bar.height - 1); // never over the toolbar
+    });
+
+    test('the link box opens on the link (to edit) or at the caret (to add), not under the toolbar', async ({ page }) => {
+      await open(page, '<p>x</p><p>y</p><p>z</p><p>w</p><p>see <a href="https://example.com/page">the link</a> here</p><p>plain words</p>');
+      const form = page.locator('input[inputmode="url"]').locator('xpath=..');
+      const box = async (l: ReturnType<typeof page.locator>) => (await l.boundingBox())!;
+      await content(page).locator('a').click();
+      await page.locator('.aurebesh-link-tools').getByRole('button', { name: 'Edit' }).click();
+      await expect(form).toBeVisible();
+      await expect(page.locator('.aurebesh-link-tools')).toBeHidden(); // it makes way for the box
+      let f = await box(form);
+      let a = await box(content(page).locator('a'));
+      expect(f.y + f.height).toBeLessThanOrEqual(a.y);
+      expect(Math.abs(f.x - a.x)).toBeLessThan(2);
+      await page.keyboard.press('Escape');
+
+      await content(page).locator('p').nth(5).click();
+      await page.locator('button[title="Link"]').click();
+      await expect(form).toBeVisible();
+      f = await box(form);
+      const p = await box(content(page).locator('p').nth(5));
+      expect(f.y + f.height).toBeLessThanOrEqual(p.y + 1); // above the line the caret is on
+    });
+
     test('Open link opens the address in a new tab that cannot reach back to the editor', async ({ page }) => {
       await open(page, LINKED);
       await content(page).locator('a').click();
@@ -286,6 +331,67 @@ test.describe('formatting', () => {
     expect(await html(page)).toContain('<ul>');
     await button(page, 'Horizontal line').click();
     expect(await html(page)).toContain('<hr');
+  });
+});
+
+test.describe('the colour buttons', () => {
+  const rgb = (hex: string) => {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+  };
+  const fill = (page: any, title: string) => page.locator(`button[title="${title}"] .aurebesh-icon-swatch`).evaluate((e: Element) => getComputedStyle(e).fill);
+  const palette = (page: any, title: string) => page.locator(`.aurebesh-table-picker:has(button[title="${title}"])`);
+
+  test('are an icon with a bar: the text colour is black to begin with, the highlight yellow', async ({ page }) => {
+    await open(page);
+    expect(await fill(page, 'Text color')).toBe('rgb(17, 17, 17)');
+    expect(await fill(page, 'Highlight color')).toBe('rgb(250, 204, 21)');
+  });
+
+  test('have a small arrow that says a palette opens', async ({ page }) => {
+    await open(page);
+    for (const t of ['Text color', 'Highlight color']) {
+      const arrow = await button(page, t).evaluate((b) => getComputedStyle(b, '::after').content);
+      expect(arrow, t).not.toBe('none');
+    }
+    await expect(button(page, 'Bold')).toBeVisible();
+    expect(await button(page, 'Bold').evaluate((b) => getComputedStyle(b, '::after').content)).toBe('none'); // other buttons have none
+  });
+
+  test('show the colour chosen last in the bar, and go back to the default on reset', async ({ page }) => {
+    await open(page);
+    await type(page, 'x');
+    for (const [title, dflt] of [['Text color', 'rgb(17, 17, 17)'], ['Highlight color', 'rgb(250, 204, 21)']] as const) {
+      await selectAll(page);
+      await button(page, title).click();
+      const swatch = palette(page, title).locator('.aurebesh-color-grid button').nth(12);
+      const color = (await swatch.getAttribute('aria-label'))!;
+      await swatch.click();
+      expect(await fill(page, title), title).toBe(rgb(color));
+      await selectAll(page);
+      await button(page, title).click();
+      await palette(page, title).locator('.aurebesh-color-reset').click();
+      expect(await fill(page, title), title).toBe(dflt);
+    }
+  });
+
+  test('a light colour is still visible: the bar has an outline', async ({ page }) => {
+    await open(page);
+    await type(page, 'x');
+    await selectAll(page);
+    await button(page, 'Highlight color').click();
+    await palette(page, 'Highlight color').locator('.aurebesh-color-grid button').first().click();
+    const stroke = await page.locator('button[title="Highlight color"] .aurebesh-icon-swatch').evaluate((e) => getComputedStyle(e).stroke);
+    expect(stroke).not.toBe('none');
+  });
+
+  test('still apply the colour to the text, and the HTML has it', async ({ page }) => {
+    await open(page);
+    await type(page, 'hello');
+    await selectAll(page);
+    await button(page, 'Highlight color').click();
+    await palette(page, 'Highlight color').locator('.aurebesh-color-grid button').nth(12).click();
+    expect(await html(page)).toMatch(/background-color:/);
   });
 });
 
@@ -422,5 +528,38 @@ test.describe('the toolbar layout', () => {
     const g = await groups(page);
     expect(g.map((b: any) => b.rows.length)).toEqual([1, 1]);
     await expect(button(page, 'Bold')).toBeVisible();
+  });
+});
+
+test.describe('a fixed maximum height', () => {
+  const LONG = Array.from({ length: 40 }, (_, i) => `<p>line ${i}</p>`).join('');
+
+  test('the text scrolls inside the editor and the toolbar stays where it is', async ({ page }) => {
+    await open(page, LONG);
+    const free = (await page.locator('.aurebesh').boundingBox())!.height;
+    await page.evaluate(() => (document.querySelector('.aurebesh') as HTMLElement).style.setProperty('--aurebesh-max-height', '200px'));
+    const box = (await page.locator('.aurebesh').boundingBox())!;
+    expect(box.height).toBeLessThan(free);
+    expect(box.height).toBeLessThan(400); // the text area is 200px, plus the toolbar
+    const bar = await page.locator('.aurebesh-toolbar').first().boundingBox();
+    await content(page).evaluate((el) => (el.scrollTop = el.scrollHeight));
+    expect(await content(page).evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+    expect(await page.locator('.aurebesh-toolbar').first().boundingBox()).toEqual(bar); // not scrolled away
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  });
+
+  test('without it the editor grows with the text', async ({ page }) => {
+    await open(page, LONG);
+    expect((await page.locator('.aurebesh').boundingBox())!.height).toBeGreaterThan(600);
+  });
+
+  test('a link popover hangs on its link inside the scrolling text, and hides when the link scrolls out of view', async ({ page }) => {
+    await open(page, '<p><a href="https://example.com/a">top link</a></p>' + LONG);
+    await page.evaluate(() => (document.querySelector('.aurebesh') as HTMLElement).style.setProperty('--aurebesh-max-height', '200px'));
+    await content(page).locator('a').click();
+    const pop = page.locator('.aurebesh-link-tools');
+    await expect(pop).toBeVisible();
+    await content(page).evaluate((el) => (el.scrollTop = el.scrollHeight));
+    await expect(pop).toBeHidden(); // visibility: hidden once the link is out of the visible text
   });
 });

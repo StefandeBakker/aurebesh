@@ -67,6 +67,19 @@ describe('the toolbar buttons', () => {
     el.remove();
   });
 
+  it('show the colour buttons as an icon with a bar for the colour chosen last, and a small arrow for the palette', () => {
+    const el = build();
+    for (const t of ['Text color', 'Highlight color']) {
+      const b = btn(el, t);
+      expect(b.querySelector('svg.aurebesh-icon'), t).not.toBeNull();
+      expect(b.querySelector('.aurebesh-icon-swatch'), t).not.toBeNull(); // the bar
+      expect(b.textContent, t).toBe('');
+      expect(b.classList.contains('aurebesh-swatch-btn'), t).toBe(true); // the arrow comes from this class
+      expect(b.getAttribute('aria-label'), t).toBe(t);
+    }
+    el.remove();
+  });
+
   it('keep their name for assistive technology and the tooltip, also without text', () => {
     const el = build();
     for (const b of Array.from(el.querySelectorAll('.aurebesh-toolbar button'))) {

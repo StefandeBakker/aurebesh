@@ -53,7 +53,7 @@
   a { color: var(--accent); }
   .points { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 24px; padding: 0; list-style: none; }
   .points li { padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); font-size: .85rem; color: var(--muted); }
-  aurebesh-editor { display: block; }
+  aurebesh-editor { display: block; --aurebesh-max-height: 420px; /* the text scrolls inside the editor, the toolbar stays in view */ }
   h2 { margin: 32px 0 8px; font-size: 1.15rem; }
   .tabs { display: flex; gap: 4px; margin-bottom: -1px; }
   .tabs button { padding: 6px 14px; border: 1px solid var(--line); border-bottom: 0; border-radius: 6px 6px 0 0; background: transparent; color: var(--muted); font: inherit; font-size: .9rem; cursor: pointer; }

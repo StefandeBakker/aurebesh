@@ -117,6 +117,8 @@ export class Aurebesh {
   private linkUrl: HTMLElement | null = null;
   private linkOpen: HTMLButtonElement | null = null;
   private lastLink: HTMLAnchorElement | null = null;
+  private linkForm: HTMLElement | null = null;
+  private formLink: HTMLAnchorElement | null = null;
   private lastImage: HTMLImageElement | null = null;
   private sizeSelect: HTMLSelectElement | null = null;
   private columnsSelect: HTMLSelectElement | null = null;
@@ -207,6 +209,11 @@ export class Aurebesh {
     this.listen(this.content, 'drop', (e) => this.onDrop(e as DragEvent));
     this.listen(this.content, 'click', (e) => this.onClick(e as MouseEvent));
     this.listen(doc, 'selectionchange', () => this.updateToolbar());
+    // the link popover hangs on its link, so it follows when the page or an inner scroll area moves, or the window changes size
+    if (doc.defaultView) {
+      this.listen(doc.defaultView, 'scroll', () => this.placeLinkTools(), true);
+      this.listen(doc.defaultView, 'resize', () => this.placeLinkTools());
+    }
     // The table tools row appears when a cell is clicked, which moves the table down. Doing that in the middle of a drag
     // across cells would put the pointer on other cells, so the row waits until the button is released.
     this.cleanup.push(trackCellDrag(this.content)); // before the mouseup below, which needs what it found
@@ -565,9 +572,9 @@ export class Aurebesh {
     this.highlightTimer = setTimeout(() => highlightCode(this.content), 50);
   }
 
-  private listen(target: EventTarget, type: string, fn: (e: Event) => void): void {
-    target.addEventListener(type, fn);
-    this.cleanup.push(() => target.removeEventListener(type, fn));
+  private listen(target: EventTarget, type: string, fn: (e: Event) => void, capture = false): void {
+    target.addEventListener(type, fn, capture);
+    this.cleanup.push(() => target.removeEventListener(type, fn, capture));
   }
 
   /** The small strip above the toolbar: buttons that are about the document rather than the text (undo, redo). */
@@ -689,6 +696,68 @@ export class Aurebesh {
     this.linkTools = tools;
     this.root.appendChild(tools);
     rovingToolbar(tools, () => this.content.focus());
+  }
+
+  /** Where the link popover and the link form hang: on the link, or at the caret when there is none yet. */
+  private linkAnchor(): DOMRect | null {
+    const link = this.linkForm && !this.linkForm.hidden ? this.formLink : this.lastLink;
+    if (link && link.isConnected) return link.getClientRects()[0] ?? link.getBoundingClientRect();
+    const range = this.lastRange;
+    if (!range || !this.content.contains(range.startContainer)) return null;
+    const r = range.getClientRects()[0] ?? range.getBoundingClientRect();
+    if (r.width || r.height) return r;
+    const el = range.startContainer instanceof Element ? range.startContainer : range.startContainer.parentElement;
+    return el ? el.getBoundingClientRect() : null;
+  }
+
+  private placeLinkTools(): void {
+    const tools = this.linkTools;
+    if (tools && !tools.hidden && this.lastLink?.isConnected) this.hang(tools, this.lastLink.getClientRects()[0] ?? this.lastLink.getBoundingClientRect());
+    const form = this.linkForm;
+    if (form && !form.hidden) {
+      const r = this.linkAnchor();
+      if (r) this.hang(form, r);
+    }
+  }
+
+  /**
+   * Hangs a popover on a rectangle (a link, or the caret): above it when there is room in the text area, otherwise beside it (the
+   * link is on the first line), and below it when the sides are too narrow as well.
+   */
+  private hang(pop: HTMLElement, r: DOMRect): void {
+    const rootBox = this.root.getBoundingClientRect();
+    const parent = (pop.offsetParent as HTMLElement | null) ?? this.root;
+    const origin = parent.getBoundingClientRect();
+    // the part of the text that can be seen: the editor scrolls inside itself when it has a maximum height
+    const view = (this.root.hasAttribute('data-page') ? this.stage : this.content).getBoundingClientRect();
+    const top = view.top;
+    const gap = 6;
+    const w = pop.offsetWidth;
+    const h = pop.offsetHeight;
+    const clampX = (x: number) => Math.max(rootBox.left, Math.min(x, rootBox.right - w));
+    let x = clampX(r.left);
+    let y: number;
+    let where = 'above';
+    if (r.top - top >= h + gap) {
+      y = r.top - h - gap;
+    } else if (r.right + gap + w <= rootBox.right) {
+      where = 'beside';
+      x = r.right + gap;
+      y = Math.max(top, r.top + r.height / 2 - h / 2);
+    } else if (r.left - gap - w >= rootBox.left) {
+      where = 'beside';
+      x = r.left - gap - w;
+      y = Math.max(top, r.top + r.height / 2 - h / 2);
+    } else {
+      where = 'below';
+      y = r.bottom + gap;
+    }
+    pop.dataset.place = where;
+    pop.style.margin = '0';
+    pop.style.insetInlineStart = 'auto';
+    pop.style.left = `${Math.round(x - origin.left - parent.clientLeft)}px`;
+    pop.style.top = `${Math.round(y - origin.top - parent.clientTop)}px`;
+    pop.style.visibility = r.bottom < view.top || r.top > view.bottom ? 'hidden' : '';
   }
 
   /** Text for a key: the `labels` option, then the built-in English text. `{name}` placeholders are filled from `vars`. */
@@ -1063,7 +1132,9 @@ export class Aurebesh {
 
     const apply = (value: string) => {
       pop.hidden = true;
-      toggle.style.setProperty('--swatch', value === resetValue ? 'transparent' : value);
+      // the bar under the icon shows the colour chosen last; resetting goes back to its default
+      if (value === resetValue) toggle.style.removeProperty('--swatch');
+      else toggle.style.setProperty('--swatch', value);
       this.exec(cmd.name, value);
     };
 
@@ -1281,7 +1352,7 @@ export class Aurebesh {
     const wrap = doc.createElement('span');
     wrap.className = 'aurebesh-table-picker';
     const pop = doc.createElement('div');
-    pop.className = 'aurebesh-table-pop aurebesh-media-form';
+    pop.className = 'aurebesh-table-pop aurebesh-media-form aurebesh-link-form';
     pop.hidden = true;
 
     const input = doc.createElement('input');
@@ -1300,6 +1371,7 @@ export class Aurebesh {
       try {
         this.exec('link', url);
         pop.hidden = true;
+        this.updateToolbar();
       } catch (err) {
         this.fail(err);
       }
@@ -1325,6 +1397,9 @@ export class Aurebesh {
       pop.hidden = !pop.hidden;
       if (pop.hidden) return;
       const existing = currentLink();
+      this.formLink = existing;
+      this.updateToolbar(); // the small popover on the link makes way for the form
+      this.placeLinkTools();
       input.value = existing?.getAttribute('href') ?? '';
       remove.hidden = !existing;
       input.focus();
@@ -1332,6 +1407,7 @@ export class Aurebesh {
     });
 
     pop.append(input, apply, remove);
+    this.linkForm = pop;
     this.closeOnOutside(wrap, pop, toggle);
     wrap.append(toggle, pop);
     return wrap;
@@ -1371,7 +1447,8 @@ export class Aurebesh {
         }
         if (this.linkOpen) this.linkOpen.disabled = !canOpenLink(href);
       }
-      this.linkTools.hidden = !link && !this.linkTools.contains(this.container.ownerDocument.activeElement);
+      this.linkTools.hidden = (!link && !this.linkTools.contains(this.container.ownerDocument.activeElement)) || !!(this.linkForm && !this.linkForm.hidden);
+      this.placeLinkTools();
     }
     if (this.imageTools) {
       const img = inside ? selectedImage() : null;
