@@ -16,7 +16,11 @@ function selectedBlocks(): { items: HTMLLIElement[]; blocks: HTMLElement[] } {
   const el = start.nodeType === Node.ELEMENT_NODE ? (start as Element) : start.parentElement;
   const root = el?.closest(ROOT);
   if (!root) return { items: [], blocks: [] };
-  const items = Array.from(root.querySelectorAll('li')).filter((li) => range.intersectsNode(li)) as HTMLLIElement[];
+  const items = range.collapsed
+    ? [el?.closest('li')].filter((li): li is HTMLLIElement => !!li && root.contains(li))
+    : (Array.from(root.querySelectorAll('li')).filter((li) => range.intersectsNode(li)) as HTMLLIElement[]).filter(
+        (li, _, all) => !all.some((other) => li !== other && li.contains(other)),
+      );
   const blocks = (Array.from(root.querySelectorAll(BLOCKS)) as HTMLElement[]).filter((b) => !b.closest('li') && range.intersectsNode(b));
   return { items, blocks };
 }
@@ -25,10 +29,11 @@ function selectedBlocks(): { items: HTMLLIElement[]; blocks: HTMLElement[] } {
 export function canIndent(direction: 1 | -1): boolean {
   const { items, blocks } = selectedBlocks();
   if (items.length) {
-    const li = items[0];
-    if (direction > 0) return !!li.previousElementSibling;
-    const outer = li.parentElement?.parentElement;
-    return !!outer && /^(?:LI|UL|OL)$/.test(outer.tagName);
+    return items.some((li) => {
+      if (direction > 0) return !!li.previousElementSibling;
+      const outer = li.parentElement?.parentElement;
+      return !!outer && /^(?:LI|UL|OL)$/.test(outer.tagName);
+    });
   }
   return blocks.some((b) => {
     const now = parseInt(b.style.getPropertyValue('margin-inline-start'), 10) || 0;

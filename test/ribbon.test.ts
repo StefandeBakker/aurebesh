@@ -127,4 +127,17 @@ describe('the layout panel', () => {
     expect(tiles.every((t) => t.getAttribute('role') === 'radio')).toBe(true);
     el.remove();
   });
+
+  it('uses one tab stop and arrow keys to select a column', () => {
+    const el = build({ toolbar: ['layout'] });
+    (el.querySelector('button[title="Layout"]') as HTMLButtonElement).click();
+    const tiles = Array.from(el.querySelectorAll('.aurebesh-tile')) as HTMLButtonElement[];
+    expect(tiles.map((tile) => tile.tabIndex)).toEqual([0, -1, -1, -1]);
+    tiles[0].focus();
+    tiles[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(tiles[1]);
+    expect(tiles.map((tile) => tile.getAttribute('aria-checked'))).toEqual(['false', 'true', 'false', 'false']);
+    expect(tiles.map((tile) => tile.tabIndex)).toEqual([-1, 0, -1, -1]);
+    el.remove();
+  });
 });

@@ -274,6 +274,36 @@ describe('the default toolbar', () => {
     el.remove();
   });
 
+  it('recomputes command availability when editing is re-enabled', () => {
+    const el = document.createElement('div');
+    const ed = new Aurebesh(el, { toolbar: ['indent'] });
+    const button = el.querySelector('button[title="Indent"]') as HTMLButtonElement;
+    ed.setReadOnly(true);
+    ed.setReadOnly(false);
+    expect(button.disabled).toBe(true);
+    el.remove();
+  });
+
+  it('tracks every font, size, and orientation control across both bars', () => {
+    const el = document.createElement('div');
+    const ed = new Aurebesh(el, {
+      toolbar: ['font', 'size', 'orientation'],
+      quickbar: ['font', 'size', 'orientation'],
+      page: 'a4',
+    });
+    const fonts = Array.from(el.querySelectorAll('select.aurebesh-font')) as HTMLSelectElement[];
+    const sizes = Array.from(el.querySelectorAll('select.aurebesh-size')) as HTMLSelectElement[];
+    const orientations = Array.from(el.querySelectorAll('button.aurebesh-orientation')) as HTMLButtonElement[];
+    expect([fonts.length, sizes.length, orientations.length]).toEqual([2, 2, 2]);
+    ed.setReadOnly(true);
+    expect([...fonts, ...sizes, ...orientations].every((control) => control.disabled)).toBe(true);
+    ed.setReadOnly(false);
+    ed.setPageOrientation('landscape');
+    expect([...fonts, ...sizes, ...orientations].every((control) => !control.disabled)).toBe(true);
+    expect(orientations.map((button) => button.getAttribute('aria-pressed'))).toEqual(['true', 'true']);
+    el.remove();
+  });
+
   it('builds the strip from the same controls as the toolbar, so a picker stays a picker', () => {
     const el = build({ toolbar: ['bold'], quickbar: ['link', 'table', 'color', 'undo'] });
     const strip = el.querySelector('.aurebesh-quickbar')!;

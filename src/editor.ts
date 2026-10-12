@@ -123,7 +123,7 @@ export class Aurebesh {
   private cleanup: Array<() => void> = [];
   private highlightTimer: ReturnType<typeof setTimeout> | undefined;
   private fonts: FontDef[];
-  private fontSelect: HTMLSelectElement | null = null;
+  private fontSelects: HTMLSelectElement[] = [];
   private lastRange: Range | null = null;
   private tableTools: HTMLElement | null = null;
   private imageTools: HTMLElement | null = null;
@@ -137,7 +137,7 @@ export class Aurebesh {
   private fullscreen = false;
   private formLink: HTMLAnchorElement | null = null;
   private lastImage: HTMLImageElement | null = null;
-  private sizeSelect: HTMLSelectElement | null = null;
+  private sizeSelects: HTMLSelectElement[] = [];
   private columnsSelects: HTMLSelectElement[] = [];
   private layoutPanel: HTMLElement | null = null;
   private layoutTiles: HTMLButtonElement[] = [];
@@ -162,7 +162,7 @@ export class Aurebesh {
   private page: ResolvedPage | null = null;
   private pageSelects: HTMLSelectElement[] = [];
   private pageSpec: PageSpec | null = null;
-  private orientationBtn: HTMLButtonElement | null = null;
+  private orientationButtons: HTMLButtonElement[] = [];
 
   constructor(private container: HTMLElement, options: AurebeshOptions = {}) {
     const doc = container.ownerDocument;
@@ -392,9 +392,8 @@ export class Aurebesh {
   }
 
   private syncPageUi(): void {
-    const btn = this.orientationBtn;
-    if (btn) {
-      btn.disabled = !this.page?.height;
+    for (const btn of this.orientationButtons) {
+      btn.disabled = this.content.getAttribute('aria-readonly') === 'true' || !this.page?.height;
       btn.setAttribute('aria-pressed', String(!!this.page?.landscape));
     }
     const name = this.page?.name ?? 'responsive';
@@ -552,10 +551,12 @@ export class Aurebesh {
     this.content.contentEditable = readOnly ? 'false' : 'true';
     this.content.setAttribute('aria-readonly', String(readOnly));
     this.buttons.forEach((list) => list.forEach((b) => (b.disabled = readOnly)));
-    if (this.fontSelect) this.fontSelect.disabled = readOnly;
-    if (this.sizeSelect) this.sizeSelect.disabled = readOnly;
+    this.fontSelects.forEach((s) => (s.disabled = readOnly));
+    this.sizeSelects.forEach((s) => (s.disabled = readOnly));
+    this.orientationButtons.forEach((b) => (b.disabled = readOnly || !this.page?.height));
     this.columnsSelects.forEach((s) => (s.disabled = readOnly));
     this.layoutTiles.forEach((t) => (t.disabled = readOnly));
+    this.updateToolbar();
   }
 
   setPlaceholder(text: string): void {
@@ -1013,8 +1014,9 @@ export class Aurebesh {
     for (const n of [1, 2, 3, 4]) {
       const tile = el('button', 'aurebesh-tile');
       tile.type = 'button';
+      tile.tabIndex = n === 1 ? 0 : -1;
       tile.setAttribute('role', 'radio');
-      tile.setAttribute('aria-checked', 'false');
+      tile.setAttribute('aria-checked', String(n === 1));
       tile.setAttribute('aria-label', this.t(`columns.${n}`));
       tile.title = this.t(`columns.${n}`);
       tile.dataset.columns = String(n);
@@ -1022,10 +1024,25 @@ export class Aurebesh {
       for (let i = 0; i < n; i++) bars.appendChild(el('span'));
       tile.append(bars, el('span', 'aurebesh-tile-n', String(n)));
       tile.addEventListener('mousedown', (e) => e.preventDefault()); // the caret stays in the text
-      tile.addEventListener('click', () => this.exec('columns', String(n)));
+      tile.addEventListener('click', () => {
+        this.exec('columns', String(n));
+        this.syncLayoutTiles(n);
+      });
       tiles.appendChild(tile);
       this.layoutTiles.push(tile);
     }
+    tiles.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const current = this.layoutTiles.indexOf(doc.activeElement as HTMLButtonElement);
+      if (current < 0) return;
+      e.preventDefault();
+      const offset = e.key === 'ArrowRight' ? 1 : -1;
+      const next = this.layoutTiles[(current + offset + this.layoutTiles.length) % this.layoutTiles.length];
+      if (next.disabled) return;
+      next.focus();
+      next.click();
+      next.focus();
+    });
     this.layoutNote = el('div', 'aurebesh-hint', this.t('columns.1'));
     this.layoutNote.setAttribute('aria-live', 'polite');
     cols.append(tiles, this.layoutNote);
@@ -1071,7 +1088,11 @@ export class Aurebesh {
   }
 
   private syncLayoutTiles(n: number): void {
-    for (const t of this.layoutTiles) t.setAttribute('aria-checked', String(t.dataset.columns === String(n)));
+    for (const t of this.layoutTiles) {
+      const selected = t.dataset.columns === String(n);
+      t.setAttribute('aria-checked', String(selected));
+      t.tabIndex = selected ? 0 : -1;
+    }
     if (this.layoutNote) this.layoutNote.textContent = this.t(`columns.${n}`);
   }
 
@@ -1470,7 +1491,7 @@ export class Aurebesh {
     select.addEventListener('change', () => {
       if (select.value) this.exec('font', select.value);
     });
-    this.fontSelect = select;
+    this.fontSelects.push(select);
     return select;
   }
 
@@ -1506,7 +1527,7 @@ export class Aurebesh {
     btn.disabled = true;
     btn.addEventListener('mousedown', (e) => e.preventDefault());
     btn.addEventListener('click', () => this.setPageOrientation(this.page?.landscape ? 'portrait' : 'landscape'));
-    this.orientationBtn = btn;
+    this.orientationButtons.push(btn);
     return btn;
   }
 
@@ -1568,7 +1589,7 @@ export class Aurebesh {
       // With only a caret there is no text to measure yet: show the choice until the caret moves.
       if (this.container.ownerDocument.getSelection()?.isCollapsed) select.value = chosen;
     });
-    this.sizeSelect = select;
+    this.sizeSelects.push(select);
     return select;
   }
 
@@ -1736,11 +1757,13 @@ export class Aurebesh {
       this.columnsSelects.forEach((s) => (s.value = String(n)));
       this.syncLayoutTiles(n);
     }
-    if (this.sizeSelect && inside) {
+    if (inside) {
       const step = this.currentSizeStep(sel!.getRangeAt(0));
-      this.sizeSelect.value = Array.from(this.sizeSelect.options).some((o) => o.value === step) ? step : '';
+      this.sizeSelects.forEach((select) => {
+        select.value = Array.from(select.options).some((o) => o.value === step) ? step : '';
+      });
     }
-    if (this.fontSelect && inside) {
+    if (inside) {
       let current = '';
       try {
         // Browsers report either the full stack or just the first family.
@@ -1749,7 +1772,7 @@ export class Aurebesh {
         /* unsupported */
       }
       const match = this.fonts.find((f) => firstFamily(f.family) === current);
-      this.fontSelect.value = match ? match.family : '';
+      this.fontSelects.forEach((select) => (select.value = match ? match.family : ''));
     }
     this.buttons.forEach((list, name) => {
       const active = name === 'fullscreen' ? this.fullscreen : inside && (COMMANDS[name].isActive?.() ?? false);
