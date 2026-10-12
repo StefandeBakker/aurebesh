@@ -120,6 +120,7 @@ export const COMMANDS: Record<string, CommandDef> = {
   },
   color: {
     name: 'color',
+    icon: 'textColor',
     label: 'A',
     title: 'Text color',
     run: (value) => {
@@ -128,6 +129,7 @@ export const COMMANDS: Record<string, CommandDef> = {
   },
   highlight: {
     name: 'highlight',
+    icon: 'highlight',
     label: 'ab',
     title: 'Highlight color',
     run: (value) => {
