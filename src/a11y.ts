@@ -1,7 +1,8 @@
 /** Keyboard navigation helpers (WAI-ARIA "roving tabindex" patterns). */
 
+/** The buttons of a toolbar in reading order: in its blocks and rows, and the button that opens a popover, but not what is inside one. */
 const buttonsOf = (bar: HTMLElement): HTMLButtonElement[] =>
-  Array.from(bar.querySelectorAll<HTMLButtonElement>(':scope > button, :scope > .aurebesh-table-picker > button')).filter((b) => !b.disabled);
+  Array.from(bar.querySelectorAll<HTMLButtonElement>('button')).filter((b) => !b.disabled && !b.closest('.aurebesh-table-pop'));
 
 /**
  * A toolbar is one tab stop: Tab enters it, Left/Right (and Home/End) move between its buttons, Escape goes back to

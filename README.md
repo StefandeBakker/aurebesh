@@ -128,8 +128,23 @@ import 'aurebesh/element'; // registers <aurebesh-editor>
 | `labels` | Override the editor's own texts, see below |
 | `media` | Image and video settings, see below |
 
-Toolbar items (default order): `font size | bold italic underline strike code | color highlight | h1 h2 quote codeblock | ul ol alignLeft alignCenter alignRight columns | link image video table hr | clear undo redo`.
-Also available: `sup sub alignJustify ltr rtl page orientation`.
+The toolbar is made of **blocks**, like the groups of the Home tab of Word. In the `toolbar` option `|` starts a new block and `/` starts a second row inside a block. A block always stays in one piece: when the toolbar is narrow, whole blocks go to the next line instead of a block being cut in two. The default:
+
+```
+font size clear / bold italic underline strike highlight color | ul ol / alignLeft alignCenter alignRight | h1 h2 quote / code codeblock | link image video / table hr | columns
+```
+
+That is five blocks: the font (typeface, size and clear formatting on top, character styles, highlight and colour below), the paragraph (lists, then alignment), the styles (headings and quote on top, then the two kinds of code, inline and block), what you can insert (link, picture and video, then table and line) and the layout (columns). Leave out every `/` and each block is a single row that wraps like before; a toolbar without any `|` is one block.
+
+**Icons.** Buttons whose symbol was not obvious (undo and redo, clear formatting, lists, alignment, quote, the two kinds of code, link, picture, video, table, line, text direction) show a line drawing; the letters of bold, italic, underline and strikethrough, the headings and the colour swatches stay as they are. The drawings are inline SVG in the colour of the text, so they follow your theme and the pressed state, and the editor needs no icon font or image files. A button keeps its name for screen readers and as its tooltip (the `labels` option translates it).
+
+**Undo and redo** are in a small strip of their own above the toolbar, like the Quick Access Toolbar of Word: the `quickbar` option (default `['undo', 'redo']`) lists what is in it, and `quickbar: []` removes it. With a `toolbar` of your own the strip is empty, so they are not there twice; put `undo` and `redo` in `toolbar` or give `quickbar` yourself. On the element: `toolbar="font,size,/,bold,italic,|,link"` and `quickbar="undo,redo"`.
+
+Items that are not in the default have a place in the same blocks, so a toolbar with everything reads like this:
+
+```
+font size clear / bold italic underline strike sub sup highlight color | ul ol / alignLeft alignCenter alignRight alignJustify ltr rtl | h1 h2 h3 quote / code codeblock | link image video / table hr | columns page orientation
+```
 
 Theme via CSS variables: `--aurebesh-border`, `--aurebesh-bg`, `--aurebesh-color`, `--aurebesh-accent`, `--aurebesh-toolbar-bg`, `--aurebesh-code-bg`, `--aurebesh-min-height`, and `--aurebesh-hl-keyword|string|comment|number|function|type|tag` for code colours.
 

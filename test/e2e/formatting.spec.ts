@@ -288,3 +288,139 @@ test.describe('formatting', () => {
     expect(await html(page)).toContain('<hr');
   });
 });
+
+test.describe('the toolbar layout', () => {
+  const box = (page: any, selector: string) => page.evaluate((s: string) => document.querySelector(s)!.getBoundingClientRect().toJSON(), selector);
+
+  test('undo and redo are in a strip of their own above the toolbar, at the start', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 800 });
+    await open(page);
+    const strip = await box(page, '.aurebesh-quickbar');
+    const bar = await box(page, '.aurebesh-toolbar:not(.aurebesh-quickbar)');
+    const undo = await box(page, '.aurebesh-quickbar button[title="Undo"]');
+    const redo = await box(page, '.aurebesh-quickbar button[title="Redo"]');
+    expect(strip.bottom).toBeLessThanOrEqual(bar.top + 1); // above the toolbar, not beside it
+    expect(Math.abs(strip.left - bar.left)).toBeLessThan(2);
+    expect(undo.left - strip.left).toBeLessThan(8); // the first thing in the strip
+    expect(redo.left).toBeGreaterThan(undo.left);
+    expect(redo.right).toBeLessThan(strip.left + 80); // a small strip: the buttons are together, not spread
+    expect(strip.height).toBeLessThan(bar.height); // and smaller than the toolbar
+    expect(await button(page, 'Undo').evaluate((b) => b.closest('.aurebesh-quickbar') !== null)).toBe(true);
+  });
+
+  test('the strip keeps its place when the toolbar wraps onto more rows', async ({ page }) => {
+    await page.setViewportSize({ width: 520, height: 800 });
+    await open(page);
+    const strip = await box(page, '.aurebesh-quickbar');
+    const bar = await box(page, '.aurebesh-toolbar:not(.aurebesh-quickbar)');
+    expect(bar.height).toBeGreaterThan(strip.height * 2); // the toolbar wrapped
+    expect(strip.bottom).toBeLessThanOrEqual(bar.top + 1);
+    expect(strip.height).toBeLessThan(40); // one row
+  });
+
+  test('in a right-to-left page the strip starts on the right', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 800 });
+    await open(page);
+    await page.evaluate(() => (document.documentElement.dir = 'rtl'));
+    const strip = await box(page, '.aurebesh-quickbar');
+    const undo = await box(page, '.aurebesh-quickbar button[title="Undo"]');
+    expect(strip.right - undo.right).toBeLessThan(8);
+  });
+
+  test('Undo and Redo still work from the strip', async ({ page }) => {
+    await open(page);
+    await type(page, 'one');
+    await selectAll(page);
+    await button(page, 'Bold').click();
+    expect(await html(page)).toMatch(/<(b|strong)>one<\/(b|strong)>/);
+    await button(page, 'Undo').click();
+    expect(await html(page)).not.toMatch(/<(b|strong)>/);
+    await button(page, 'Redo').click();
+    expect(await html(page)).toMatch(/<(b|strong)>one<\/(b|strong)>/);
+  });
+
+  test('your own toolbar has no strip, and with a quickbar option it does', async ({ page }) => {
+    await open(page);
+    await page.evaluate(() => ((window as any).ed.options = { toolbar: ['bold', 'italic', 'undo'] }));
+    await expect(page.locator('.aurebesh-quickbar')).toHaveCount(0);
+    await expect(page.locator('button[title="Undo"]')).toHaveCount(1);
+    await page.evaluate(() => ((window as any).ed.options = { toolbar: ['bold'], quickbar: ['undo', 'redo'] }));
+    await expect(page.locator('.aurebesh-quickbar button')).toHaveCount(2);
+  });
+
+  test('the element can say it with an attribute', async ({ page }) => {
+    await open(page);
+    await page.evaluate(() => document.body.insertAdjacentHTML('beforeend', '<aurebesh-editor id="second" toolbar="bold,italic" quickbar="undo"></aurebesh-editor>'));
+    const strip = page.locator('#second .aurebesh-quickbar button');
+    await expect(strip).toHaveCount(1);
+    await expect(strip).toHaveAttribute('title', 'Undo');
+    await page.evaluate(() => document.body.insertAdjacentHTML('beforeend', '<aurebesh-editor id="third" quickbar=""></aurebesh-editor>')); // an empty one: no strip at all
+    await expect(page.locator('#third .aurebesh-toolbar[aria-label="Formatting"]')).toHaveCount(1); // the toolbar is still there
+    await expect(page.locator('#third .aurebesh-quickbar')).toHaveCount(0);
+  });
+
+  const groups = (page: any) =>
+    page.evaluate(() =>
+      Array.from(document.querySelectorAll('.aurebesh-toolbar:not(.aurebesh-quickbar) > .aurebesh-group')).map((g) => {
+        const r = g.getBoundingClientRect();
+        const rows = Array.from(g.querySelectorAll(':scope > .aurebesh-row')).map((row) => row.getBoundingClientRect().toJSON());
+        return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, height: r.height, rows };
+      }),
+    );
+
+  test('the toolbar is blocks of two rows, side by side in one band when there is room', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 800 });
+    await open(page);
+    const g = await groups(page);
+    expect(g).toHaveLength(5);
+    expect(g.map((b: any) => b.rows.length)).toEqual([2, 2, 2, 2, 1]);
+    // every block starts at the same height, and the toolbar is two rows high, not more
+    for (const b of g) expect(Math.abs(b.top - g[0].top)).toBeLessThan(2);
+    const bar = await page.evaluate(() => document.querySelector('.aurebesh-toolbar:not(.aurebesh-quickbar)')!.getBoundingClientRect().height);
+    expect(bar).toBeLessThan(80);
+    // in a block the second row is under the first
+    for (const b of g.filter((x: any) => x.rows.length === 2)) expect(b.rows[1].top).toBeGreaterThanOrEqual(b.rows[0].bottom - 1);
+  });
+
+  test('a block is never cut in two: when it is narrow whole blocks go to the next line', async ({ page }) => {
+    await page.setViewportSize({ width: 520, height: 800 });
+    await open(page);
+    const g = await groups(page);
+    const tops = new Set(g.map((b: any) => Math.round(b.top)));
+    expect(tops.size).toBeGreaterThan(1); // it wrapped
+    for (const b of g) {
+      expect(b.height).toBeLessThan(70); // no block is taller than its two rows
+      expect(b.rows.length === 1 || b.rows[1].top >= b.rows[0].bottom - 1).toBe(true);
+    }
+    // blocks do not overlap each other
+    for (let i = 0; i < g.length; i++)
+      for (let j = i + 1; j < g.length; j++) {
+        const sameLine = Math.abs(g[i].top - g[j].top) < 2;
+        if (sameLine) expect(g[i].right <= g[j].left + 1 || g[j].right <= g[i].left + 1).toBe(true);
+      }
+  });
+
+  test('a block is a labelled group for assistive technology, inside the toolbar', async ({ page }) => {
+    await open(page);
+    await expect(page.locator('.aurebesh-toolbar:not(.aurebesh-quickbar) > .aurebesh-group[role="group"]')).toHaveCount(5);
+  });
+
+  test('every button still works, from its place in a block', async ({ page }) => {
+    await open(page);
+    await type(page, 'hello');
+    await selectAll(page);
+    await button(page, 'Italic').click();
+    await button(page, 'Align center').click();
+    await button(page, 'Heading 2').click();
+    const out = await html(page);
+    expect(out).toMatch(/<h2[^>]*text-align:\s*center[^>]*>.*<(i|em)>hello<\/(i|em)>/);
+  });
+
+  test('your own toolbar of one row keeps working: each | is a block of one row', async ({ page }) => {
+    await open(page);
+    await page.evaluate(() => ((window as any).ed.options = { toolbar: ['bold', 'italic', '|', 'link', 'table'] }));
+    const g = await groups(page);
+    expect(g.map((b: any) => b.rows.length)).toEqual([1, 1]);
+    await expect(button(page, 'Bold')).toBeVisible();
+  });
+});

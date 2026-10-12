@@ -137,6 +137,7 @@ export class AurebeshElement extends BaseElement {
       maxLength: this.maxLengthAttr(),
       counter: this.hasAttribute('counter'),
       toolbar: toolbarAttr === null ? undefined : toolbarAttr.split(',').map((s) => s.trim()).filter(Boolean),
+      quickbar: this.hasAttribute('quickbar') ? (this.getAttribute('quickbar') ?? '').split(',').map((s) => s.trim()).filter(Boolean) : undefined,
       ...this.extraOptions,
     });
     this.initialHtml = this.editor.getHTML();
