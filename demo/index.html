@@ -18,20 +18,36 @@
     --aurebesh-border: #d0d5dd;
     --aurebesh-toolbar-bg: #f8f9fb;
     --aurebesh-code-bg: #f3f4f6;
+    --heading: #111827;
+    --aurebesh-icon: #4b5563;
+    --aurebesh-label: #6b7280;
+    --aurebesh-hover: #eef0f4;
+    --aurebesh-active-bg: #e3e9fb;
+    --aurebesh-active-color: #2f4fb5;
+    --aurebesh-tip-bg: #1f2937;
+    --aurebesh-tip-color: #f3f4f6;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --page-bg: #0f1218;
+      --page-bg: #14161b;
       --page-color: #e6e8ec;
       --muted: #9aa3b2;
       --card: #171b23;
       --line: #2b3240;
       --accent: #6ea0ff;
-      --aurebesh-bg: #171b23;
-      --aurebesh-color: #e6e8ec;
-      --aurebesh-border: #2b3240;
-      --aurebesh-toolbar-bg: #1d222c;
-      --aurebesh-code-bg: #0f1218;
+      --aurebesh-bg: #20232a;
+      --aurebesh-color: #b1b7c2;
+      --aurebesh-border: #2d323b;
+      --aurebesh-toolbar-bg: #1b1e24;
+      --heading: #eef0f4;
+      --aurebesh-icon: #b1b7c2;
+      --aurebesh-label: #929ba9;
+      --aurebesh-hover: #333842;
+      --aurebesh-active-bg: #343d56;
+      --aurebesh-active-color: #bac6f3;
+      --aurebesh-tip-bg: #333842;
+      --aurebesh-tip-color: #eef0f4;
+      --aurebesh-code-bg: #171a20;
       --aurebesh-accent: #3b6fe0;
       --aurebesh-desk: #0b0e13;
       --aurebesh-pagebreak: #4a5366;
@@ -46,14 +62,22 @@
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--page-bg); color: var(--page-color); font: 16px/1.55 system-ui, -apple-system, 'Segoe UI', sans-serif; }
-  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 56px; }
+  main { max-width: 1360px; margin: 0 auto; padding: 32px 16px 56px; }
   h1 { margin: 0 0 4px; font-size: 2rem; }
   .tagline { margin: 0 0 16px; color: var(--muted); font-size: 1.1rem; }
   nav { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 24px; }
   a { color: var(--accent); }
   .points { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 24px; padding: 0; list-style: none; }
   .points li { padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); font-size: .85rem; color: var(--muted); }
-  aurebesh-editor { display: block; }
+  aurebesh-editor { display: block; --aurebesh-max-height: 420px; /* the text scrolls inside the editor, the toolbar stays in view */ }
+  /* the look of the design: a rounded card, a roomy text column and a calm type scale */
+  aurebesh-editor .aurebesh { border-radius: 10px; }
+  aurebesh-editor .aurebesh > :first-child { border-radius: 9px 9px 0 0; }
+  aurebesh-editor .aurebesh-content { font-size: 17px; }
+  aurebesh-editor .aurebesh-content h1 { margin: 0 0 .5em; font-size: 40px; line-height: 1.15; letter-spacing: -.01em; color: var(--heading); }
+  aurebesh-editor .aurebesh-content h2 { margin: 1.4em 0 .5em; font-size: 26px; line-height: 1.25; color: var(--heading); }
+  aurebesh-editor .aurebesh-content strong { color: var(--heading); }
+  aurebesh-editor .aurebesh-content blockquote { margin: 1.2em 0; padding: 4px 0 4px 18px; border-inline-start: 2px solid var(--aurebesh-border); color: var(--heading); font-style: italic; }
   h2 { margin: 32px 0 8px; font-size: 1.15rem; }
   .tabs { display: flex; gap: 4px; margin-bottom: -1px; }
   .tabs button { padding: 6px 14px; border: 1px solid var(--line); border-bottom: 0; border-radius: 6px 6px 0 0; background: transparent; color: var(--muted); font: inherit; font-size: .9rem; cursor: pointer; }
@@ -83,7 +107,7 @@
   </ul>
 
   <aurebesh-editor id="editor" placeholder="Start typing..." counter maxlength="5000"
-    toolbar="page,orientation,|,font,size,|,bold,italic,underline,strike,code,|,color,highlight,|,h1,h2,quote,codeblock,|,ul,ol,alignLeft,alignCenter,alignRight,ltr,rtl,columns,|,link,image,video,table,hr,|,clear,undo,redo"><h1>Try it</h1><p>This is <strong>Aurebesh</strong>. Select some text and use the toolbar, or type <code># </code> at the start of a line for a heading and <code>- </code> for a list. Paste something from <em>Word</em> or <em>Google Docs</em> to see it come in clean.</p><ul><li>Rich text, lists and quotes</li><li>Tables you can merge and resize</li><li>Code blocks with colours</li></ul><table><tbody><tr><th>Feature</th><th>Status</th></tr><tr><td>Tables</td><td>Merge cells, drag the borders</td></tr><tr><td>Languages</td><td>עברית and العربية work too</td></tr></tbody></table><pre>function hello(name) {
+    toolbar="#Geschiedenis,undo,redo,|,#Tekst,bold,italic,underline,|,#Structuur,h1,h2,quote,|,#Alinea,alignLeft,alignCenter,alignRight,indent,outdent,|,#Lijsten,ul,ol,|,#Invoegen,link,image,video,table,hr,|,#Code,code,codeblock,>,#Weergave,layout,fullscreen"><h1>Try it</h1><p>This is <strong>Aurebesh</strong>. Select some text and use the toolbar, or type <code># </code> at the start of a line for a heading and <code>- </code> for a list. Paste something from <em>Word</em> or <em>Google Docs</em> to see it come in clean.</p><ul><li>Rich text, lists and quotes</li><li>Tables you can merge and resize</li><li>Code blocks with colours</li></ul><table><tbody><tr><th>Feature</th><th>Status</th></tr><tr><td>Tables</td><td>Merge cells, drag the borders</td></tr><tr><td>Languages</td><td>עברית and العربية work too</td></tr></tbody></table><pre>function hello(name) {
   return `Hello, ${name}!`;
 }</pre><p>שלום עולם</p></aurebesh-editor>
 
@@ -106,7 +130,9 @@
 
 <script type="module">
   import '../dist/element.js';
+  import { LABELS_NL } from '../dist/index.js';
   const ed = document.getElementById('editor');
+  ed.options = { labels: LABELS_NL, layout: { textWidth: 800, padding: 48, lineHeight: 1.7 } };
   const out = document.getElementById('out');
   const tabs = document.getElementById('tabs');
   let format = 'markdown';

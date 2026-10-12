@@ -1,6 +1,6 @@
 /**
  * Newspaper-style columns: a <div style="column-count: N"> around a run of blocks.
- * The text flows from the bottom of one column to the top of the next, like Word's section columns.
+ * The text flows from the bottom of one column to the top of the next.
  */
 
 const ROOT = '.aurebesh-content';

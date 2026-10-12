@@ -128,10 +128,35 @@ import 'aurebesh/element'; // registers <aurebesh-editor>
 | `labels` | Override the editor's own texts, see below |
 | `media` | Image and video settings, see below |
 
-Toolbar items (default order): `font size | bold italic underline strike code | color highlight | h1 h2 quote codeblock | ul ol alignLeft alignCenter alignRight columns | link image video table hr | clear undo redo`.
-Also available: `sup sub alignJustify ltr rtl page orientation`.
+The toolbar is made of **blocks**. In the `toolbar` option `|` starts a new block and `/` starts a second row inside a block. A block always stays in one piece: when the toolbar is narrow, whole blocks go to the next line instead of a block being cut in two. The default:
 
-Theme via CSS variables: `--aurebesh-border`, `--aurebesh-bg`, `--aurebesh-color`, `--aurebesh-accent`, `--aurebesh-toolbar-bg`, `--aurebesh-code-bg`, `--aurebesh-min-height`, and `--aurebesh-hl-keyword|string|comment|number|function|type|tag` for code colours.
+```
+font size clear / bold italic underline strike highlight color | ul ol / alignLeft alignCenter alignRight | h1 h2 quote / code codeblock | link image video / table hr | columns
+```
+
+That is five blocks: the font (typeface, size and clear formatting on top, character styles, highlight and colour below), the paragraph (lists, then alignment), the styles (headings and quote on top, then the two kinds of code, inline and block), what you can insert (link, picture and video, then table and line) and the layout (columns). Leave out every `/` and each block is a single row that wraps like before; a toolbar without any `|` is one block.
+
+**Icons.** Buttons whose symbol was not obvious (undo and redo, clear formatting, lists, alignment, quote, the two kinds of code, link, picture, video, table, line, text direction) show a line drawing; the letters of bold, italic, underline and strikethrough and the headings stay as they are. The two colour buttons are a letter A (text colour) and a marker pen (highlight), each with a bar underneath that shows the colour chosen last (black and yellow to begin with, and again after "Automatic" or "No highlight") and a small arrow for the palette that opens. The drawings are inline SVG in the colour of the text, so they follow your theme and the pressed state, and the editor needs no icon font or image files. A button keeps its name for screen readers and as its tooltip (the `labels` option translates it).
+
+**Undo and redo** are in a small strip of their own above the toolbar: the `quickbar` option (default `['undo', 'redo']`) lists what is in it, and `quickbar: []` removes it. With a `toolbar` of your own the strip is empty, so they are not there twice; put `undo` and `redo` in `toolbar` or give `quickbar` yourself. On the element: `toolbar="font,size,/,bold,italic,|,link"` and `quickbar="undo,redo"`.
+
+Items that are not in the default have a place in the same blocks, so a toolbar with everything reads like this:
+
+```
+font size clear / bold italic underline strike sub sup highlight color | ul ol / alignLeft alignCenter alignRight alignJustify ltr rtl | h1 h2 h3 quote / code codeblock | link image video / table hr | columns page orientation
+```
+
+**A ribbon.** Give a block a name with `#Name` and the toolbar gets the larger look of a ribbon: the name above the buttons, bigger buttons, a tinted pressed state. `>` sends the blocks after it to the far end of the toolbar. `indent` and `outdent` move a paragraph, heading or quote in steps of 24px (a list item goes one level deeper or back), and `fullscreen` makes the editor fill the window (Escape returns). Hovering a button shows a tooltip with its name and shortcut.
+
+```
+#History undo redo | #Text bold italic underline | #Structure h1 h2 quote | #Align alignLeft alignCenter alignRight indent outdent | #Lists ul ol | #Insert link image video table hr | #Code code codeblock > #View fullscreen
+```
+
+The colours of this look are variables too: `--aurebesh-icon`, `--aurebesh-label` (the names), `--aurebesh-hover`, `--aurebesh-active-bg`, `--aurebesh-active-color`, `--aurebesh-tip-bg` and `--aurebesh-tip-color`.
+
+**Layout panel.** The `layout` item is a button that opens a panel beside the text (and closes it again): the number of columns as tiles (1 to 4, the tile of the column block at the caret is selected), the page width (the same choice as the `page` item), the maximum width of the text, the space around it and the line spacing. The last three are only about how the text is shown: they are variables on the editor (`--aurebesh-text-width`, `--aurebesh-pad-x`, `--aurebesh-pad-y`, `--aurebesh-line`) and are not part of the HTML. Set them from code with `layout: { textWidth: 800, padding: 48, lineHeight: 1.7 }` (option) or `editor.setLayout({ padding: 24 })`, read them with `getLayout()`, and listen to the `layout` event (the element fires a `layout` event with the settings as `detail`). `null` is the default of the editor. On a page format the width and the space belong to the sheet, so those two fields are off.
+
+Theme via CSS variables: `--aurebesh-border`, `--aurebesh-bg`, `--aurebesh-color`, `--aurebesh-accent`, `--aurebesh-toolbar-bg`, `--aurebesh-code-bg`, `--aurebesh-min-height`, `--aurebesh-max-height` (a fixed maximum height of the text area: the text then scrolls inside the editor while the toolbar stays in view; without it the editor grows with the text and the toolbar scrolls along with the page), and `--aurebesh-hl-keyword|string|comment|number|function|type|tag` for code colours.
 
 ## Counter, limit and ready
 
@@ -243,7 +268,7 @@ Enter, Tab and Space are left alone while an input method (Chinese, Japanese, Ko
 
 ## Links
 
-While the caret is in a link, a row under the toolbar shows its address with **Open link** (new tab), **Edit** (opens the link box with the address filled in) and **Remove link**.
+While the caret is in a link, a small popover hangs on the link (above it; beside it when the link is on the first line, below it when there is no room at the sides) and shows its address with **Open link** (new tab), **Edit** (opens the link box with the address filled in) and **Remove link**. The link box (Link button, **Edit** or the shortcut) opens in the same place, on the link or at the caret, instead of under the toolbar.
 Ctrl/Cmd+click opens a link directly, and in a read-only editor a plain click does. Links open with `noopener,noreferrer`, so the new page can't reach back into yours,
 and only `http(s):`, `mailto:`, `tel:` and site paths are opened (never `javascript:`; `#anchors` aren't opened either). The texts can be changed with the `labels` option
 (`ui.openLink`, `ui.editLink`, `ui.removeLink`).
