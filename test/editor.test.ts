@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { Aurebesh, sanitize, tokenize, LABELS_NL, COMMANDS } from '../src';
+import { Aurebesh, sanitize, tokenize, LABELS_NL, COMMANDS, DEFAULT_TOOLBAR } from '../src';
+import { DEFAULT_QUICKBAR } from '../src/commands';
 import { normalizeLink } from '../src/inline';
 
 describe('sanitize', () => {
@@ -185,5 +186,145 @@ describe('Aurebesh', () => {
     const ed = new Aurebesh(el, { toolbar: [], readOnly: true });
     expect(el.querySelector('.aurebesh-toolbar')).toBeNull();
     expect(ed.content.contentEditable).toBe('false');
+  });
+});
+
+describe('the default toolbar', () => {
+  /** Blocks of rows of items: `|` starts a block, `/` a second row in it. */
+  const blocks = (items: string[]) =>
+    items
+      .join(' ')
+      .split(' | ')
+      .map((g) => g.split(' / ').map((r) => r.split(' ')));
+
+  it('follows the Home tab of Word: blocks of two rows (the font, the paragraph, the styles, what can be inserted, the layout)', () => {
+    expect(blocks(DEFAULT_TOOLBAR)).toEqual([
+      [['font', 'size', 'clear'], ['bold', 'italic', 'underline', 'strike', 'highlight', 'color']],
+      [['ul', 'ol'], ['alignLeft', 'alignCenter', 'alignRight']],
+      [['h1', 'h2', 'quote'], ['code', 'codeblock']], // the headings and the quote; the two kinds of code
+      [['link', 'image', 'video'], ['table', 'hr']],
+      [['columns']],
+    ]);
+    // undo and redo are in the strip above it, not in the toolbar
+    expect(DEFAULT_TOOLBAR).not.toContain('undo');
+    expect(DEFAULT_QUICKBAR).toEqual(['undo', 'redo']);
+  });
+
+  it('has only items that exist, each once, and no separator at the start, the end or doubled', () => {
+    const items = DEFAULT_TOOLBAR.filter((i) => i !== '|' && i !== '/');
+    for (const i of items) expect(COMMANDS[i], i).toBeDefined();
+    expect(new Set(items).size).toBe(items.length);
+    const joined = DEFAULT_TOOLBAR.join(' ');
+    expect(joined).not.toMatch(/^[|/]|[|/]$|[|/] [|/]/);
+  });
+
+  const build = (o: object = {}) => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    new Aurebesh(el, o);
+    return el;
+  };
+  const main = (el: HTMLElement) => el.querySelector('.aurebesh-toolbar:not(.aurebesh-quickbar)') as HTMLElement;
+  /** The rows of each block, as lists of titles. */
+  const shape = (el: HTMLElement) =>
+    Array.from(main(el).querySelectorAll(':scope > .aurebesh-group')).map((g) =>
+      Array.from(g.querySelectorAll(':scope > .aurebesh-row')).map((r) => Array.from(r.querySelectorAll('button, select')).filter((e) => !e.closest('.aurebesh-table-pop')).map((e) => e.getAttribute('title'))),
+    );
+
+  it('is what the editor builds: five blocks, the first with the font on top and the character styles below', () => {
+    const el = build();
+    const s = shape(el);
+    expect(s).toHaveLength(5);
+    expect(s.map((g) => g.length)).toEqual([2, 2, 2, 2, 1]);
+    expect(s[0][0]).toEqual(['Font', 'Size', 'Clear formatting']);
+    expect(s[0][1].slice(0, 4)).toEqual(['Bold', 'Italic', 'Underline', 'Strikethrough']);
+    expect(s[0][1]).not.toContain('Inline code'); // inline code is with the code block, not with the character styles
+    expect(s[2]).toEqual([['Heading 1', 'Heading 2', 'Quote'], ['Inline code', 'Code block']]);
+    el.remove();
+  });
+
+  it('has undo and redo in the strip above, and the strip only with the default toolbar, so they are not there twice', () => {
+    const el = build();
+    expect(Array.from(el.querySelectorAll('.aurebesh-quickbar button')).map((b) => b.getAttribute('title'))).toEqual(['Undo', 'Redo']);
+    expect(el.querySelector('.aurebesh')!.firstElementChild!.classList.contains('aurebesh-quickbar')).toBe(true);
+    expect(main(el).querySelector('button[title="Undo"]')).toBeNull();
+    el.remove();
+    const count = (o: object) => {
+      const e = build(o);
+      const r = { strip: e.querySelectorAll('.aurebesh-quickbar').length, undo: e.querySelectorAll('button[title="Undo"]').length };
+      e.remove();
+      return r;
+    };
+    expect(count({ toolbar: ['bold', 'undo'] })).toEqual({ strip: 0, undo: 1 }); // your own toolbar: no strip
+    expect(count({ toolbar: ['bold'], quickbar: ['undo', 'redo'] })).toEqual({ strip: 1, undo: 1 });
+    expect(count({ quickbar: [] })).toEqual({ strip: 0, undo: 0 });
+    expect(count({ toolbar: [], quickbar: ['undo'] })).toEqual({ strip: 1, undo: 1 }); // a strip without a toolbar
+  });
+
+  it('keeps a command that is in the strip and in the toolbar in step: both are disabled when read-only', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const ed = new Aurebesh(el, { toolbar: ['bold', 'undo'], quickbar: ['undo'] });
+    const both = Array.from(el.querySelectorAll('button[title="Undo"]')) as HTMLButtonElement[];
+    expect(both).toHaveLength(2);
+    ed.setReadOnly(true);
+    expect(both.map((b) => b.disabled)).toEqual([true, true]);
+    ed.setReadOnly(false);
+    expect(both.map((b) => b.disabled)).toEqual([false, false]);
+    el.remove();
+  });
+
+  it('recomputes command availability when editing is re-enabled', () => {
+    const el = document.createElement('div');
+    const ed = new Aurebesh(el, { toolbar: ['indent'] });
+    const button = el.querySelector('button[title="Indent"]') as HTMLButtonElement;
+    ed.setReadOnly(true);
+    ed.setReadOnly(false);
+    expect(button.disabled).toBe(true);
+    el.remove();
+  });
+
+  it('tracks every font, size, and orientation control across both bars', () => {
+    const el = document.createElement('div');
+    const ed = new Aurebesh(el, {
+      toolbar: ['font', 'size', 'orientation'],
+      quickbar: ['font', 'size', 'orientation'],
+      page: 'a4',
+    });
+    const fonts = Array.from(el.querySelectorAll('select.aurebesh-font')) as HTMLSelectElement[];
+    const sizes = Array.from(el.querySelectorAll('select.aurebesh-size')) as HTMLSelectElement[];
+    const orientations = Array.from(el.querySelectorAll('button.aurebesh-orientation')) as HTMLButtonElement[];
+    expect([fonts.length, sizes.length, orientations.length]).toEqual([2, 2, 2]);
+    ed.setReadOnly(true);
+    expect([...fonts, ...sizes, ...orientations].every((control) => control.disabled)).toBe(true);
+    ed.setReadOnly(false);
+    ed.setPageOrientation('landscape');
+    expect([...fonts, ...sizes, ...orientations].every((control) => !control.disabled)).toBe(true);
+    expect(orientations.map((button) => button.getAttribute('aria-pressed'))).toEqual(['true', 'true']);
+    el.remove();
+  });
+
+  it('builds the strip from the same controls as the toolbar, so a picker stays a picker', () => {
+    const el = build({ toolbar: ['bold'], quickbar: ['link', 'table', 'color', 'undo'] });
+    const strip = el.querySelector('.aurebesh-quickbar')!;
+    expect(strip.querySelector('button[title="Link"]')!.getAttribute('aria-haspopup')).toBe('true');
+    expect(strip.querySelector('button[title="Table"]')!.getAttribute('aria-haspopup')).toBe('true');
+    expect(strip.querySelector('.aurebesh-swatch-color')).not.toBeNull();
+    expect(strip.querySelector('input[inputmode="url"]')).not.toBeNull(); // the link box
+    el.remove();
+  });
+
+  it('makes a block of every | and a row of every /, and skips empty ones', () => {
+    const t = (toolbar: string[]) => {
+      const e = build({ toolbar });
+      const r = shape(e).map((g) => g.map((row) => row.length));
+      e.remove();
+      return r;
+    };
+    expect(t(['bold', 'italic', '|', 'link'])).toEqual([[2], [1]]); // a toolbar with | only: blocks of one row
+    expect(t(['bold', '/', 'italic', 'underline'])).toEqual([[1, 2]]);
+    expect(t(['|', '|', 'bold', '|', '/', '|', 'italic', '/', '/', 'strike'])).toEqual([[1], [1, 1]]);
+    expect(t(['bold', 'italic', 'underline'])).toEqual([[3]]); // without any separator: one block, one row, which wraps
+    expect(t(['nonsense', 'bold'])).toEqual([[1]]); // an unknown name is left out
   });
 });

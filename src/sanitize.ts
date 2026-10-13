@@ -59,7 +59,11 @@ const SPAN_STYLES: StyleRules = {
 const PADDING = /^\d{1,3}(?:\.\d{1,2})?(?:pt|px|em)(?:\s+\d{1,3}(?:\.\d{1,2})?(?:pt|px|em)){0,3}$/;
 /** The look of a filled box (a Word text box): background, text colour, padding. */
 const BOX_STYLES: StyleRules = { 'background-color': SAFE_COLOR, color: SAFE_COLOR, padding: PADDING };
-const BLOCK_STYLES: StyleRules = { 'text-align': /^(?:left|center|right|justify)$/ };
+const BLOCK_STYLES: StyleRules = {
+  'text-align': /^(?:left|center|right|justify)$/,
+  /** Indent: steps of 24px, up to eight (see indent.ts). */
+  'margin-inline-start': /^(?:24|48|72|96|120|144|168|192)px$/,
+};
 const IMG_STYLES: StyleRules = {
   width: /^\d{1,3}%$/,
   display: /^block$/,

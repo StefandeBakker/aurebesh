@@ -137,6 +137,7 @@ export class AurebeshElement extends BaseElement {
       maxLength: this.maxLengthAttr(),
       counter: this.hasAttribute('counter'),
       toolbar: toolbarAttr === null ? undefined : toolbarAttr.split(',').map((s) => s.trim()).filter(Boolean),
+      quickbar: this.hasAttribute('quickbar') ? (this.getAttribute('quickbar') ?? '').split(',').map((s) => s.trim()).filter(Boolean) : undefined,
       ...this.extraOptions,
     });
     this.initialHtml = this.editor.getHTML();
@@ -149,6 +150,7 @@ export class AurebeshElement extends BaseElement {
     this.editor.on('template', (code) => this.dispatchEvent(new CustomEvent('template', { detail: code, bubbles: true })));
     this.editor.on('ticketdata', (data) => this.dispatchEvent(new CustomEvent('ticketdata', { detail: data, bubbles: true })));
     this.editor.on('page', (page) => this.dispatchEvent(new CustomEvent('page', { detail: page, bubbles: true })));
+    this.editor.on('layout', (layout) => this.dispatchEvent(new CustomEvent('layout', { detail: layout, bubbles: true })));
     this.editor.on('ready', () => this.dispatchEvent(new CustomEvent('ready', { detail: this.editor })));
     this.editor.on('count', (stats) => {
       this.syncForm();
