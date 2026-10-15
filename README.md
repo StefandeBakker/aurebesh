@@ -158,6 +158,42 @@ The colours of this look are variables too: `--aurebesh-icon`, `--aurebesh-label
 
 Theme via CSS variables: `--aurebesh-border`, `--aurebesh-bg`, `--aurebesh-color`, `--aurebesh-accent`, `--aurebesh-toolbar-bg`, `--aurebesh-code-bg`, `--aurebesh-min-height`, `--aurebesh-max-height` (a fixed maximum height of the text area: the text then scrolls inside the editor while the toolbar stays in view; without it the editor grows with the text and the toolbar scrolls along with the page), and `--aurebesh-hl-keyword|string|comment|number|function|type|tag` for code colours.
 
+## Sidebar and plugins
+
+The **sidebar** is a panel beside the text with room for one or more panels; the toolbar opens and closes them. The built-in one is `layout` (the columns, the page width, the text width, the space around the text and the line spacing). `editor.openPanel(id)`, `closePanel()` and `getOpenPanel()` do the same from code, and the `panel` event tells which one is open. With one panel the header shows its title, with several it shows tabs (arrow keys move between them). Escape closes the sidebar and the focus goes back to the toolbar item.
+
+A **plugin** adds a mode or a set of tools without the editor knowing about it. It is a plain object in the `plugins` option, made with `definePlugin` for type checking:
+
+```ts
+import { Aurebesh, definePlugin } from 'aurebesh';
+
+const notes = definePlugin({
+  name: 'notes',
+  css: '.my-note{color:#b45309}',
+  labels: { notes: 'Notes', 'ui.notes.empty': 'No notes yet' },
+  commands: { stamp: { name: 'stamp', label: '✓', title: 'Stamp', run: () => document.execCommand('insertText', false, '✓') } },
+  panels: [{ id: 'notes', title: 'Notes', label: 'N', build: () => Object.assign(document.createElement('div'), { textContent: 'No notes yet' }) }],
+  setup(context) {
+    return {
+      toolbar: ['#Notes', 'stamp', 'notes', '|', 'bold', 'italic'], // when the user gives no toolbar
+      api: { count: () => 0 }, // editor.plugin('notes').count()
+    };
+  },
+});
+
+new Aurebesh(el, { plugins: [notes] });
+```
+
+- **Toolbar items** go through the same blocks as every other item (`|`, `/`, `#Name`, `>`), with the same tooltips and keyboard handling. `commands` gives them a label, a title and what they do; `icons` adds line drawings (shapes on a 24 by 24 grid); `buildItem(item)` builds an item itself (return `undefined` for one that is not yours). A panel in `panels` gets a toolbar item with its `id` that opens it. `toolbarExtend: [{ after: 'bold', items: ['|', 'myTool'] }]` adds items to the toolbar *also when the user gave their own* (`after` or `before` an item; at the end when it is not there; a name that is in the toolbar already is not added twice).
+- **Texts and styles:** `labels` are the English texts of the plugin, below the `labels` the user gives (a plugin can ship a translation to spread into them); `css` is added to the page once.
+- **Hooks** of the instance that `setup` returns: `attach` (the editor exists: `context.content` and `context.stage` can be used), `keydown`, `paste` and `drop` (return `true` when you dealt with it, and the editor leaves it alone), `dragover` (return `true` for a drag you want: a browser only sends `drop` to a target that accepts it, and the editor accepts files only), `input`, `readOnlyChanged`, `destroy`. `output` adds formats to `getValue(name)` and to the `format` of the element, `load` is the other side (`editor.setValue(value, name)` reads that format and returns HTML), and `markdownShortcuts` sets their default.
+- **Dragging fields from a panel into the text:** make the items in your panel `draggable`, set the data in `dragstart`, accept it in `dragover` and put it in the text in `drop` with `context.insert(html, { x: e.clientX, y: e.clientY })`. `insert` places the caret at that point, sanitizes what you give it (so list the attributes of your chip in `sanitize`), is one step for undo, and leaves the caret behind a non-editable chip (`contenteditable="false"`), so one Backspace removes it.
+- **Events:** `context.emit(name, detail)` reaches `editor.on(name)`; names listed in `events` also become DOM events of the `<aurebesh-editor>` element.
+- **The sanitizer** keeps only what a plugin allows, and only in that editor: `sanitize: { attributes: { span: ['data-x'] }, clean(el) { /* remove what is not safe */ } }`.
+- **The context** has `editor`, `doc`, `root`, `content`, `stage`, `t()` (texts), `changed()` (report a change you made), `fail()`, `listen()` (a listener that is removed on destroy), `focus()`, `insert()`, `restoreSelection()`, `closeOnOutside()`, `isEditable()` and `openPanel()` / `closePanel()`.
+
+On the element: `el.options = { plugins: [notes] }`. React and Vue pass them in `options` too.
+
 ## Counter, limit and ready
 
 ```js

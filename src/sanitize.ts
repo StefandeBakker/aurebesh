@@ -20,9 +20,17 @@ const DIR_TAGS = new Set(['p', 'h1', 'h2', 'h3', 'blockquote', 'pre', 'ul', 'ol'
 const SAFE_URL =/^(https?:|mailto:|tel:|#|\/)/i;
 
 /** Strips everything outside a small allow-list (scripts, event handlers, javascript: urls...). */
-export function sanitize(html: string): string {
+/** What a plugin adds to the allow-list (see plugin.ts). The rest of the rules stay as they are. */
+export interface SanitizeExtension {
+  /** Attributes that are kept on a tag, besides the ones that are always kept. */
+  attributes?: Record<string, string[]>;
+  /** Runs on every element that is kept, after its attributes were cleaned: remove what is not safe. */
+  clean?(el: Element): void;
+}
+
+export function sanitize(html: string, extensions: SanitizeExtension[] = []): string {
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  clean(doc.body);
+  clean(doc.body, extensions);
   return doc.body.innerHTML;
 }
 
@@ -93,7 +101,7 @@ function safeStyle(style: string | null, rules: StyleRules | undefined): string 
   return kept.length ? kept.join('; ') : null;
 }
 
-function clean(parent: Node): void {
+function clean(parent: Node, ext: SanitizeExtension[]): void {
   for (const node of Array.from(parent.childNodes)) {
     if (node.nodeType === Node.TEXT_NODE) continue;
     if (node.nodeType !== Node.ELEMENT_NODE) {
@@ -124,18 +132,19 @@ function clean(parent: Node): void {
       if (DROP_WITH_CONTENT.has(tag)) {
         parent.removeChild(el);
       } else {
-        clean(el);
+        clean(el, ext);
         while (el.firstChild) parent.insertBefore(el.firstChild, el);
         parent.removeChild(el);
       }
       continue;
     }
-    const allowed = DIR_TAGS.has(tag) ? [...(ALLOWED_ATTRS[tag] ?? []), 'dir'] : ALLOWED_ATTRS[tag] ?? [];
+    const allowed = [...(ALLOWED_ATTRS[tag] ?? []), ...(DIR_TAGS.has(tag) ? ['dir'] : []), ...ext.flatMap((e) => e.attributes?.[tag] ?? [])];
     const style = safeStyle(el.getAttribute('style'), STYLES_BY_TAG[tag]);
     for (const attr of Array.from(el.attributes)) {
       if (!allowed.includes(attr.name)) el.removeAttribute(attr.name);
     }
     if (style) el.setAttribute('style', style);
+    for (const e of ext) e.clean?.(el);
     // Text direction (Word and Docs paste `dir="RTL"`): on blocks only, and only a known value.
     if (DIR_TAGS.has(tag)) {
       const dir = el.getAttribute('dir')?.toLowerCase();
@@ -171,7 +180,7 @@ function clean(parent: Node): void {
         li.appendChild(el);
       }
     }
-    clean(el);
+    clean(el, ext);
     // A <col> without a usable width says nothing (Word writes one per column), and a <colgroup> of those is noise.
     if ((tag === 'col' && !el.getAttribute('style')) || (tag === 'colgroup' && !el.children.length)) {
       el.remove();
