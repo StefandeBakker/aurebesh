@@ -685,3 +685,43 @@ test.describe('layout panel', () => {
     await expect(page.locator('.aurebesh-cmd-layout')).toHaveAttribute('aria-expanded', 'false');
   });
 });
+
+test.describe('a sidebar taller than the maximum height', () => {
+  const LONG = Array.from({ length: 6 }, (_, i) => `<p>line ${i}</p>`).join('');
+  const setup = async (page: import('@playwright/test').Page, html: string, max = 300) => {
+    await open(page, html);
+    await page.evaluate(([toolbar, h]) => {
+      const w = window as any;
+      w.ed.options = { toolbar };
+      (document.querySelector('.aurebesh') as HTMLElement).style.setProperty('--aurebesh-max-height', `${h}px`);
+    }, [['bold', 'layout'], max] as const);
+    await page.locator('.aurebesh-cmd-layout').click();
+    await expect(page.locator('.aurebesh-panel')).toBeVisible();
+  };
+
+  test('the editor stays at its maximum height and the sidebar scrolls instead', async ({ page }) => {
+    await setup(page, LONG);
+    const stage = (await page.locator('.aurebesh-stage').boundingBox())!;
+    expect(stage.height).toBeLessThanOrEqual(301); // the maximum of the text area
+    const panel = page.locator('.aurebesh-panel');
+    expect((await panel.boundingBox())!.height).toBeLessThanOrEqual(301);
+    const scrolls = await panel.evaluate((el) => el.scrollHeight > el.clientHeight);
+    expect(scrolls).toBe(true);
+    await panel.evaluate((el) => (el.scrollTop = el.scrollHeight));
+    expect(await panel.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  });
+
+  test('no empty space is left under the text: the text area fills the height', async ({ page }) => {
+    await setup(page, '<p>short</p>');
+    const stage = (await page.locator('.aurebesh-stage').boundingBox())!;
+    const text = (await content(page).boundingBox())!;
+    expect(text.y + text.height).toBeGreaterThanOrEqual(stage.y + stage.height - 1);
+  });
+
+  test('a short sidebar does not make the editor taller than its text', async ({ page }) => {
+    await setup(page, '<p>short</p>', 900);
+    const stage = (await page.locator('.aurebesh-stage').boundingBox())!;
+    const panel = (await page.locator('.aurebesh-panel').boundingBox())!;
+    expect(stage.height).toBeLessThanOrEqual(Math.max(panel.height, 200) + 1);
+  });
+});
