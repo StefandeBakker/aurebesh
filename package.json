@@ -25,6 +25,9 @@
       ],
       "vue": [
         "./dist/vue.d.ts"
+      ],
+      "angular": [
+        "./dist/angular/index.d.ts"
       ]
     }
   },
@@ -69,6 +72,10 @@
         "default": "./dist/vue.cjs"
       }
     },
+    "./angular": {
+      "types": "./dist/angular/index.d.ts",
+      "default": "./dist/angular/fesm2022/aurebesh-angular.mjs"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -77,14 +84,15 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && npm run build:angular",
     "dev": "tsup --watch",
     "demo": "tsup && serve -l 5199 .",
     "test": "vitest run",
     "test:e2e": "tsup && playwright test",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p angular/tsconfig.json",
     "prepublishOnly": "npm run typecheck && npm test && npm run build",
-    "capture": "node scripts/capture-server.mjs"
+    "capture": "node scripts/capture-server.mjs",
+    "build:angular": "ng-packagr -p angular/ng-package.json -c angular/tsconfig.lib.json"
   },
   "keywords": [
     "wysiwyg",
@@ -103,6 +111,9 @@
     "angular"
   ],
   "peerDependencies": {
+    "@angular/common": ">=17",
+    "@angular/core": ">=17",
+    "@angular/forms": ">=17",
     "react": ">=17",
     "vue": ">=3.3"
   },
@@ -112,22 +123,44 @@
     },
     "vue": {
       "optional": true
+    },
+    "@angular/core": {
+      "optional": true
+    },
+    "@angular/common": {
+      "optional": true
+    },
+    "@angular/forms": {
+      "optional": true
     }
   },
   "devDependencies": {
+    "@angular/common": "~20.3.0",
+    "@angular/compiler": "~20.3.0",
+    "@angular/compiler-cli": "~20.3.0",
+    "@angular/core": "~20.3.0",
+    "@angular/forms": "~20.3.0",
+    "@angular/platform-browser": "~20.3.0",
+    "@angular/platform-browser-dynamic": "~20.3.0",
+    "@babel/core": "^7.29.7",
     "@playwright/test": "^1.64.0",
+    "@types/babel__core": "^7.20.5",
     "@types/node": "^26.6.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "esbuild": "^0.25.0",
     "jsdom": "^26.0.0",
+    "ng-packagr": "^20.3.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "rxjs": "^7.8.2",
     "serve": "^14.2.6",
+    "tslib": "^2.8.1",
     "tsup": "^8.3.0",
     "typescript": "^5.6.0",
     "vitest": "^3.0.0",
-    "vue": "^3.5.0"
+    "vue": "^3.5.0",
+    "zone.js": "^0.15.1"
   },
   "funding": {
     "type": "github",

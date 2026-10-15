@@ -2,7 +2,7 @@
 
 A lightweight, dependency-free WYSIWYG editor for the web. Rich text, tables, code blocks with syntax highlighting, images and video, with pluggable uploads and built-in HTML sanitizing.
 
-A vanilla TypeScript core plus an `<aurebesh-editor>` web component, with thin wrappers for React and Vue, so it works in React, Vue, Angular or plain HTML.
+A vanilla TypeScript core plus an `<aurebesh-editor>` web component, with thin wrappers for React, Vue and Angular, so it works in those or in plain HTML.
 
 ```bash
 npm install aurebesh
@@ -65,37 +65,40 @@ Props: `v-model`, `options`, `placeholder`, `readOnly`, `required`, `name`, `too
 
 ## Angular
 
-Use the web component. Register the schema, and bind it to forms with a small value accessor:
+A standalone component with forms support, like the React and Vue wrappers. Angular 17 or newer; `@angular/core`, `@angular/common` and `@angular/forms` are peer dependencies.
 
 ```ts
-import 'aurebesh/element';
-import { Directive, ElementRef, forwardRef, HostListener } from '@angular/core';
-import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import type { AurebeshElement } from 'aurebesh/element';
+import { Component } from '@angular/core';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { AurebeshEditor } from 'aurebesh/angular';
 
-@Directive({
-  selector: 'aurebesh-editor[formControlName],aurebesh-editor[formControl],aurebesh-editor[ngModel]',
-  standalone: true,
-  providers: [{ provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => AurebeshValueAccessor), multi: true }],
+@Component({
+  selector: 'app-note',
+  imports: [AurebeshEditor, ReactiveFormsModule],
+  template: `<aurebesh-angular [formControl]="body" placeholder="Start typing..." />`,
 })
-export class AurebeshValueAccessor implements ControlValueAccessor {
-  private onChange: (html: string) => void = () => {};
-  private onTouched: () => void = () => {};
-  constructor(private host: ElementRef<AurebeshElement>) {}
-  @HostListener('change', ['$event']) changed(e: Event) { this.onChange((e as CustomEvent<string>).detail); }
-  @HostListener('focusout') blurred() { this.onTouched(); }
-  writeValue(html: string | null) { this.host.nativeElement.value = html ?? ''; }
-  registerOnChange(fn: (html: string) => void) { this.onChange = fn; }
-  registerOnTouched(fn: () => void) { this.onTouched = fn; }
-  setDisabledState(disabled: boolean) { this.host.nativeElement.toggleAttribute('readonly', disabled); }
+export class NoteComponent {
+  body = new FormControl('<p>Hello</p>');
 }
 ```
 
+That is all: no schema, no directive to write, no `import 'aurebesh/element'`. It works with `formControl`, `formControlName` and `ngModel` (`disable()` makes the editor read-only, and the control is marked as touched when the focus leaves it). Without forms use `[(value)]`:
+
 ```html
-<aurebesh-editor [formControl]="body"></aurebesh-editor>   <!-- component: schemas: [CUSTOM_ELEMENTS_SCHEMA], imports: [AurebeshValueAccessor] -->
+<aurebesh-angular [(value)]="html" [options]="options" [counter]="true" [maxLength]="5000" (count)="words = $event.words" />
 ```
 
-This directive is an example, not part of the package (an Angular library needs Angular's own build tooling).
+| Input | |
+|---|---|
+| `value` | the HTML (with `valueChange`: `[(value)]`) |
+| `options` | everything that cannot be an attribute: `media`, `fonts`, `colors`, `labels`, `plugins`... Define it once; a new object with the same content is ignored |
+| `placeholder`, `maxLength`, `counter`, `readOnly`, `required`, `name`, `format` | as the attributes of the element |
+| `page`, `pageOrientation`, `pageMargin` | the page format (see [Page format](#page-format)) |
+| `toolbar`, `quickbar` | arrays of toolbar items; a change builds the editor again and keeps the text |
+
+Outputs: `valueChange` (the HTML), `ready` (the editor), `count` (words and characters), `pageChange`, `layoutChange` and `error`. The component has `editor` (the `Aurebesh` instance, once it exists) and `editorElement` for what the inputs do not cover, for example `@ViewChild(AurebeshEditor) editor`.
+
+The editor is built in the browser only. With server-side rendering the component renders an empty element, so nothing runs on the server, and the editor appears when the page is hydrated. The package contains the Angular code in the format that the Angular CLI links when your application is built (partial compilation), so it works with AOT.
 
 ## Web component (any framework)
 
@@ -470,7 +473,7 @@ Aurebesh is made and maintained by one person in their spare time. If it saves y
 
 ```bash
 npm run demo      # build + serve the demo at http://localhost:5199/demo/
-npm run build     # tsup -> dist (minified, ESM + CJS + types)
+npm run build     # tsup -> dist (minified, ESM + CJS + types), then the Angular entry with ng-packagr -> dist/angular
 npm test          # unit tests (Vitest)
 npm run test:e2e  # real-browser tests (Playwright: Chromium, Firefox, WebKit)
 ```
