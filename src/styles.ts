@@ -37,9 +37,12 @@ export const CSS = `
 .aurebesh-ribbon .aurebesh-group button.aurebesh-cmd-italic{font-weight:500}
 .aurebesh-ribbon .aurebesh-group button.aurebesh-cmd-underline{text-underline-offset:3px}
 /* the layout panel beside the text */
-.aurebesh-body{display:flex;align-items:stretch}
-.aurebesh-body>.aurebesh-stage{flex:1 1 auto;min-width:0}
-.aurebesh-panel{box-sizing:border-box;flex:none;width:var(--aurebesh-panel-width,280px);max-width:45%;padding:16px;overflow:auto;border-inline-start:1px solid var(--aurebesh-border,#d0d5dd);background:var(--aurebesh-toolbar-bg,#f8f9fb);font-size:13px}
+/* the text and the sidebar side by side: with a maximum height the body keeps to it, and a sidebar that is taller scrolls inside it */
+.aurebesh-body{display:flex;align-items:stretch;max-height:var(--aurebesh-max-height,none)}
+.aurebesh-body>.aurebesh-stage{flex:1 1 auto;min-width:0;min-height:0}
+.aurebesh:not([data-page]) .aurebesh-body>.aurebesh-stage{display:flex;flex-direction:column}
+.aurebesh:not([data-page]) .aurebesh-body>.aurebesh-stage>.aurebesh-content{flex:1 1 auto}
+.aurebesh-panel{box-sizing:border-box;flex:none;min-height:0;width:var(--aurebesh-panel-width,280px);max-width:45%;padding:16px;overflow:auto;border-inline-start:1px solid var(--aurebesh-border,#d0d5dd);background:var(--aurebesh-toolbar-bg,#f8f9fb);font-size:13px}
 .aurebesh-panel[hidden]{display:none}
 .aurebesh-panel-pane[hidden]{display:none}
 .aurebesh-panel-tabs{display:flex;gap:2px;min-width:0}
@@ -68,7 +71,7 @@ export const CSS = `
 .aurebesh-tile-bars{display:flex;gap:3px;width:100%;height:22px}
 .aurebesh-tile-bars span{flex:1;border-radius:3px;background:currentColor;opacity:.55}
 .aurebesh-hint{color:var(--aurebesh-label,#667085);font-size:12px;line-height:1.4}
-.aurebesh-fullscreen .aurebesh-body{flex:1 1 auto;min-height:0}
+.aurebesh-fullscreen .aurebesh-body{flex:1 1 auto;min-height:0;max-height:none}
 /* the tooltip of a button: its name and its shortcut */
 .aurebesh-tip{position:absolute;z-index:30;display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:6px;background:var(--aurebesh-tip-bg,#1f2937);color:var(--aurebesh-tip-color,#f3f4f6);font-size:12px;line-height:16px;white-space:nowrap;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 .aurebesh-tip[hidden]{display:none}
