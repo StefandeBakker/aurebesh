@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "outDir": "../dist/angular-out",
+    "paths": {
+      "aurebesh": [
+        "../dist/index.d.ts"
+      ],
+      "aurebesh/element": [
+        "../dist/element.d.ts"
+      ]
+    }
+  },
+  "angularCompilerOptions": {
+    "compilationMode": "partial",
+    "strictInjectionParameters": true,
+    "strictTemplates": true
+  },
+  "include": [
+    "src"
+  ]
+}
