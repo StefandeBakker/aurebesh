@@ -2,7 +2,8 @@
 import { plainText } from './stats';
 import { modelOf } from './table';
 
-export type OutputFormat = 'html' | 'markdown' | 'text';
+/** The built-in formats, and the name of a format that a plugin adds. */
+export type OutputFormat = 'html' | 'markdown' | 'text' | (string & {});
 
 function toElement(input: string | Element): Element {
   if (typeof input !== 'string') return input;

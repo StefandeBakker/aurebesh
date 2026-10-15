@@ -4,7 +4,7 @@
  */
 
 type Attrs = Record<string, string | number>;
-type Shape = [tag: 'path' | 'rect' | 'circle', attrs: Attrs];
+export type Shape = [tag: 'path' | 'rect' | 'circle', attrs: Attrs];
 
 /** Mirrors a drawing left to right (for the right-to-left counterpart of an icon). */
 const mirror = (shapes: Shape[]): Shape[] => shapes.map(([tag, attrs]) => [tag, { ...attrs, transform: 'matrix(-1 0 0 1 24 0)' }]);
@@ -70,8 +70,8 @@ export const ICONS: Record<string, Shape[]> = {
 const SVG = 'http://www.w3.org/2000/svg';
 
 /** The icon as an SVG element, or null when there is none by that name. It is hidden from assistive technology: the button has a label. */
-export function iconElement(doc: Document, name: string | undefined): SVGSVGElement | null {
-  const shapes = name ? ICONS[name] : undefined;
+export function iconElement(doc: Document, name: string | undefined, extra?: Record<string, Shape[]>): SVGSVGElement | null {
+  const shapes = name ? extra?.[name] ?? ICONS[name] : undefined;
   if (!shapes) return null;
   const svg = doc.createElementNS(SVG, 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');

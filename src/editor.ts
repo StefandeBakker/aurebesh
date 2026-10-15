@@ -5,6 +5,12 @@ import { applyMarkdown } from './markdown';
 import { shortcutFor, shortcutLabel } from './shortcuts';
 import { DEFAULT_COLORS, SAFE_COLOR } from './colors';
 import { COMMANDS, DEFAULT_QUICKBAR, DEFAULT_TOOLBAR, TABLE_TOOLS } from './commands';
+import { Sidebar } from './sidebar';
+import type { PanelDef } from './sidebar';
+import { extendToolbar } from './plugin';
+import type { AurebeshPlugin, PluginContext, PluginInstance } from './plugin';
+import type { SanitizeExtension } from './sanitize';
+import type { Shape } from './icons';
 import { iconElement } from './icons';
 import type { CommandDef } from './commands';
 import { currentPre, handleCodeKey, insertCode } from './codeblock';
@@ -59,6 +65,8 @@ export interface Layout {
 }
 
 export interface AurebeshOptions {
+  /** Plugins: modes and tools that are not part of the editor itself (see `AurebeshPlugin`). */
+  plugins?: AurebeshPlugin[];
   /** The initial layout (see `Layout`); the 'layout' toolbar item opens a panel to change it. */
   layout?: Partial<Layout>;
   /** Most characters allowed (spaces count, line breaks don't). Typing and pasting stop at the limit. */
@@ -106,6 +114,8 @@ export interface AurebeshEvents {
   page: ResolvedPage | null;
   /** A setting of the layout panel changed (through `setLayout` or the panel). */
   layout: Layout;
+  /** The panel of the sidebar that is open changed: its id, or null when the sidebar closed. */
+  panel: string | null;
   focus: undefined;
   blur: undefined;
   /** An upload failed or a link was rejected. */
@@ -119,7 +129,7 @@ export class Aurebesh {
   readonly content: HTMLElement;
   /** The buttons of each command: more than one when a command is both in the quickbar and in the toolbar. */
   private buttons = new Map<string, HTMLButtonElement[]>();
-  private listeners = new Map<keyof AurebeshEvents, Set<Listener<any>>>();
+  private listeners = new Map<string, Set<Listener<any>>>();
   private cleanup: Array<() => void> = [];
   private highlightTimer: ReturnType<typeof setTimeout> | undefined;
   private fonts: FontDef[];
@@ -139,7 +149,16 @@ export class Aurebesh {
   private lastImage: HTMLImageElement | null = null;
   private sizeSelects: HTMLSelectElement[] = [];
   private columnsSelects: HTMLSelectElement[] = [];
-  private layoutPanel: HTMLElement | null = null;
+  private sidebar: Sidebar | null = null;
+  /** The ids of the panels that the toolbar can open. */
+  private panelIds: string[] = [];
+  /** Plugins hear about typing and read-only once they are attached (what was set before, they read in `attach`). */
+  private attached = false;
+  /** The commands of the editor and of its plugins. */
+  private commands: Record<string, CommandDef> = COMMANDS;
+  private plugins: { def: AurebeshPlugin; inst: PluginInstance }[] = [];
+  private sanitizers: SanitizeExtension[] = [];
+  private extraIcons: Record<string, Shape[]> = {};
   private layoutTiles: HTMLButtonElement[] = [];
   private layoutNote: HTMLElement | null = null;
   private layoutInputs: { textWidth?: HTMLInputElement; padding?: HTMLInputElement; lineHeight?: HTMLSelectElement } = {};
@@ -166,8 +185,17 @@ export class Aurebesh {
 
   constructor(private container: HTMLElement, options: AurebeshOptions = {}) {
     const doc = container.ownerDocument;
-    this.markdown = options.markdownShortcuts ?? true;
-    this.labels = { ...DEFAULT_LABELS, ...options.labels } as Labels;
+    const plugins = options.plugins ?? [];
+    this.labels = { ...DEFAULT_LABELS, ...Object.assign({}, ...plugins.map((p) => p.labels)), ...options.labels } as Labels;
+    this.commands = { ...COMMANDS };
+    for (const p of plugins) {
+      Object.assign(this.commands, p.commands);
+      Object.assign(this.extraIcons, p.icons);
+      if (p.sanitize) this.sanitizers.push(p.sanitize);
+      for (const panel of p.panels ?? []) {
+        this.commands[panel.id] ??= { name: panel.id, icon: panel.icon, label: panel.label ?? panel.title.slice(0, 2), title: panel.title, run: () => {} };
+      }
+    }
     const adapter = options.media?.adapter;
     this.adapter = adapter === undefined ? base64Adapter() : typeof adapter === 'function' ? { upload: adapter } : adapter;
     this.allowUrl = options.media?.allowUrl ?? true;
@@ -179,6 +207,17 @@ export class Aurebesh {
     // Without it the editor follows the page's direction (<html dir="rtl"> mirrors the toolbar too).
     if (options.dir) this.root.setAttribute('dir', options.dir);
 
+    for (const p of plugins) {
+      if (p.css && !Array.from(doc.head.querySelectorAll('style[data-aurebesh-plugin]')).some((s) => s.getAttribute('data-aurebesh-plugin') === p.name)) {
+        const style = doc.createElement('style');
+        style.setAttribute('data-aurebesh-plugin', p.name);
+        style.textContent = p.css;
+        doc.head.appendChild(style);
+      }
+    }
+    this.plugins = plugins.map((def) => ({ def, inst: def.setup(this.pluginContext()) }));
+    this.markdown = options.markdownShortcuts ?? this.plugins.find((p) => p.inst.markdownShortcuts !== undefined)?.inst.markdownShortcuts ?? true;
+
     if (!doc.head.querySelector('style[data-aurebesh]')) {
       const style = doc.createElement('style');
       style.setAttribute('data-aurebesh', '');
@@ -186,9 +225,12 @@ export class Aurebesh {
       doc.head.appendChild(style);
     }
 
-    const items = options.toolbar ?? DEFAULT_TOOLBAR;
-    const quick = options.quickbar ?? (options.toolbar ? [] : DEFAULT_QUICKBAR);
+    const pluginToolbar = this.plugins.find((p) => p.inst.toolbar)?.inst.toolbar;
+    const baseItems = options.toolbar ?? pluginToolbar ?? DEFAULT_TOOLBAR;
+    const items = baseItems.length ? extendToolbar(baseItems, this.plugins.flatMap((p) => p.inst.toolbarExtend ?? [])) : baseItems;
+    const quick = options.quickbar ?? (options.toolbar || pluginToolbar ? [] : DEFAULT_QUICKBAR);
     const commands = [...items, ...quick];
+    this.panelIds = ['layout', ...plugins.flatMap((p) => (p.panels ?? []).map((panel) => panel.id))].filter((id) => commands.includes(id));
     if (quick.length) this.buildQuickbar(quick);
     if (items.length) this.buildToolbar(items);
     this.buildContextualTools(commands);
@@ -202,11 +244,29 @@ export class Aurebesh {
     this.stage = doc.createElement('div');
     this.stage.className = 'aurebesh-stage';
     this.stage.appendChild(this.content);
-    if (commands.includes('layout')) {
-      // the text with the layout panel beside it
+    const panels: PanelDef[] = [];
+    if (commands.includes('layout')) panels.push({ id: 'layout', title: this.t('ui.layout'), build: () => this.buildLayoutPanel() });
+    for (const p of plugins) for (const panel of p.panels ?? []) if (commands.includes(panel.id)) panels.push(panel);
+    if (panels.length) {
+      // the text with the sidebar beside it
+      const sidebar = new Sidebar(
+        doc,
+        this.t('ui.close'),
+        (open) => {
+          for (const id of panels.map((p) => p.id)) this.buttons.get(id)?.forEach((b) => b.setAttribute('aria-expanded', String(id === open)));
+          this.placeLinkTools();
+          this.emit('panel', open);
+        },
+        (id) => this.buttons.get(id)?.[0]?.focus(),
+      );
+      this.sidebar = sidebar;
+      for (const panel of panels) {
+        sidebar.add(panel);
+        this.buttons.get(panel.id)?.forEach((b) => b.setAttribute('aria-controls', sidebar.el.id));
+      }
       const body = doc.createElement('div');
       body.className = 'aurebesh-body';
-      body.append(this.stage, this.buildLayoutPanel());
+      body.append(this.stage, sidebar.el);
       this.root.appendChild(body);
     } else {
       this.root.appendChild(this.stage);
@@ -221,13 +281,14 @@ export class Aurebesh {
 
     this.setPlaceholder(options.placeholder ?? '');
     this.setReadOnly(options.readOnly ?? false);
-    if (options.value) this.content.innerHTML = sanitize(options.value);
+    if (options.value) this.content.innerHTML = this.clean(options.value);
     this.syncEmpty();
 
     this.listen(this.content, 'input', () => {
       // Deleting an embed leaves its empty wrapper behind.
       this.content.querySelectorAll(':scope > div:empty').forEach((d) => d.remove());
       this.syncEmpty();
+      this.plugins.forEach((p) => p.inst.input?.());
       this.emit('change', this.getHTML());
     });
     this.listen(this.content, 'focus', () => this.emit('focus', undefined));
@@ -236,7 +297,9 @@ export class Aurebesh {
     this.listen(this.content, 'paste', (e) => this.onPaste(e as ClipboardEvent));
     this.listen(this.content, 'beforeinput', (e) => this.onBeforeInput(e as InputEvent));
     this.listen(this.content, 'dragover', (e) => {
-      if ((e as DragEvent).dataTransfer?.types.includes('Files')) e.preventDefault();
+      const drag = e as DragEvent;
+      // Files are taken by the editor, anything else only when a plugin says it wants it (it then gets the `drop`).
+      if (drag.dataTransfer?.types.includes('Files') || this.plugins.some((p) => p.inst.dragover?.(drag))) e.preventDefault();
     });
     this.listen(this.content, 'drop', (e) => this.onDrop(e as DragEvent));
     this.listen(this.content, 'click', (e) => this.onClick(e as MouseEvent));
@@ -275,6 +338,14 @@ export class Aurebesh {
     this.statusEl.setAttribute('role', 'status');
     this.statusEl.hidden = true;
     this.root.appendChild(this.statusEl);
+    for (const p of this.plugins) {
+      try {
+        p.inst.attach?.();
+      } catch (err) {
+        this.fail(err);
+      }
+    }
+    this.attached = true;
 
     try {
       this.setPage(options.page);
@@ -481,7 +552,7 @@ export class Aurebesh {
    * editing commands, and an empty string for an empty editor. This is what you should store.
    */
   getHTML(): string {
-    return this.isEmpty() ? '' : sanitize(this.content.innerHTML);
+    return this.isEmpty() ? '' : this.clean(this.content.innerHTML);
   }
 
   /** The content as Markdown (GitHub flavour); '' when empty. Underline and sub/superscript stay inline HTML; colours, fonts and columns are dropped. */
@@ -491,14 +562,29 @@ export class Aurebesh {
 
   /** The content in the given format: 'html' (default), 'markdown' or 'text'. */
   getValue(format: OutputFormat = 'html'): string {
+    for (const p of this.plugins) {
+      const out = p.inst.output?.[format];
+      if (out) return out();
+    }
     if (format === 'markdown') return this.getMarkdown();
     if (format === 'text') return this.isEmpty() ? '' : this.getText();
     return this.getHTML();
   }
 
+  /** Sets the content from a value: 'html' (default), or a format that a plugin reads (its `load`, the other side of its `output`). */
+  setValue(value: string, format: OutputFormat = 'html'): void {
+    if (format === 'html') return this.setHTML(value);
+    for (const p of this.plugins) {
+      const load = p.inst.load?.[format];
+      if (load) return this.setHTML(load(value));
+    }
+    throw new Error(`Aurebesh: no plugin reads the format "${format}"`);
+  }
+
   private onKeyDown(e: KeyboardEvent): void {
     // While an input method (Chinese, Japanese, Korean...) is composing, Enter/Tab/Space belong to it.
     if (e.isComposing || e.keyCode === 229) return;
+    if (this.plugins.some((p) => p.inst.keydown?.(e))) return;
 
     const shortcut = shortcutFor(e);
     if (shortcut) {
@@ -527,10 +613,11 @@ export class Aurebesh {
   }
 
   setHTML(html: string): void {
-    this.content.innerHTML = sanitize(html);
+    this.content.innerHTML = this.clean(html);
     this.syncEmpty();
     this.scheduleHighlight();
     this.updateStats();
+    if (this.attached) this.plugins.forEach((p) => p.inst.input?.());
   }
 
   /** True when there is no text and no image, video, table or list. */
@@ -556,6 +643,7 @@ export class Aurebesh {
     this.orientationButtons.forEach((b) => (b.disabled = readOnly || !this.page?.height));
     this.columnsSelects.forEach((s) => (s.disabled = readOnly));
     this.layoutTiles.forEach((t) => (t.disabled = readOnly));
+    if (this.attached) this.plugins.forEach((p) => p.inst.readOnlyChanged?.());
     this.updateToolbar();
   }
 
@@ -567,7 +655,7 @@ export class Aurebesh {
 
   /** Run a toolbar command by name, e.g. editor.exec('bold'). */
   exec(name: string, arg?: string, extra?: string): void {
-    const cmd = COMMANDS[name];
+    const cmd = this.commands[name];
     if (!cmd) throw new Error(`Aurebesh: unknown command "${name}"`);
     const hadFocus = this.content.ownerDocument.activeElement === this.content;
     this.content.focus();
@@ -580,23 +668,32 @@ export class Aurebesh {
     this.updateToolbar();
   }
 
-  on<K extends keyof AurebeshEvents>(event: K, fn: Listener<AurebeshEvents[K]>): () => void {
-    let set = this.listeners.get(event) as Set<Listener<AurebeshEvents[K]>> | undefined;
+  on<K extends keyof AurebeshEvents>(event: K, fn: Listener<AurebeshEvents[K]>): () => void;
+  /** An event of a plugin. */
+  on(event: string, fn: Listener<any>): () => void;
+  on(event: string, fn: Listener<any>): () => void {
+    let set = this.listeners.get(event);
     if (!set) this.listeners.set(event, (set = new Set()));
     set.add(fn);
     // Someone who registers after the editor is ready still gets `ready`, once.
-    if (event === 'ready' && this.isReady) queueMicrotask(() => fn(this as unknown as AurebeshEvents[K]));
+    if (event === 'ready' && this.isReady) queueMicrotask(() => fn(this));
     if (event === 'count') this.updateStats();
     return () => set.delete(fn);
   }
 
   destroy(): void {
+    this.plugins.forEach((p) => p.inst.destroy?.());
     clearTimeout(this.highlightTimer);
     clearHighlights(this.content);
     this.cleanup.forEach((fn) => fn());
     this.cleanup = [];
     this.listeners.clear();
     this.root.remove();
+  }
+
+  /** An event of a plugin (any name). */
+  private emitAny(event: string, payload: unknown): void {
+    this.listeners.get(event)?.forEach((fn) => fn(payload));
   }
 
   private emit<K extends keyof AurebeshEvents>(event: K, payload: AurebeshEvents[K]): void {
@@ -634,13 +731,17 @@ export class Aurebesh {
 
   /** One toolbar item as an element, or null for a name that is not a command (or an upload that is not available). */
   private buildToolbarItem(item: string): HTMLElement | null {
-    const cmd = COMMANDS[item];
+    for (const p of this.plugins) {
+      const own = p.inst.buildItem?.(item);
+      if (own !== undefined) return own;
+    }
+    const cmd = this.commands[item];
     if (!cmd) return null;
+    if (this.panelIds.includes(item)) return this.buildPanelButton(cmd);
     if (item === 'font') return this.buildFontSelect();
     if (item === 'size') return this.buildSizeSelect();
     if (item === 'columns') return this.buildColumnsSelect();
     if (item === 'orientation') return this.buildOrientationButton();
-    if (item === 'layout') return this.buildLayoutButton(cmd);
     if (item === 'fullscreen') return this.makeButton(cmd, () => this.setFullscreen(!this.fullscreen));
     if (item === 'page') return this.buildPageSelect();
     if (item === 'link') return this.buildLinkPicker(cmd);
@@ -894,7 +995,7 @@ export class Aurebesh {
 
   /** What a button shows: its icon, or its text when it has none. */
   private face(btn: HTMLElement, cmd: { icon?: string; label: string }): void {
-    const icon = iconElement(btn.ownerDocument, cmd.icon);
+    const icon = iconElement(btn.ownerDocument, cmd.icon, this.extraIcons);
     if (icon) btn.replaceChildren(icon);
     else btn.textContent = cmd.label;
   }
@@ -952,19 +1053,72 @@ export class Aurebesh {
     btn.addEventListener('keydown', (e) => e.key === 'Escape' && hide());
   }
 
-  /** The toolbar button that opens and closes the layout panel. */
-  private buildLayoutButton(cmd: CommandDef): HTMLButtonElement {
-    const btn = this.makeButton(cmd, () => this.setLayoutPanel(!!this.layoutPanel?.hidden));
+  /** The toolbar button that opens and closes a panel of the sidebar. */
+  private buildPanelButton(cmd: CommandDef): HTMLButtonElement {
+    const btn = this.makeButton(cmd, () => this.sidebar?.toggle(cmd.name));
     btn.setAttribute('aria-expanded', 'false');
     return btn;
   }
 
-  private setLayoutPanel(open: boolean): void {
-    const panel = this.layoutPanel;
-    if (!panel) return;
-    panel.hidden = !open;
-    this.buttons.get('layout')?.forEach((b) => b.setAttribute('aria-expanded', String(open)));
-    this.placeLinkTools();
+  /** Opens a panel of the sidebar (the one with this id). */
+  openPanel(id: string): void {
+    this.sidebar?.open(id);
+  }
+
+  closePanel(): void {
+    this.sidebar?.close();
+  }
+
+  /** The id of the panel that is open, or null. */
+  getOpenPanel(): string | null {
+    return this.sidebar?.current ?? null;
+  }
+
+  /** True when a plugin adds an output format of this name. */
+  hasOutput(format: string): boolean {
+    return this.plugins.some((p) => !!p.inst.output?.[format]);
+  }
+
+  /** What the plugin with this name offers (its `api`), or undefined. */
+  plugin<T = object>(name: string): T | undefined {
+    return this.plugins.find((p) => p.def.name === name)?.inst.api as T | undefined;
+  }
+
+  private clean(html: string): string {
+    return sanitize(html, this.sanitizers);
+  }
+
+  private pluginContext(): PluginContext {
+    const editor = this;
+    return {
+      editor,
+      doc: this.container.ownerDocument,
+      root: this.root,
+      get content() {
+        return editor.content;
+      },
+      get stage() {
+        return editor.stage;
+      },
+      t: (key, vars) => this.t(key, vars),
+      titleOf: (command) => this.labels[command] ?? this.commands[command]?.title ?? command,
+      changed: () => {
+        this.syncEmpty();
+        this.emit('change', this.getHTML());
+        this.updateToolbar();
+      },
+      emit: (name, detail) => this.emitAny(name, detail),
+      fail: (err) => this.fail(err),
+      listen: (target, type, fn) => this.listen(target, type, fn),
+      focus: () => this.content.focus(),
+      insert: (content, at) => this.insert(content, at),
+      restoreSelection: () => this.restoreSelection(),
+      closeOnOutside: (wrap, pop, toggle) => this.closeOnOutside(wrap, pop, toggle),
+      isEditable: () => this.content.isContentEditable,
+      openPanel: (id) => this.openPanel(id),
+      closePanel: () => this.closePanel(),
+      openPanelId: () => this.getOpenPanel(),
+    };
   }
 
   /** The panel beside the text: the columns, and how the text is shown. */
@@ -976,23 +1130,7 @@ export class Aurebesh {
       if (text) e.textContent = text;
       return e;
     };
-    const panel = el('aside', 'aurebesh-panel');
-    panel.hidden = true;
-    panel.id = `aurebesh-panel-${Math.random().toString(36).slice(2, 8)}`;
-    panel.setAttribute('aria-label', this.t('ui.layout'));
-
-    const head = el('div', 'aurebesh-panel-head');
-    const title = el('strong', undefined, this.t('ui.layout'));
-    const close = el('button', 'aurebesh-panel-close');
-    close.type = 'button';
-    close.setAttribute('aria-label', this.t('ui.close'));
-    close.title = this.t('ui.close');
-    close.appendChild(iconElement(doc, 'close')!);
-    close.addEventListener('click', () => {
-      this.setLayoutPanel(false);
-      this.buttons.get('layout')?.[0]?.focus();
-    });
-    head.append(title, close);
+    const panel = el('div', 'aurebesh-panel-layout');
 
     const field = (label: string, control: HTMLElement, unit?: string) => {
       const wrap = el('label', 'aurebesh-field');
@@ -1077,13 +1215,7 @@ export class Aurebesh {
     view.appendChild(field(this.t('ui.lineHeight'), line));
     view.appendChild(el('div', 'aurebesh-hint', this.t('ui.layoutNote')));
 
-    panel.append(head, cols, view);
-    panel.addEventListener('keydown', (e) => {
-      if (e.key !== 'Escape') return;
-      e.stopPropagation(); // not also out of full screen
-      close.click();
-    });
-    this.layoutPanel = panel;
+    panel.append(cols, view);
     return panel;
   }
 
@@ -1308,28 +1440,77 @@ export class Aurebesh {
   }
 
   private onDrop(e: DragEvent): void {
+    if (this.plugins.some((p) => p.inst.drop?.(e))) return;
     const files = e.dataTransfer?.files;
     if (!files?.length || !this.content.isContentEditable) return;
     e.preventDefault();
-    // Put the caret where the file was dropped.
+    this.placeCaretAt(e.clientX, e.clientY); // where the file was dropped
+    void this.uploadFiles(files);
+  }
+
+  /** After inserting something that is not editable (a field chip), the browser leaves the caret inside it, where typing and Backspace do nothing: move it behind. */
+  private caretOutOfIsland(): void {
+    const sel = this.container.ownerDocument.getSelection();
+    const node = sel?.anchorNode;
+    if (!sel || !node) return;
+    const island = (node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement)?.closest('[contenteditable="false"]');
+    if (!island || !this.content.contains(island) || island === this.content) return;
+    const range = this.container.ownerDocument.createRange();
+    range.setStartAfter(island);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  /** Puts the caret at a point of the screen. False (and nothing changes) when that point is not in the text. */
+  private placeCaretAt(x: number, y: number): boolean {
     const d = this.container.ownerDocument as Document & {
       caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
     };
     let range: Range | null = null;
-    const pos = d.caretPositionFromPoint?.(e.clientX, e.clientY);
+    const pos = d.caretPositionFromPoint?.(x, y);
     if (pos) {
       range = d.createRange();
       range.setStart(pos.offsetNode, pos.offset);
       range.collapse(true);
     } else {
-      range = d.caretRangeFromPoint?.(e.clientX, e.clientY) ?? null;
+      range = d.caretRangeFromPoint?.(x, y) ?? null;
     }
-    if (range && this.content.contains(range.startContainer)) {
-      const sel = d.getSelection();
-      sel?.removeAllRanges();
-      sel?.addRange(range);
+    if (!range || !this.content.contains(range.startContainer)) return false;
+    const sel = d.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    return true;
+  }
+
+  /**
+   * Puts HTML (or a node) in the text, at the caret or at a point of the screen (`at`, e.g. where something was dropped). It goes through
+   * the sanitizer, so what a plugin wants to keep must be in its `sanitize`, and it is one step for undo. False when nothing was inserted
+   * (read-only, the point is outside the text, or nothing is left after sanitizing).
+   */
+  insert(content: string | Node, at?: { x: number; y: number }): boolean {
+    if (!this.content.isContentEditable) return false;
+    const doc = this.container.ownerDocument;
+    const hadFocus = doc.activeElement === this.content;
+    this.content.focus();
+    if (at) {
+      if (!this.placeCaretAt(at.x, at.y)) return false;
+    } else if (!hadFocus) this.restoreSelection();
+    let html = content as string;
+    if (typeof content !== 'string') {
+      const box = doc.createElement('div');
+      box.appendChild(content.cloneNode(true));
+      html = box.innerHTML;
     }
-    void this.uploadFiles(files);
+    const clean = this.clean(html);
+    if (!clean) return false;
+    doc.execCommand('insertHTML', false, clean);
+    this.caretOutOfIsland();
+    this.tidyStyles();
+    this.syncEmpty();
+    this.emit('change', this.getHTML());
+    this.updateToolbar();
+    return true;
   }
 
   /**
@@ -1775,8 +1956,8 @@ export class Aurebesh {
       this.fontSelects.forEach((select) => (select.value = match ? match.family : ''));
     }
     this.buttons.forEach((list, name) => {
-      const active = name === 'fullscreen' ? this.fullscreen : inside && (COMMANDS[name].isActive?.() ?? false);
-      const enabled = COMMANDS[name].isEnabled;
+      const active = name === 'fullscreen' ? this.fullscreen : inside && (this.commands[name].isActive?.() ?? false);
+      const enabled = this.commands[name].isEnabled;
       for (const btn of list) {
         btn.setAttribute('aria-pressed', String(active));
         if (enabled) btn.disabled = !this.content.isContentEditable || !(inside && enabled());
@@ -1791,6 +1972,7 @@ export class Aurebesh {
 
   /** Paste as sanitized HTML (or plain text) instead of whatever the source app put on the clipboard. */
   private onPaste(e: ClipboardEvent): void {
+    if (this.plugins.some((p) => p.inst.paste?.(e))) return;
     const data = e.clipboardData;
     if (!data) return;
     e.preventDefault();
@@ -1824,7 +2006,7 @@ export class Aurebesh {
     }
     // Word, Google Docs and web pages: keep the meaningful formatting, drop the rest, and bring the images along.
     const prepared = preparePaste(html, data.getData('text/rtf'), this.pasteImages, !!this.adapter);
-    document.execCommand('insertHTML', false, sanitize(prepared.html));
+    document.execCommand('insertHTML', false, this.clean(prepared.html));
     this.tidyStyles();
     const found = this.placePlaceholders(prepared.images);
     this.snapFloatsToGutter();
