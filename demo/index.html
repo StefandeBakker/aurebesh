@@ -107,7 +107,7 @@
   </ul>
 
   <aurebesh-editor id="editor" placeholder="Start typing..." counter maxlength="5000"
-    toolbar="#Geschiedenis,undo,redo,|,#Tekst,bold,italic,underline,|,#Structuur,h1,h2,quote,|,#Alinea,alignLeft,alignCenter,alignRight,indent,outdent,|,#Lijsten,ul,ol,|,#Invoegen,link,image,video,table,hr,|,#Code,code,codeblock,>,#Weergave,layout,fullscreen"><h1>Try it</h1><p>This is <strong>Aurebesh</strong>. Select some text and use the toolbar, or type <code># </code> at the start of a line for a heading and <code>- </code> for a list. Paste something from <em>Word</em> or <em>Google Docs</em> to see it come in clean.</p><ul><li>Rich text, lists and quotes</li><li>Tables you can merge and resize</li><li>Code blocks with colours</li></ul><table><tbody><tr><th>Feature</th><th>Status</th></tr><tr><td>Tables</td><td>Merge cells, drag the borders</td></tr><tr><td>Languages</td><td>עברית and العربية work too</td></tr></tbody></table><pre>function hello(name) {
+    toolbar="#Geschiedenis,undo,redo,|,#Tekst,bold,italic,underline,|,#Structuur,h1,h2,quote,|,#Alinea,alignLeft,alignCenter,alignRight,indent,outdent,|,#Lijsten,ul,ol,|,#Invoegen,link,image,video,table,hr,|,#Code,code,codeblock,>,#Weergave,layout,info,fullscreen"><h1>Try it</h1><p>This is <strong>Aurebesh</strong>. Select some text and use the toolbar, or type <code># </code> at the start of a line for a heading and <code>- </code> for a list. Paste something from <em>Word</em> or <em>Google Docs</em> to see it come in clean.</p><ul><li>Rich text, lists and quotes</li><li>Tables you can merge and resize</li><li>Code blocks with colours</li></ul><table><tbody><tr><th>Feature</th><th>Status</th></tr><tr><td>Tables</td><td>Merge cells, drag the borders</td></tr><tr><td>Languages</td><td>עברית and العربية work too</td></tr></tbody></table><pre>function hello(name) {
   return `Hello, ${name}!`;
 }</pre><p>שלום עולם</p></aurebesh-editor>
 
@@ -130,9 +130,35 @@
 
 <script type="module">
   import '../dist/element.js';
-  import { LABELS_NL } from '../dist/index.js';
+  import { LABELS_NL, definePlugin } from '../dist/index.js';
   const ed = document.getElementById('editor');
-  ed.options = { labels: LABELS_NL, layout: { textWidth: 800, padding: 48, lineHeight: 1.7 } };
+
+  // A small plugin as an example: a panel "Info" in the sidebar (next to Layout, so the sidebar gets tabs) with the numbers of the text.
+  const info = definePlugin({
+    name: 'info',
+    labels: { info: 'Info' },
+    icons: { info: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', { d: 'M12 11v5.5M12 7.6v.2' }]] },
+    commands: { info: { name: 'info', icon: 'info', label: 'i', title: 'Info', run: () => {} } },
+    panels: [{ id: 'info', title: 'Info', icon: 'info', build: () => Object.assign(document.createElement('div'), { id: 'info-panel', className: 'aurebesh-panel-section' }) }],
+    setup(context) {
+      const show = (s) => {
+        const box = document.getElementById('info-panel');
+        if (!box) return;
+        const minutes = Math.max(1, Math.round(s.words / 200));
+        box.innerHTML = '';
+        for (const [label, value] of [['Woorden', s.words], ['Tekens', s.characters], ['Leestijd', minutes + ' min']]) {
+          const row = document.createElement('div');
+          row.className = 'aurebesh-field';
+          row.innerHTML = '<span class="aurebesh-field-label"></span><strong></strong>';
+          row.firstChild.textContent = label;
+          row.lastChild.textContent = value;
+          box.appendChild(row);
+        }
+      };
+      return { attach: () => context.editor.on('count', show) };
+    },
+  });
+  ed.options = { labels: LABELS_NL, layout: { textWidth: 800, padding: 48, lineHeight: 1.7 }, plugins: [info] };
   const out = document.getElementById('out');
   const tabs = document.getElementById('tabs');
   let format = 'markdown';

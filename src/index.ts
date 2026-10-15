@@ -1,5 +1,7 @@
 export { Aurebesh } from './editor';
 export type { AurebeshOptions, AurebeshEvents, Layout } from './editor';
+export { definePlugin } from './plugin';
+export type { AurebeshPlugin, PluginContext, PluginInstance, PluginPanel, SanitizeExtension, Shape, ToolbarExtension } from './plugin';
 export { PAGE_PRESETS, resolvePage } from './page';
 export type { PageFormat, PagePreset, PageSpec, ResolvedPage } from './page';
 export { toMarkdown, toText } from './export';
