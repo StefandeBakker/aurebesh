@@ -150,6 +150,10 @@ export class AurebeshElement extends BaseElement {
     this.editor.on('page', (page) => this.dispatchEvent(new CustomEvent('page', { detail: page, bubbles: true })));
     this.editor.on('layout', (layout) => this.dispatchEvent(new CustomEvent('layout', { detail: layout, bubbles: true })));
     this.editor.on('ready', () => this.dispatchEvent(new CustomEvent('ready', { detail: this.editor })));
+    // the events of the plugins become DOM events too
+    for (const plugin of this.extraOptions.plugins ?? []) {
+      for (const name of plugin.events ?? []) this.editor.on(name, (detail) => this.dispatchEvent(new CustomEvent(name, { detail, bubbles: true })));
+    }
     this.editor.on('count', (stats) => {
       this.syncForm();
       this.dispatchEvent(new CustomEvent('count', { detail: stats, bubbles: true }));
@@ -193,8 +197,8 @@ export class AurebeshElement extends BaseElement {
 
   /** What is submitted with a form: the `format` attribute, "html" (default), "markdown" or "text". `value` stays HTML. */
   get format(): OutputFormat {
-    const f = this.getAttribute('format');
-    return f === 'markdown' || f === 'text' ? f : 'html';
+    const f = this.getAttribute('format') ?? '';
+    return f === 'markdown' || f === 'text' || this.editor?.hasOutput(f) ? f : 'html';
   }
 
   set format(f: OutputFormat) {

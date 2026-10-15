@@ -42,8 +42,13 @@ export const CSS = `
 .aurebesh-body>.aurebesh-stage{flex:1 1 auto;min-width:0;min-height:0}
 .aurebesh:not([data-page]) .aurebesh-body>.aurebesh-stage{display:flex;flex-direction:column}
 .aurebesh:not([data-page]) .aurebesh-body>.aurebesh-stage>.aurebesh-content{flex:1 1 auto}
-.aurebesh-panel{box-sizing:border-box;flex:none;min-height:0;width:280px;max-width:45%;padding:16px;overflow:auto;border-inline-start:1px solid var(--aurebesh-border,#d0d5dd);background:var(--aurebesh-toolbar-bg,#f8f9fb);font-size:13px}
+.aurebesh-panel{box-sizing:border-box;flex:none;min-height:0;width:var(--aurebesh-panel-width,280px);max-width:45%;padding:16px;overflow:auto;border-inline-start:1px solid var(--aurebesh-border,#d0d5dd);background:var(--aurebesh-toolbar-bg,#f8f9fb);font-size:13px}
 .aurebesh-panel[hidden]{display:none}
+.aurebesh-panel-pane[hidden]{display:none}
+.aurebesh-panel-tabs{display:flex;gap:2px;min-width:0}
+.aurebesh-panel-tab{padding:4px 10px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--aurebesh-label,#667085);cursor:pointer;font:inherit;font-size:14px}
+.aurebesh-panel-tab[aria-selected="true"]{border-bottom-color:var(--aurebesh-accent,#2563eb);color:inherit;font-weight:600}
+.aurebesh-panel :is(.aurebesh-panel-tab):focus-visible{outline:2px solid var(--aurebesh-accent,#2563eb);outline-offset:1px}
 .aurebesh-panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-size:15px}
 .aurebesh-panel-close{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--aurebesh-icon,inherit);cursor:pointer}
 .aurebesh-panel-close:hover{background:var(--aurebesh-hover,rgba(0,0,0,.08))}
