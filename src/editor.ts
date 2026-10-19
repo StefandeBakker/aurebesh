@@ -27,6 +27,7 @@ import { CALLOUT_ID, DEFAULT_CALLOUTS, calloutCss, currentCallout, handleCallout
 import type { CalloutDef } from './callouts';
 import { attachSlashMenu } from './slash';
 import { handleSoftBreak } from './softbreak';
+import { strikeLook } from './strike';
 import { afterListInput, boxAt, handleTaskKey, toggleChecked } from './tasks';
 import type { SlashItem } from './slash';
 import { BLOCK_MIME, CONTENT, LAYOUTS, blockHtml, currentRow, deleteRow, handleLayoutKey, insertBlock, normalizeLayouts, rowGap, rowTemplate, selectSpot, setRow, spotAt, spotAtCaret, spotLine } from './blocks';
@@ -211,6 +212,7 @@ export class Aurebesh {
   private modeSwitch: ModeSwitch | null = null;
   private calloutTypes: CalloutDef[] = DEFAULT_CALLOUTS;
   private calloutOptions: HTMLButtonElement[] = [];
+  private strikeOptions: { single: HTMLButtonElement[]; double: HTMLButtonElement[] } = { single: [], double: [] };
   private readOnlyState = false;
   private colors: string[];
   private adapter: MediaAdapter | null;
@@ -939,6 +941,7 @@ export class Aurebesh {
     const cmd = this.commands[item];
     if (!cmd) return null;
     if (item === 'callout') return this.buildCalloutPicker(cmd);
+    if (item === 'strikeStyle') return this.buildStrikePicker(cmd);
     if (item === 'sidebar') return this.buildSidebarToggle(cmd);
     if (this.panelIds.includes(item)) return this.buildPanelButton(cmd);
     if (item === 'font') return this.buildFontSelect();
@@ -1292,6 +1295,66 @@ export class Aurebesh {
     return btn;
   }
 
+  /** The button with the look of a strikethrough: a single or a double line, and a colour. */
+  private buildStrikePicker(cmd: CommandDef): HTMLElement {
+    const doc = this.container.ownerDocument;
+    const wrap = doc.createElement('span');
+    wrap.className = 'aurebesh-table-picker';
+    const toggle = this.makeButton(cmd, (e) => {
+      pop.hidden = !pop.hidden;
+      if (!pop.hidden && e.detail === 0) (pop.querySelector('button') as HTMLElement | null)?.focus();
+    });
+    toggle.classList.add('aurebesh-swatch-btn');
+    const pop = doc.createElement('div');
+    pop.className = 'aurebesh-table-pop aurebesh-strike-pop';
+    pop.hidden = true;
+    pop.setAttribute('role', 'group');
+    pop.setAttribute('aria-label', this.title(cmd));
+    const apply = (arg: string, value?: string) => {
+      pop.hidden = true;
+      this.exec('strikeStyle', arg, value);
+    };
+    const line = (kind: 'single' | 'double') => {
+      const b = doc.createElement('button');
+      b.type = 'button';
+      b.className = 'aurebesh-strike-option';
+      b.setAttribute('aria-pressed', 'false');
+      const sample = doc.createElement('s');
+      sample.textContent = this.t(`ui.strike.${kind}`);
+      if (kind === 'double') sample.style.textDecorationStyle = 'double';
+      b.appendChild(sample);
+      b.addEventListener('mousedown', (e) => e.preventDefault());
+      b.addEventListener('click', () => apply(kind));
+      this.strikeOptions[kind].push(b);
+      return b;
+    };
+    const grid = doc.createElement('div');
+    grid.className = 'aurebesh-color-grid';
+    grid.setAttribute('role', 'group');
+    grid.setAttribute('aria-label', this.t('ui.strike.color'));
+    for (const color of this.colors) {
+      const sw = doc.createElement('button');
+      sw.type = 'button';
+      sw.style.background = color;
+      sw.title = color;
+      sw.setAttribute('aria-label', color);
+      sw.addEventListener('mousedown', (e) => e.preventDefault());
+      sw.addEventListener('click', () => apply('color', color));
+      grid.appendChild(sw);
+    }
+    gridNavigation(grid, 10);
+    const reset = doc.createElement('button');
+    reset.type = 'button';
+    reset.className = 'aurebesh-color-reset';
+    reset.textContent = this.t('ui.automatic');
+    reset.addEventListener('mousedown', (e) => e.preventDefault());
+    reset.addEventListener('click', () => apply('color'));
+    pop.append(line('single'), line('double'), grid, reset);
+    this.closeOnOutside(wrap, pop, toggle);
+    wrap.append(toggle, pop);
+    return wrap;
+  }
+
   private calloutLabel(def: CalloutDef): string {
     return def.label ?? this.labels[`callout.${def.id}`] ?? def.id;
   }
@@ -1325,7 +1388,7 @@ export class Aurebesh {
       const b = doc.createElement('button');
       b.type = 'button';
       b.className = 'aurebesh-callout-option';
-      b.dataset.callout = type ?? '';
+      b.dataset.calloutType = type ?? '';
       b.setAttribute('aria-pressed', 'false');
       const dot = doc.createElement('span');
       dot.className = 'aurebesh-callout-dot';
@@ -2336,9 +2399,14 @@ export class Aurebesh {
     const inside = !!sel && sel.rangeCount > 0 && this.content.contains(sel.anchorNode);
     if (inside) this.lastRange = sel!.getRangeAt(0).cloneRange();
     if (this.tableTools && !this.pointerHeld) this.tableTools.hidden = !(inside && currentTable());
+    if (this.strikeOptions.single.length) {
+      const look = inside ? strikeLook() : null;
+      for (const b of this.strikeOptions.single) b.setAttribute('aria-pressed', String(!!look && !look.double));
+      for (const b of this.strikeOptions.double) b.setAttribute('aria-pressed', String(!!look?.double));
+    }
     if (this.calloutOptions.length) {
       const now = inside ? currentCallout(this.content)?.getAttribute('data-callout') ?? '' : '';
-      for (const b of this.calloutOptions) b.setAttribute('aria-pressed', String((b.dataset.callout ?? '') === now && (now !== '' || b.dataset.callout === '')));
+      for (const b of this.calloutOptions) b.setAttribute('aria-pressed', String((b.dataset.calloutType ?? '') === now && (now !== '' || b.dataset.calloutType === '')));
       for (const list of this.buttons.get('callout') ?? []) list.setAttribute('aria-pressed', String(now !== ''));
     }
     if (this.rowTools) {
@@ -2412,7 +2480,7 @@ export class Aurebesh {
       this.fontSelects.forEach((select) => (select.value = match ? match.family : ''));
     }
     this.buttons.forEach((list, name) => {
-      if (name === 'sidebar' || name === 'callout') return; // aria-expanded says it, and the callout picker sets its own state
+      if (name === 'sidebar' || name === 'callout' || name === 'strikeStyle') return; // aria-expanded says it, and the callout picker sets its own state
       const active = name === 'fullscreen' ? this.fullscreen : inside && (this.commands[name].isActive?.() ?? false);
       const enabled = this.commands[name].isEnabled;
       for (const btn of list) {

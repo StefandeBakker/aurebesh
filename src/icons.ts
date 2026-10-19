@@ -34,6 +34,8 @@ export const ICONS: Record<string, Shape[]> = {
   ],
   ul: [dot(6), dot(12), dot(18), ['path', { d: 'M9.5 6H21M9.5 12H21M9.5 18H21' }]],
   // the numbers are drawn as lines, so that the icon is only shapes
+  // two lines through a letter
+  strikeStyle: [['path', { d: 'M16.5 6.5c-.6-1.4-2.3-2-4.5-2-2.6 0-4.3 1.1-4.3 2.9 0 1 .5 1.7 1.4 2.2M7.5 17.5c.7 1.3 2.3 2 4.6 2 2.6 0 4.4-1.2 4.4-3 0-.9-.4-1.5-1.1-2' }], ['path', { d: 'M4 10.5h16M4 13.5h16' }]],
   // a box with a check, and a line of text
   task: [['rect', { x: 3.5, y: 4, width: 6, height: 6, rx: 1.2 }], ['path', { d: 'M5 7l1.4 1.4L8.4 6' }], ['path', { d: 'M13 7h7.5M13 17.5h7.5' }], ['rect', { x: 3.5, y: 14.5, width: 6, height: 6, rx: 1.2 }]],
   ol: [['path', { d: 'M3.4 4.9 5 3.5v4.4', 'stroke-width': 1.25 }], ['path', { d: 'M3.3 11.2a1.7 1.7 0 0 1 3.3.4c0 1-1.3 1.7-3.3 2.9h3.5', 'stroke-width': 1.25 }], ['path', { d: 'M3.3 16.4h3.1l-1.7 2a1.7 1.7 0 1 1-1.5 2.4', 'stroke-width': 1.25 }], ['path', { d: 'M9.5 5.5H21M9.5 12H21M9.5 18.5H21' }]],
