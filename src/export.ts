@@ -159,7 +159,8 @@ function list(el: Element, ordered: boolean, indent: string): string {
 }
 
 function cell(el: Element): string {
-  return Array.from(el.childNodes).map(inline).join('').replace(/\s*\n\s*/g, ' ').trim(); // `|` is already escaped as text
+  // a line break in a cell is written as HTML, as Markdown has no other way; `|` is already escaped as text
+  return Array.from(el.childNodes).map(inline).join('').replace(/ {2}\n/g, '<br>').replace(/\s*\n\s*/g, ' ').trim();
 }
 
 function table(el: Element): string {
@@ -194,7 +195,8 @@ function block(el: Element, indent = ''): string {
     return [`> [!${el.getAttribute('data-callout')!.toUpperCase()}]`, ...body].join('\n');
   }
   const heading = /^h([1-6])$/.exec(tag);
-  if (heading) return `${'#'.repeat(Number(heading[1]))} ${Array.from(el.childNodes).map(inline).join('').trim()}`;
+  // a heading is one line in Markdown: a line break in it is written as HTML
+  if (heading) return `${'#'.repeat(Number(heading[1]))} ${Array.from(el.childNodes).map(inline).join('').replace(/ {2}\n/g, '<br>').trim()}`;
   switch (tag) {
     case 'hr':
       return '---';

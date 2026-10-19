@@ -44,6 +44,10 @@ export function sanitize(html: string, extensions: SanitizeExtension[] = []): st
     box.remove();
   });
   clean(doc.body, extensions);
+  // the break a browser keeps at the end of a line that ends in a break, to show the caret there, says nothing
+  doc.body.querySelectorAll('br').forEach((br) => {
+    if (!br.nextSibling && br.previousSibling?.nodeName === 'BR' && !br.closest('pre')) br.remove();
+  });
   return doc.body.innerHTML;
 }
 
