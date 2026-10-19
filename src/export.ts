@@ -46,6 +46,12 @@ function wrap(content: string, open: string, close = open): string {
   return `${lead}${open}${content.trim()}${close}${trail}`;
 }
 
+/** ` "title"` for a link or an image that has one. */
+function titleOf(el: Element): string {
+  const title = el.getAttribute('title');
+  return title ? ` "${title.replace(/["\\]/g, '\\$&')}"` : '';
+}
+
 function inline(node: Node): string {
   if (node.nodeType === Node.TEXT_NODE) return escapeText((node.nodeValue ?? '').replace(/\s+/g, ' '));
   if (node.nodeType !== Node.ELEMENT_NODE) return '';
@@ -74,10 +80,10 @@ function inline(node: Node): string {
     case 'a': {
       const href = el.getAttribute('href') ?? '';
       const text = kids();
-      return href ? `[${text}](${href.replace(/[()\s]/g, (c) => encodeURIComponent(c))})` : text;
+      return href ? `[${text}](${href.replace(/[()\s]/g, (c) => encodeURIComponent(c))}${titleOf(el)})` : text;
     }
     case 'img':
-      return `![${escapeText(el.getAttribute('alt') ?? '')}](${el.getAttribute('src') ?? ''})`;
+      return `![${escapeText(el.getAttribute('alt') ?? '')}](${el.getAttribute('src') ?? ''}${titleOf(el)})`;
     case 'video': {
       const src = el.getAttribute('src');
       return src ? `[${src}](${src})` : '';
@@ -159,8 +165,13 @@ function table(el: Element): string {
   const width = Math.max(...rows.map((r) => r.length));
   const pad = (r: string[]) => Array.from({ length: width }, (_, i) => r[i] ?? '');
   const line = (r: string[]) => `| ${pad(r).join(' | ')} |`;
+  // The alignment of a column is the one of its header cell (`:---`, `:---:`, `---:`), which Markdown can express.
+  const dashes = Array.from({ length: width }, (_, i) => {
+    const align = (model.m[0]?.[i] as HTMLElement | undefined)?.style?.textAlign;
+    return align === 'center' ? ':---:' : align === 'right' ? '---:' : align === 'left' ? ':---' : '---';
+  });
   // GFM tables always have a header row: without a real one the first row takes that place.
-  return [line(rows[0]), line(Array(width).fill('---')), ...rows.slice(1).map(line)].join('\n');
+  return [line(rows[0]), line(dashes), ...rows.slice(1).map(line)].join('\n');
 }
 
 function block(el: Element, indent = ''): string {

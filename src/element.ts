@@ -1,4 +1,8 @@
 import { Aurebesh } from './editor';
+import { toMarkdown } from './export';
+import { markdownToHtml } from './from-markdown';
+import { parseModes } from './modes';
+import type { ViewMode } from './modes';
 import type { AurebeshOptions } from './editor';
 import type { OutputFormat } from './export';
 import { PAGE_NAMES } from './page';
@@ -50,12 +54,12 @@ export class AurebeshElement extends BaseElement {
     this.connectQueued = true;
     queueMicrotask(() => {
       this.connectQueued = false;
-      if (this.isConnected && !this.editor) this.create(this.pendingValue ?? this.innerHTML);
+      if (this.isConnected && !this.editor) this.create(this.pendingValue ?? this.lightValue());
     });
   }
 
   disconnectedCallback(): void {
-    if (this.editor) this.pendingValue = this.editor.getHTML();
+    if (this.editor) this.pendingValue = this.editor.getValue();
     this.editor?.destroy();
     this.editor = null;
   }
@@ -123,11 +127,25 @@ export class AurebeshElement extends BaseElement {
 
   // ---------------------------------------------------------------------------------------------------
 
-  private create(initial: string): void {
+  /** The format of `value`: the `value-format` attribute, or the `valueFormat` option. 'html' unless one of them says otherwise. */
+  private valueFormat(): OutputFormat {
+    return (this.getAttribute('value-format') ?? this.extraOptions.valueFormat ?? 'html') as OutputFormat;
+  }
+
+  /** What is written inside the element is the initial value: HTML, or the text of it when the value is not HTML (Markdown). */
+  private lightValue(): string {
+    return this.valueFormat() === 'html' ? this.innerHTML : this.textContent ?? '';
+  }
+
+  /** Builds the editor. `initial` is in the format of `value`, or HTML (`isHtml`: from the editor that is being replaced). */
+  private create(initial: string, isHtml = false): void {
     const toolbarAttr = this.getAttribute('toolbar');
+    const valueFormat = this.valueFormat();
+    if (isHtml && valueFormat === 'markdown') initial = toMarkdown(initial);
     // The light-DOM content was only the initial value; the editor renders its own UI.
     this.textContent = '';
     this.editor = new Aurebesh(this, {
+      valueFormat,
       value: initial,
       placeholder: this.getAttribute('placeholder') ?? '',
       readOnly: this.hasAttribute('readonly'),
@@ -137,10 +155,13 @@ export class AurebeshElement extends BaseElement {
       maxLength: this.maxLengthAttr(),
       counter: this.hasAttribute('counter'),
       toolbar: toolbarAttr === null ? undefined : toolbarAttr.split(',').map((s) => s.trim()).filter(Boolean),
+      // `modes` alone shows the switch with all three views; `modes="markdown"` only the editor and the Markdown
+      modes: this.hasAttribute('modes') ? parseModes(this.getAttribute('modes')) : undefined,
+      mode: (this.getAttribute('mode') as ViewMode | null) ?? undefined,
       quickbar: this.hasAttribute('quickbar') ? (this.getAttribute('quickbar') ?? '').split(',').map((s) => s.trim()).filter(Boolean) : undefined,
       ...this.extraOptions,
     });
-    this.initialHtml = this.editor.getHTML();
+    this.initialHtml = this.editor.getValue();
     this.pendingValue = null;
     this.editor.on('change', (html) => {
       this.syncForm();
@@ -148,6 +169,7 @@ export class AurebeshElement extends BaseElement {
     });
     this.editor.on('error', (error) => this.dispatchEvent(new CustomEvent('error', { detail: error, bubbles: true })));
     this.editor.on('page', (page) => this.dispatchEvent(new CustomEvent('page', { detail: page, bubbles: true })));
+    this.editor.on('mode', (mode) => this.dispatchEvent(new CustomEvent('mode', { detail: mode, bubbles: true })));
     this.editor.on('layout', (layout) => this.dispatchEvent(new CustomEvent('layout', { detail: layout, bubbles: true })));
     this.editor.on('ready', () => this.dispatchEvent(new CustomEvent('ready', { detail: this.editor })));
     // the events of the plugins become DOM events too
@@ -162,13 +184,13 @@ export class AurebeshElement extends BaseElement {
   }
 
   get value(): string {
-    return this.editor ? this.editor.getHTML() : this.pendingValue ?? '';
+    return this.editor ? this.editor.getValue() : this.pendingValue ?? '';
   }
 
   set value(html: string) {
     if (this.editor) {
       // Frameworks hand back what we just emitted; setting it again would reset the caret.
-      if (html !== this.editor.getHTML()) this.editor.setHTML(html);
+      if (html !== this.editor.getValue()) this.editor.setValue(html);
       this.syncForm();
     } else {
       this.pendingValue = html;
@@ -192,13 +214,13 @@ export class AurebeshElement extends BaseElement {
     const html = this.editor.getHTML();
     this.editor.destroy();
     this.editor = null;
-    this.create(html);
+    this.create(html, true);
   }
 
-  /** What is submitted with a form: the `format` attribute, "html" (default), "markdown" or "text". `value` stays HTML. */
+  /** What is submitted with a form: the `format` attribute, "html", "markdown", "text" or a format that a plugin adds; by default the format of `value`. */
   get format(): OutputFormat {
     const f = this.getAttribute('format') ?? '';
-    return f === 'markdown' || f === 'text' || this.editor?.hasOutput(f) ? f : 'html';
+    return f === 'markdown' || f === 'text' || this.editor?.hasOutput(f) ? f : this.valueFormat();
   }
 
   set format(f: OutputFormat) {
@@ -207,6 +229,12 @@ export class AurebeshElement extends BaseElement {
 
   get markdown(): string {
     return this.editor ? this.editor.getMarkdown() : '';
+  }
+
+  /** Sets the content from Markdown. */
+  set markdown(markdown: string) {
+    if (this.editor) this.editor.setMarkdown(markdown);
+    else this.pendingValue = this.valueFormat() === 'markdown' ? markdown : markdownToHtml(markdown);
   }
 
   get text(): string {
