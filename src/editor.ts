@@ -27,7 +27,8 @@ import { CALLOUT_ID, DEFAULT_CALLOUTS, calloutCss, currentCallout, handleCallout
 import type { CalloutDef } from './callouts';
 import { attachSlashMenu } from './slash';
 import { handleSoftBreak } from './softbreak';
-import { strikeLook } from './strike';
+import { decorationLook } from './decoration';
+import type { DecorationKind } from './decoration';
 import { hasInline } from './clearformat';
 import type { InlineKind } from './clearformat';
 import { afterListInput, boxAt, handleTaskKey, toggleChecked } from './tasks';
@@ -215,7 +216,7 @@ export class Aurebesh {
   private calloutTypes: CalloutDef[] = DEFAULT_CALLOUTS;
   private calloutOptions: HTMLButtonElement[] = [];
   private clearOptions: { kind: string; button: HTMLButtonElement }[] = [];
-  private strikeOptions: { single: HTMLButtonElement[]; double: HTMLButtonElement[] } = { single: [], double: [] };
+  private lineOptions: { kind: DecorationKind; style: string; button: HTMLButtonElement }[] = [];
   private readOnlyState = false;
   private colors: string[];
   private adapter: MediaAdapter | null;
@@ -944,7 +945,8 @@ export class Aurebesh {
     const cmd = this.commands[item];
     if (!cmd) return null;
     if (item === 'callout') return this.buildCalloutPicker(cmd);
-    if (item === 'strikeStyle') return this.buildStrikePicker(cmd);
+    if (item === 'strikeStyle') return this.buildLinePicker(cmd, 'strike');
+    if (item === 'underlineStyle') return this.buildLinePicker(cmd, 'underline');
     if (item === 'clearStyle') return this.buildClearPicker(cmd);
     if (item === 'sidebar') return this.buildSidebarToggle(cmd);
     if (this.panelIds.includes(item)) return this.buildPanelButton(cmd);
@@ -1341,8 +1343,8 @@ export class Aurebesh {
     return wrap;
   }
 
-  /** The button with the look of a strikethrough: a single or a double line, and a colour. */
-  private buildStrikePicker(cmd: CommandDef): HTMLElement {
+  /** The button with the look of an underline or a strikethrough: the kind of line, and a colour. */
+  private buildLinePicker(cmd: CommandDef, kind: DecorationKind): HTMLElement {
     const doc = this.container.ownerDocument;
     const wrap = doc.createElement('span');
     wrap.className = 'aurebesh-table-picker';
@@ -1358,26 +1360,28 @@ export class Aurebesh {
     pop.setAttribute('aria-label', this.title(cmd));
     const apply = (arg: string, value?: string) => {
       pop.hidden = true;
-      this.exec('strikeStyle', arg, value);
+      this.exec(cmd.name, arg, value);
     };
-    const line = (kind: 'single' | 'double') => {
+    // a strikethrough has a single and a double line; an underline has five kinds
+    const styles = kind === 'strike' ? ['solid', 'double'] : ['solid', 'dashed', 'dotted', 'double', 'wavy'];
+    for (const style of styles) {
       const b = doc.createElement('button');
       b.type = 'button';
       b.className = 'aurebesh-strike-option';
       b.setAttribute('aria-pressed', 'false');
-      const sample = doc.createElement('s');
-      sample.textContent = this.t(`ui.strike.${kind}`);
-      if (kind === 'double') sample.style.textDecorationStyle = 'double';
+      const sample = doc.createElement(kind === 'strike' ? 's' : 'u');
+      sample.textContent = this.t(kind === 'strike' ? `ui.strike.${style === 'solid' ? 'single' : style}` : `ui.underline.${style}`);
+      if (style !== 'solid') sample.style.textDecorationStyle = style;
       b.appendChild(sample);
       b.addEventListener('mousedown', (e) => e.preventDefault());
-      b.addEventListener('click', () => apply(kind));
-      this.strikeOptions[kind].push(b);
-      return b;
-    };
+      b.addEventListener('click', () => apply(style));
+      pop.appendChild(b);
+      this.lineOptions.push({ kind, style, button: b });
+    }
     const grid = doc.createElement('div');
     grid.className = 'aurebesh-color-grid';
     grid.setAttribute('role', 'group');
-    grid.setAttribute('aria-label', this.t('ui.strike.color'));
+    grid.setAttribute('aria-label', this.t(`ui.${kind}.color`));
     for (const color of this.colors) {
       const sw = doc.createElement('button');
       sw.type = 'button';
@@ -1395,7 +1399,7 @@ export class Aurebesh {
     reset.textContent = this.t('ui.automatic');
     reset.addEventListener('mousedown', (e) => e.preventDefault());
     reset.addEventListener('click', () => apply('color'));
-    pop.append(line('single'), line('double'), grid, reset);
+    pop.append(grid, reset);
     this.closeOnOutside(wrap, pop, toggle);
     wrap.append(toggle, pop);
     return wrap;
@@ -2450,10 +2454,9 @@ export class Aurebesh {
       const has = kind === 'all' || kind === 'color' || kind === 'highlight' || (inside && hasInline(kind as InlineKind));
       button.disabled = !has;
     }
-    if (this.strikeOptions.single.length) {
-      const look = inside ? strikeLook() : null;
-      for (const b of this.strikeOptions.single) b.setAttribute('aria-pressed', String(!!look && !look.double));
-      for (const b of this.strikeOptions.double) b.setAttribute('aria-pressed', String(!!look?.double));
+    if (this.lineOptions.length) {
+      const looks = { underline: inside ? decorationLook('underline') : null, strike: inside ? decorationLook('strike') : null };
+      for (const { kind, style, button } of this.lineOptions) button.setAttribute('aria-pressed', String(looks[kind]?.style === style));
     }
     if (this.calloutOptions.length) {
       const now = inside ? currentCallout(this.content)?.getAttribute('data-callout') ?? '' : '';
@@ -2531,7 +2534,7 @@ export class Aurebesh {
       this.fontSelects.forEach((select) => (select.value = match ? match.family : ''));
     }
     this.buttons.forEach((list, name) => {
-      if (name === 'sidebar' || name === 'callout' || name === 'strikeStyle' || name === 'clearStyle') return; // aria-expanded says it, and the callout picker sets its own state
+      if (name === 'sidebar' || name === 'callout' || name === 'strikeStyle' || name === 'underlineStyle' || name === 'clearStyle') return; // aria-expanded says it, and the callout picker sets its own state
       const active = name === 'fullscreen' ? this.fullscreen : inside && (this.commands[name].isActive?.() ?? false);
       const enabled = this.commands[name].isEnabled;
       for (const btn of list) {

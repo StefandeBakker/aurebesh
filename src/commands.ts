@@ -4,7 +4,8 @@ import { currentDirection, setDirection } from './direction';
 import { currentLink, isInlineCode, setLink, toggleInlineCode } from './inline';
 import { canIndent, indent } from './indent';
 import { isTaskList, toggleTaskList } from './tasks';
-import { setStrike } from './strike';
+import { setDecoration } from './decoration';
+import type { LineStyle } from './decoration';
 import { clearInline } from './clearformat';
 import type { InlineKind } from './clearformat';
 import { insertImage, insertVideo, insertVideoFile, setImageAlign, setImageAlt, setImageWidth } from './media';
@@ -85,13 +86,21 @@ export const COMMANDS: Record<string, CommandDef> = {
   quote: { name: 'quote', icon: 'quote', label: '❝', title: 'Quote', run: toggleBlock('blockquote'), isActive: isBlock('blockquote') },
   codeblock: { name: 'codeblock', icon: 'codeblock', label: '{ }', title: 'Code block', run: toggleBlock('pre'), isActive: isBlock('pre') },
   hr: { name: 'hr', icon: 'hr', label: '―', title: 'Horizontal line', run: () => exec('insertHorizontalRule') },
+  /** The look of an underline: the kind of line and a colour. Built by the editor as a picker. */
+  underlineStyle: {
+    name: 'underlineStyle',
+    icon: 'underlineStyle',
+    label: 'U=',
+    title: 'Underline style',
+    run: (arg, extra) => (arg === 'color' ? setDecoration('underline', { color: extra || null }) : setDecoration('underline', { style: (arg || 'solid') as LineStyle })),
+  },
   /** The look of a strikethrough: a single or a double line, and a colour. Built by the editor as a picker. */
   strikeStyle: {
     name: 'strikeStyle',
     icon: 'strikeStyle',
     label: 'S=',
     title: 'Strikethrough style',
-    run: (arg, extra) => (arg === 'color' ? setStrike({ color: extra || null }) : setStrike({ double: arg === 'double' })),
+    run: (arg, extra) => (arg === 'color' ? setDecoration('strike', { color: extra || null }) : setDecoration('strike', { style: arg === 'double' ? 'double' : 'solid' })),
   },
   task: { name: 'task', icon: 'task', label: '☑', title: 'Task list', run: () => toggleTaskList(), isActive: () => isTaskList() },
   ul: { name: 'ul', icon: 'ul', label: '• List', title: 'Bullet list', run: () => exec('insertUnorderedList'), isActive: () => state('insertUnorderedList') },
@@ -238,7 +247,7 @@ export const COMMANDS: Record<string, CommandDef> = {
  * `ltr` `rtl` after `alignRight`, `h3` after `h2`, and `page` `orientation` after `columns`.
  */
 export const DEFAULT_TOOLBAR = [
-  'font', 'size', 'clear', 'clearStyle', '/', 'bold', 'italic', 'underline', 'strike', 'strikeStyle', 'highlight', 'color', '|',
+  'font', 'size', 'clear', 'clearStyle', '/', 'bold', 'italic', 'underline', 'underlineStyle', 'strike', 'strikeStyle', 'highlight', 'color', '|',
   'ul', 'ol', 'task', '/', 'alignLeft', 'alignCenter', 'alignRight', '|',
   'h1', 'h2', 'quote', '/', 'code', 'codeblock', '|',
   'link', 'image', 'video', '/', 'table', 'hr', '|',

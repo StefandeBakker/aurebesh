@@ -148,12 +148,12 @@ describe('colors', () => {
     );
     expect(sanitize('<span style="color: url(javascript:x); position: fixed">x</span>')).toBe('x');
   });
-  it('renders color and highlight pickers with 40 swatches each, and one more for the strikethrough', () => {
+  it('renders color and highlight pickers with 40 swatches each, and one more each for the underline and the strikethrough', () => {
     const el = document.createElement('div');
     new Aurebesh(el);
-    const text = '.aurebesh-toolbar:not(.aurebesh-table-tools) .aurebesh-color-grid'; // the table tools have two more, for the cells; the strikethrough look has one
-    expect(el.querySelectorAll(text).length).toBe(3);
-    expect(el.querySelectorAll(text + ' button').length).toBe(120);
+    const text = '.aurebesh-toolbar:not(.aurebesh-table-tools) .aurebesh-color-grid'; // the table tools have two more, for the cells; the underline and the strikethrough look have one each
+    expect(el.querySelectorAll(text).length).toBe(4);
+    expect(el.querySelectorAll(text + ' button').length).toBe(160);
     expect(el.querySelectorAll('.aurebesh-table-tools .aurebesh-color-grid').length).toBe(2);
   });
 });
@@ -201,7 +201,7 @@ describe('the default toolbar', () => {
 
   it('follows the Home tab of Word: blocks of two rows (the font, the paragraph, the styles, what can be inserted, the layout)', () => {
     expect(blocks(DEFAULT_TOOLBAR)).toEqual([
-      [['font', 'size', 'clear', 'clearStyle'], ['bold', 'italic', 'underline', 'strike', 'strikeStyle', 'highlight', 'color']],
+      [['font', 'size', 'clear', 'clearStyle'], ['bold', 'italic', 'underline', 'underlineStyle', 'strike', 'strikeStyle', 'highlight', 'color']],
       [['ul', 'ol', 'task'], ['alignLeft', 'alignCenter', 'alignRight']],
       [['h1', 'h2', 'quote'], ['code', 'codeblock']], // the headings and the quote; the two kinds of code
       [['link', 'image', 'video'], ['table', 'hr']],
@@ -239,7 +239,7 @@ describe('the default toolbar', () => {
     expect(s).toHaveLength(5);
     expect(s.map((g) => g.length)).toEqual([2, 2, 2, 2, 1]);
     expect(s[0][0]).toEqual(['Font', 'Size', 'Clear formatting', 'Clear one kind of formatting']);
-    expect(s[0][1].slice(0, 4)).toEqual(['Bold', 'Italic', 'Underline', 'Strikethrough']);
+    expect(s[0][1].slice(0, 5)).toEqual(['Bold', 'Italic', 'Underline', 'Underline style', 'Strikethrough']);
     expect(s[0][1]).not.toContain('Inline code'); // inline code is with the code block, not with the character styles
     expect(s[2]).toEqual([['Heading 1', 'Heading 2', 'Quote'], ['Inline code', 'Code block']]);
     el.remove();
