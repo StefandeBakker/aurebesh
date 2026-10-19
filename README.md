@@ -157,13 +157,13 @@ font size clear / bold italic underline strike sub sup highlight color | ul ol /
 
 The colours of this look are variables too: `--aurebesh-icon`, `--aurebesh-label` (the names), `--aurebesh-hover`, `--aurebesh-active-bg`, `--aurebesh-active-color`, `--aurebesh-tip-bg` and `--aurebesh-tip-color`.
 
-**Layout panel.** The `layout` item is a button that opens a panel beside the text (and closes it again): the number of columns as tiles (1 to 4, the tile of the column block at the caret is selected), the page width (the same choice as the `page` item), the maximum width of the text, the space around it and the line spacing. The last three are only about how the text is shown: they are variables on the editor (`--aurebesh-text-width`, `--aurebesh-pad-x`, `--aurebesh-pad-y`, `--aurebesh-line`) and are not part of the HTML. Set them from code with `layout: { textWidth: 800, padding: 48, lineHeight: 1.7 }` (option) or `editor.setLayout({ padding: 24 })`, read them with `getLayout()`, and listen to the `layout` event (the element fires a `layout` event with the settings as `detail`). `null` is the default of the editor. On a page format the width and the space belong to the sheet, so those two fields are off.
+**Layout panel.** The `layout` item is a button that opens a panel beside the text (and closes it again): the page width (the same choice as the `page` item), the maximum width of the text, the space around it and the line spacing. The last three are only about how the text is shown: they are variables on the editor (`--aurebesh-text-width`, `--aurebesh-pad-x`, `--aurebesh-pad-y`, `--aurebesh-line`) and are not part of the HTML. Set them from code with `layout: { textWidth: 800, padding: 48, lineHeight: 1.7 }` (option) or `editor.setLayout({ padding: 24 })`, read them with `getLayout()`, and listen to the `layout` event (the element fires a `layout` event with the settings as `detail`). `null` is the default of the editor. On a page format the width and the space belong to the sheet, so those two fields are off.
 
 Theme via CSS variables: `--aurebesh-border`, `--aurebesh-bg`, `--aurebesh-color`, `--aurebesh-accent`, `--aurebesh-toolbar-bg`, `--aurebesh-code-bg`, `--aurebesh-min-height`, `--aurebesh-max-height` (a fixed maximum height of the text area: the text then scrolls inside the editor while the toolbar stays in view; without it the editor grows with the text and the toolbar scrolls along with the page), and `--aurebesh-hl-keyword|string|comment|number|function|type|tag` for code colours.
 
 ## Sidebar and plugins
 
-The **sidebar** is a panel beside the text with room for one or more panels; the toolbar opens and closes them. The built-in one is `layout` (the columns, the page width, the text width, the space around the text and the line spacing). `editor.openPanel(id)`, `closePanel()` and `getOpenPanel()` do the same from code, and the `panel` event tells which one is open. With one panel the header shows its title, with several it shows tabs (arrow keys move between them). Escape closes the sidebar and the focus goes back to the toolbar item.
+The **sidebar** is a panel beside the text with room for one or more panels, shown as tabs. The toolbar item `sidebar` is one button that shows and hides it (it opens with the panel that was open last), and has **all** the panels: `layout` (the page width, the text width, the space around the text and the line spacing), `blocks` (see below) and the panels of plugins. So `toolbar: [..., 'sidebar', 'fullscreen']` is all it takes, and the layout and the blocks are a part of the sidebar, not buttons of their own. A panel can still have a button of its own (`layout`, `blocks` or the id of a plugin panel), also next to `sidebar`: it opens that panel. `editor.openPanel(id)`, `closePanel()` and `getOpenPanel()` do the same from code, and the `panel` event tells which one is open. With one panel the header shows its title, with several it shows tabs (arrow keys move between them). Escape closes the sidebar and the focus goes back to the toolbar item.
 
 A **plugin** adds a mode or a set of tools without the editor knowing about it. It is a plain object in the `plugins` option, made with `definePlugin` for type checking:
 
@@ -196,6 +196,37 @@ new Aurebesh(el, { plugins: [notes] });
 - **The context** has `editor`, `doc`, `root`, `content`, `stage`, `t()` (texts), `changed()` (report a change you made), `fail()`, `listen()` (a listener that is removed on destroy), `focus()`, `insert()`, `restoreSelection()`, `closeOnOutside()`, `isEditable()` and `openPanel()` / `closePanel()`.
 
 On the element: `el.options = { plugins: [notes] }`. React and Vue pass them in `options` too.
+
+## Building blocks: rows, columns and content
+
+The *Blocks* tab of the sidebar (the `sidebar` item, or the `blocks` item for a button of its own) has blocks to build a layout from, in the order *rows, columns, content*:
+
+- **Layout**: a row of 1 column, 2 columns, 3 columns, 30 / 70, 70 / 30 or 25 / 50 / 25.
+- **Content**: heading, text, image, button (a link that looks like one) and divider.
+
+**Drag** a block onto the text: a line shows where it will go (before or after the block under the pointer, or in a column), and it can go in a column, also a row in a column. **Click** a block to add it after the block that has the caret instead (or in the place of an empty line), which is how to do it with the keyboard and on a touch screen, where dragging between the panel and the text does not work. A heading or a paragraph is added with its text selected, so that typing replaces it; an image asks for a file (and goes through the upload adapter); a button is a link, so its address is changed with the link tools. Adding a block is one step for undo.
+
+While the caret is in a row, a row of tools shows its **distribution** (the presets, or the one the HTML has), the **gap** between the columns, and **Delete row layout**. A new distribution with fewer columns moves the content of the columns that go to the last one that stays; with more, the new columns are empty. The editor keeps the layout whole: every column has something to type in, there is a paragraph beside a row at the start and the end of the text, and Backspace at the very start of a column (or Delete at the very end) does nothing instead of joining the column with what is beside it.
+
+```js
+new Aurebesh(el, { toolbar: [...DEFAULT_TOOLBAR, 'sidebar'] });
+editor.addBlock('row2');          // from code: after the block that has the caret
+editor.addBlock('heading');
+```
+
+A row is plain HTML, a grid of columns, and nothing of the editor is in it:
+
+```html
+<div data-layout="row" style="display: grid; grid-template-columns: 3fr 7fr; gap: 16px">
+  <div data-layout="col" style="min-width: 0"><h2>Heading</h2></div>
+  <div data-layout="col" style="min-width: 0"><p>Text</p>
+    <p><a href="https://example.com" data-button="" style="display: inline-block; padding: 10px 20px; background-color: #2563eb; color: #ffffff; border-radius: 6px; text-decoration: none">Button</a></p></div>
+</div>
+```
+
+The sanitizer allows this and no more: a `div` with `data-layout` `row` or `col`; on a row `display: grid`, `grid-template-columns` of up to six columns in `fr` or `%`, `gap` in px and `align-items`; on a column padding, a background and `min-width: 0`; on a link that has `data-button` the few styles of a button. Anything else is removed, so a grid cannot be used for more than a layout. CSS grid is not supported by e-mail clients: for HTML e-mail use a table instead (see Tables). In Markdown and text the columns are the content one after the other. The editor shows the columns with a dashed outline; the HTML you get has none of it, so give `[data-layout="row"]` and the columns the look and the responsive behaviour you want in your own CSS (for example one column on a narrow screen, with `grid-template-columns` set to `1fr` in a media query with `!important`).
+
+Reordering blocks by dragging them inside the text, and a panel with the properties of the block that is selected, are not there yet.
 
 ## Counter, limit and ready
 

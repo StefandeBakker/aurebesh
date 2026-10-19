@@ -646,18 +646,12 @@ test.describe('layout panel', () => {
     await expect(page.locator('.aurebesh-panel')).toBeVisible();
   };
 
-  test('opens beside the text, and a tile puts the paragraph in that many columns', async ({ page }) => {
+  test('opens beside the text, not over it', async ({ page }) => {
     await openPanel(page, '<p>one</p><p>two</p>');
     const text = (await page.locator('.aurebesh-stage').boundingBox())!;
     const panel = (await page.locator('.aurebesh-panel').boundingBox())!;
-    expect(panel.x).toBeGreaterThanOrEqual(text.x + text.width - 1); // beside, not over
-    await content(page).locator('p').first().click();
-    await page.locator('.aurebesh-tile[data-columns="2"]').click();
-    expect(await html(page)).toContain('column-count: 2');
-    await expect(page.locator('.aurebesh-tile[data-columns="2"]')).toHaveAttribute('aria-checked', 'true');
-    await page.locator('.aurebesh-tile[data-columns="1"]').click();
-    expect(await html(page)).not.toContain('column-count');
-    await expect(page.locator('.aurebesh-tile[data-columns="1"]')).toHaveAttribute('aria-checked', 'true');
+    expect(panel.x).toBeGreaterThanOrEqual(text.x + text.width - 1);
+    await expect(page.locator('.aurebesh-tile')).toHaveCount(0); // the columns are the building blocks now
   });
 
   test('the maximum text width centres the text, and the line spacing changes the lines', async ({ page }) => {
@@ -678,7 +672,7 @@ test.describe('layout panel', () => {
 
   test('Escape closes the panel and gives the focus back to its button', async ({ page }) => {
     await openPanel(page, '<p>one</p>');
-    await page.locator('.aurebesh-tile').first().focus();
+    await page.locator('.aurebesh-panel input').first().focus();
     await page.keyboard.press('Escape');
     await expect(page.locator('.aurebesh-panel')).toBeHidden();
     await expect(page.locator('.aurebesh-cmd-layout')).toBeFocused();

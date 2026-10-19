@@ -23,6 +23,8 @@ import { selectedImage } from './media';
 import { currentCell, handleCellArrow, handleTab, trackCellDrag } from './table';
 import { attachColumnResize } from './table-resize';
 import { attachTableHandles } from './table-handles';
+import { BLOCK_MIME, CONTENT, LAYOUTS, blockHtml, currentRow, deleteRow, handleLayoutKey, insertBlock, normalizeLayouts, rowGap, rowTemplate, selectSpot, setRow, spotAt, spotAtCaret, spotLine } from './blocks';
+import type { Spot } from './blocks';
 import { DEFAULT_FONTS, firstFamily, SAFE_FAMILY } from './fonts';
 import type { FontDef } from './fonts';
 import { base64Adapter, resultUrl } from './media';
@@ -161,6 +163,10 @@ export class Aurebesh {
   private fontSelects: HTMLSelectElement[] = [];
   private lastRange: Range | null = null;
   private tableTools: HTMLElement | null = null;
+  private rowTools: HTMLElement | null = null;
+  private rowSelects: { layout?: HTMLSelectElement; gap?: HTMLSelectElement } = {};
+  private lastRow: HTMLElement | null = null;
+  private blockLine: HTMLElement | null = null;
   private imageTools: HTMLElement | null = null;
   private imageAltInput: HTMLInputElement | null = null;
   private linkTools: HTMLElement | null = null;
@@ -178,6 +184,8 @@ export class Aurebesh {
   private sidebar: Sidebar | null = null;
   /** The ids of the panels that the toolbar can open. */
   private panelIds: string[] = [];
+  /** The panel that was open last: the one the sidebar opens with. */
+  private lastPanel: string | null = null;
   /** Plugins hear about typing and read-only once they are attached (what was set before, they read in `attach`). */
   private attached = false;
   /** The commands of the editor and of its plugins. */
@@ -185,8 +193,6 @@ export class Aurebesh {
   private plugins: { def: AurebeshPlugin; inst: PluginInstance }[] = [];
   private sanitizers: SanitizeExtension[] = [];
   private extraIcons: Record<string, Shape[]> = {};
-  private layoutTiles: HTMLButtonElement[] = [];
-  private layoutNote: HTMLElement | null = null;
   private layoutInputs: { textWidth?: HTMLInputElement; padding?: HTMLInputElement; lineHeight?: HTMLSelectElement } = {};
   private layout: Layout = { textWidth: null, padding: null, lineHeight: null };
   private labels: Labels;
@@ -262,7 +268,9 @@ export class Aurebesh {
     const items = baseItems.length ? extendToolbar(baseItems, this.plugins.flatMap((p) => p.inst.toolbarExtend ?? [])) : baseItems;
     const quick = options.quickbar ?? (options.toolbar || pluginToolbar ? [] : DEFAULT_QUICKBAR);
     const commands = [...items, ...quick];
-    this.panelIds = ['layout', ...plugins.flatMap((p) => (p.panels ?? []).map((panel) => panel.id))].filter((id) => commands.includes(id));
+    // the panels there are: those with a button of their own in the toolbar, and with the `sidebar` item all of them
+    const known = ['layout', 'blocks', ...plugins.flatMap((p) => (p.panels ?? []).map((panel) => panel.id))];
+    this.panelIds = known.filter((id) => commands.includes('sidebar') || commands.includes(id));
     if (quick.length) this.buildQuickbar(quick);
     if (items.length) this.buildToolbar(items);
     this.buildContextualTools(commands);
@@ -277,8 +285,9 @@ export class Aurebesh {
     this.stage.className = 'aurebesh-stage';
     this.stage.appendChild(this.content);
     const panels: PanelDef[] = [];
-    if (commands.includes('layout')) panels.push({ id: 'layout', title: this.t('ui.layout'), build: () => this.buildLayoutPanel() });
-    for (const p of plugins) for (const panel of p.panels ?? []) if (commands.includes(panel.id)) panels.push(panel);
+    if (this.panelIds.includes('layout')) panels.push({ id: 'layout', title: this.t('ui.layout'), build: () => this.buildLayoutPanel() });
+    if (this.panelIds.includes('blocks')) panels.push({ id: 'blocks', title: this.t('ui.blocks'), build: () => this.buildBlocksPanel() });
+    for (const p of plugins) for (const panel of p.panels ?? []) if (this.panelIds.includes(panel.id)) panels.push(panel);
     if (panels.length) {
       // the text with the sidebar beside it
       const sidebar = new Sidebar(
@@ -286,16 +295,19 @@ export class Aurebesh {
         this.t('ui.close'),
         (open) => {
           for (const id of panels.map((p) => p.id)) this.buttons.get(id)?.forEach((b) => b.setAttribute('aria-expanded', String(id === open)));
+          this.buttons.get('sidebar')?.forEach((b) => b.setAttribute('aria-expanded', String(open !== null)));
+          if (open) this.lastPanel = open;
           this.placeLinkTools();
           this.emit('panel', open);
         },
-        (id) => this.buttons.get(id)?.[0]?.focus(),
+        (id) => (this.buttons.get(id)?.[0] ?? this.buttons.get('sidebar')?.[0])?.focus(),
       );
       this.sidebar = sidebar;
       for (const panel of panels) {
         sidebar.add(panel);
         this.buttons.get(panel.id)?.forEach((b) => b.setAttribute('aria-controls', sidebar.el.id));
       }
+      this.buttons.get('sidebar')?.forEach((b) => b.setAttribute('aria-controls', sidebar.el.id));
       const body = doc.createElement('div');
       body.className = 'aurebesh-body';
       body.append(this.stage, sidebar.el);
@@ -345,6 +357,7 @@ export class Aurebesh {
     this.listen(this.content, 'input', () => {
       // Deleting an embed leaves its empty wrapper behind.
       this.content.querySelectorAll(':scope > div:empty').forEach((d) => d.remove());
+      normalizeLayouts(this.content);
       this.syncEmpty();
       this.plugins.forEach((p) => p.inst.input?.());
       this.emitChange();
@@ -356,9 +369,18 @@ export class Aurebesh {
     this.listen(this.content, 'beforeinput', (e) => this.onBeforeInput(e as InputEvent));
     this.listen(this.content, 'dragover', (e) => {
       const drag = e as DragEvent;
+      if (drag.dataTransfer?.types.includes(BLOCK_MIME)) {
+        if (!this.content.isContentEditable) return;
+        e.preventDefault(); // a block can be dropped here
+        const spot = spotAt(this.content, drag.clientX, drag.clientY);
+        this.showBlockLine(spot);
+        return;
+      }
       // Files are taken by the editor, anything else only when a plugin says it wants it (it then gets the `drop`).
       if (drag.dataTransfer?.types.includes('Files') || this.plugins.some((p) => p.inst.dragover?.(drag))) e.preventDefault();
     });
+    this.listen(this.content, 'dragleave', () => this.showBlockLine(null));
+    this.listen(this.content.ownerDocument, 'dragend', () => this.showBlockLine(null));
     this.listen(this.content, 'drop', (e) => this.onDrop(e as DragEvent));
     this.listen(this.content, 'click', (e) => this.onClick(e as MouseEvent));
     this.listen(doc, 'selectionchange', () => this.updateToolbar());
@@ -709,6 +731,7 @@ export class Aurebesh {
     }
 
     if (handleCellArrow(e)) return; // moving the caret, not changing the text
+    if (handleLayoutKey(e, this.content)) return; // Backspace at the start of a column would take the layout apart
     if (handleListKey(e) || handleTab(e) || handleCodeKey(e)) this.emitChange();
   }
 
@@ -744,7 +767,6 @@ export class Aurebesh {
     this.orientationButtons.forEach((b) => (b.disabled = readOnly || !this.page?.height));
     this.columnsSelects.forEach((s) => (s.disabled = readOnly));
     this.cellBorderSelects.forEach((s) => (s.disabled = readOnly));
-    this.layoutTiles.forEach((t) => (t.disabled = readOnly));
     if (this.attached) this.plugins.forEach((p) => p.inst.readOnlyChanged?.());
     this.modeSwitch?.sync();
     this.updateToolbar();
@@ -854,6 +876,7 @@ export class Aurebesh {
     }
     const cmd = this.commands[item];
     if (!cmd) return null;
+    if (item === 'sidebar') return this.buildSidebarToggle(cmd);
     if (this.panelIds.includes(item)) return this.buildPanelButton(cmd);
     if (item === 'font') return this.buildFontSelect();
     if (item === 'size') return this.buildSizeSelect();
@@ -950,6 +973,7 @@ export class Aurebesh {
       rovingToolbar(tools, () => this.content.focus());
     }
 
+    if (this.panelIds.includes('blocks')) this.buildRowTools();
     if (commands.includes('image')) this.buildImageTools();
     if (commands.includes('link')) this.buildLinkTools();
   }
@@ -1200,6 +1224,18 @@ export class Aurebesh {
     return btn;
   }
 
+  /** The toolbar button that shows and hides the sidebar: it opens with the panel that was open last, or the first one. */
+  private buildSidebarToggle(cmd: CommandDef): HTMLButtonElement {
+    const btn = this.makeButton(cmd, () => {
+      if (!this.sidebar) return;
+      if (this.sidebar.current) this.sidebar.close();
+      else this.sidebar.open(this.lastPanel && this.sidebar.ids.includes(this.lastPanel) ? this.lastPanel : this.sidebar.ids[0]);
+    });
+    btn.setAttribute('aria-expanded', 'false');
+    btn.removeAttribute('aria-pressed'); // it is a disclosure button: aria-expanded says it
+    return btn;
+  }
+
   /** Opens a panel of the sidebar (the one with this id). */
   openPanel(id: string): void {
     this.sidebar?.open(id);
@@ -1283,48 +1319,6 @@ export class Aurebesh {
       return wrap;
     };
 
-    // the columns: tiles that show the number of columns
-    const cols = el('div', 'aurebesh-panel-section');
-    cols.appendChild(el('div', 'aurebesh-field-label', this.t('ui.columns')));
-    const tiles = el('div', 'aurebesh-tiles');
-    tiles.setAttribute('role', 'radiogroup');
-    tiles.setAttribute('aria-label', this.t('ui.columns'));
-    for (const n of [1, 2, 3, 4]) {
-      const tile = el('button', 'aurebesh-tile');
-      tile.type = 'button';
-      tile.tabIndex = n === 1 ? 0 : -1;
-      tile.setAttribute('role', 'radio');
-      tile.setAttribute('aria-checked', String(n === 1));
-      tile.setAttribute('aria-label', this.t(`columns.${n}`));
-      tile.title = this.t(`columns.${n}`);
-      tile.dataset.columns = String(n);
-      const bars = el('span', 'aurebesh-tile-bars');
-      for (let i = 0; i < n; i++) bars.appendChild(el('span'));
-      tile.append(bars, el('span', 'aurebesh-tile-n', String(n)));
-      tile.addEventListener('mousedown', (e) => e.preventDefault()); // the caret stays in the text
-      tile.addEventListener('click', () => {
-        this.exec('columns', String(n));
-        this.syncLayoutTiles(n);
-      });
-      tiles.appendChild(tile);
-      this.layoutTiles.push(tile);
-    }
-    tiles.addEventListener('keydown', (e) => {
-      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-      const current = this.layoutTiles.indexOf(doc.activeElement as HTMLButtonElement);
-      if (current < 0) return;
-      e.preventDefault();
-      const offset = e.key === 'ArrowRight' ? 1 : -1;
-      const next = this.layoutTiles[(current + offset + this.layoutTiles.length) % this.layoutTiles.length];
-      if (next.disabled) return;
-      next.focus();
-      next.click();
-      next.focus();
-    });
-    this.layoutNote = el('div', 'aurebesh-hint', this.t('columns.1'));
-    this.layoutNote.setAttribute('aria-live', 'polite');
-    cols.append(tiles, this.layoutNote);
-
     // how the text is shown
     const view = el('div', 'aurebesh-panel-section');
     view.appendChild(field(this.t('ui.layoutWidth'), this.buildPageSelect()));
@@ -1355,17 +1349,8 @@ export class Aurebesh {
     view.appendChild(field(this.t('ui.lineHeight'), line));
     view.appendChild(el('div', 'aurebesh-hint', this.t('ui.layoutNote')));
 
-    panel.append(cols, view);
+    panel.append(view);
     return panel;
-  }
-
-  private syncLayoutTiles(n: number): void {
-    for (const t of this.layoutTiles) {
-      const selected = t.dataset.columns === String(n);
-      t.setAttribute('aria-checked', String(selected));
-      t.tabIndex = selected ? 0 : -1;
-    }
-    if (this.layoutNote) this.layoutNote.textContent = this.t(`columns.${n}`);
   }
 
   /** Changes how the text is shown (what you leave out stays as it is). Nothing of it goes into the HTML. */
@@ -1546,6 +1531,159 @@ export class Aurebesh {
     return wrap;
   }
 
+  /** Shows (or hides, with null) the line that tells where a dragged block would go. */
+  private showBlockLine(spot: Spot | null): void {
+    if (!spot) {
+      this.blockLine?.remove();
+      this.blockLine = null;
+      return;
+    }
+    if (!this.blockLine) {
+      this.blockLine = this.container.ownerDocument.createElement('div');
+      this.blockLine.className = 'aurebesh-blockdrop';
+      this.blockLine.setAttribute('aria-hidden', 'true');
+      this.container.ownerDocument.body.appendChild(this.blockLine);
+    }
+    const line = spotLine(spot);
+    Object.assign(this.blockLine.style, { left: `${line.left}px`, width: `${line.width}px`, top: `${line.top}px` });
+  }
+
+  /** Puts a building block in the text: at the spot, or after the block that has the caret. The image asks for a file first. */
+  addBlock(id: string, spot?: Spot | null): void {
+    if (!this.content.isContentEditable) return;
+    if (!spot) {
+      this.restoreSelection(); // the click was in the sidebar: where the caret was
+      spot = spotAtCaret(this.content);
+    }
+    if (id === 'image') {
+      const input = this.container.ownerDocument.createElement('input');
+      input.type = 'file';
+      input.accept = IMAGE_TYPES.join(',');
+      const at = spot;
+      input.addEventListener('change', () => {
+        if (!input.files?.length) return;
+        selectSpot(this.content, at);
+        void this.uploadFiles(input.files);
+      });
+      input.click();
+      return;
+    }
+    if (!insertBlock(this.content, blockHtml(id, (key) => this.t(key)), spot)) return;
+    this.syncEmpty();
+    this.emitChange();
+    this.updateToolbar();
+  }
+
+  /** The panel with the building blocks: layouts and content, to drag into the text or to click. */
+  private buildBlocksPanel(): HTMLElement {
+    const doc = this.container.ownerDocument;
+    const panel = doc.createElement('div');
+    panel.className = 'aurebesh-panel-blocks';
+    const hint = doc.createElement('div');
+    hint.className = 'aurebesh-hint';
+    hint.textContent = this.t('ui.blocks.hint');
+    panel.appendChild(hint);
+    const section = (title: string) => {
+      const heading = doc.createElement('div');
+      heading.className = 'aurebesh-blocks-title';
+      heading.textContent = title;
+      const grid = doc.createElement('div');
+      grid.className = 'aurebesh-blocks';
+      grid.setAttribute('role', 'group');
+      grid.setAttribute('aria-label', title);
+      panel.append(heading, grid);
+      return grid;
+    };
+    const add = (grid: HTMLElement, id: string, preview: Element) => {
+      const b = doc.createElement('button');
+      b.type = 'button';
+      b.className = 'aurebesh-block';
+      b.draggable = true;
+      b.dataset.block = id;
+      const name = this.t(`block.${id}`);
+      b.title = name;
+      b.setAttribute('aria-label', name);
+      const label = doc.createElement('span');
+      label.textContent = name;
+      b.append(preview, label);
+      b.addEventListener('click', () => this.addBlock(id));
+      b.addEventListener('dragstart', (e) => {
+        e.dataTransfer?.setData(BLOCK_MIME, id);
+        if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy';
+      });
+      grid.appendChild(b);
+    };
+    const layouts = section(this.t('ui.blocks.layout'));
+    for (const l of LAYOUTS) {
+      const bars = doc.createElement('span');
+      bars.className = 'aurebesh-block-bars';
+      for (const part of l.template.split(' ')) {
+        const bar = doc.createElement('span');
+        bar.style.flex = String(parseFloat(part));
+        bars.appendChild(bar);
+      }
+      add(layouts, l.id, bars);
+    }
+    const content = section(this.t('ui.blocks.content'));
+    const icons: Record<string, string> = { heading: 'blockHeading', text: 'blockText', image: 'image', button: 'blockButton', divider: 'hr' };
+    for (const id of CONTENT) {
+      const icon = iconElement(doc, icons[id], this.extraIcons);
+      add(content, id, icon ?? doc.createElement('span'));
+    }
+    return panel;
+  }
+
+  /** The row that appears while the caret is in a layout row: how its columns are distributed, the gap between them, and Delete. */
+  private buildRowTools(): void {
+    const doc = this.container.ownerDocument;
+    const tools = doc.createElement('div');
+    tools.className = 'aurebesh-toolbar aurebesh-row-tools';
+    tools.setAttribute('role', 'toolbar');
+    tools.setAttribute('aria-label', this.t('ui.rowTools'));
+    tools.hidden = true;
+    const select = (className: string, label: string, options: [string, string][]) => {
+      const s = doc.createElement('select');
+      s.className = className;
+      s.title = label;
+      s.setAttribute('aria-label', label);
+      for (const [value, text] of options) {
+        const o = doc.createElement('option');
+        o.value = value;
+        o.textContent = text;
+        s.appendChild(o);
+      }
+      tools.appendChild(s);
+      return s;
+    };
+    const layout = select('aurebesh-rowlayout', this.t('ui.rowLayout'), LAYOUTS.map((l) => [l.template, this.t(`block.${l.id}`)]));
+    const gap = select('aurebesh-rowgap', this.t('ui.rowGap'), [0, 8, 16, 24, 32].map((n) => [String(n), `${n}px`]));
+    layout.addEventListener('change', () => this.changeRow(layout.value));
+    gap.addEventListener('change', () => this.changeRow(undefined, Number(gap.value)));
+    this.rowSelects = { layout, gap };
+    const del = this.makeButton(COMMANDS.rowDelete, () => {
+      const row = this.lastRow;
+      if (!row || !row.isConnected) return;
+      deleteRow(this.content, row);
+      this.syncEmpty();
+      this.emitChange();
+      this.updateToolbar();
+    });
+    tools.appendChild(del);
+    this.rowTools = tools;
+    this.root.appendChild(tools);
+    rovingToolbar(tools, () => this.content.focus());
+  }
+
+  private changeRow(template?: string, gap?: number): void {
+    const row = this.lastRow;
+    if (!row || !row.isConnected) return;
+    this.content.focus();
+    setRow(this.content, row, template ?? rowTemplate(row), gap ?? rowGap(row));
+    this.syncEmpty();
+    this.emitChange();
+    this.updateToolbar();
+  }
+
   /** Uploads files through the configured adapter and inserts the results at the caret. */
   async uploadFiles(files: File[] | FileList): Promise<void> {
     for (const file of Array.from(files)) {
@@ -1580,6 +1718,13 @@ export class Aurebesh {
   }
 
   private onDrop(e: DragEvent): void {
+    const block = e.dataTransfer?.getData(BLOCK_MIME);
+    if (block) {
+      e.preventDefault();
+      this.showBlockLine(null);
+      if (this.content.isContentEditable) this.addBlock(block, spotAt(this.content, e.clientX, e.clientY));
+      return;
+    }
     if (this.plugins.some((p) => p.inst.drop?.(e))) return;
     const files = e.dataTransfer?.files;
     if (!files?.length || !this.content.isContentEditable) return;
@@ -2050,6 +2195,28 @@ export class Aurebesh {
     const inside = !!sel && sel.rangeCount > 0 && this.content.contains(sel.anchorNode);
     if (inside) this.lastRange = sel!.getRangeAt(0).cloneRange();
     if (this.tableTools && !this.pointerHeld) this.tableTools.hidden = !(inside && currentTable());
+    if (this.rowTools) {
+      const row = inside && this.content.isContentEditable ? currentRow(this.content) : null;
+      if (row) {
+        this.lastRow = row;
+        const { layout, gap } = this.rowSelects;
+        if (layout) {
+          const template = rowTemplate(row);
+          // a distribution that is not one of the presets (from other HTML) is shown as it is
+          layout.querySelector('option[data-custom]')?.remove();
+          if (!Array.from(layout.options).some((o) => o.value === template)) {
+            const o = this.container.ownerDocument.createElement('option');
+            o.value = template;
+            o.dataset.custom = '';
+            o.textContent = template;
+            layout.appendChild(o);
+          }
+          layout.value = template;
+        }
+        if (gap) gap.value = String(rowGap(row));
+      }
+      this.rowTools.hidden = !row && !this.rowTools.contains(this.container.ownerDocument.activeElement);
+    }
     if (this.linkTools) {
       const link = inside && this.content.isContentEditable ? currentLink() : null;
       if (link) {
@@ -2080,7 +2247,6 @@ export class Aurebesh {
         const width = cellBorder().width;
         this.cellBorderSelects.forEach((s) => (s.value = Array.from(s.options).some((o) => o.value === width) ? width : ""));
       }
-      this.syncLayoutTiles(n);
     }
     if (inside) {
       const step = this.currentSizeStep(sel!.getRangeAt(0));
@@ -2100,6 +2266,7 @@ export class Aurebesh {
       this.fontSelects.forEach((select) => (select.value = match ? match.family : ''));
     }
     this.buttons.forEach((list, name) => {
+      if (name === 'sidebar') return; // aria-expanded says it
       const active = name === 'fullscreen' ? this.fullscreen : inside && (this.commands[name].isActive?.() ?? false);
       const enabled = this.commands[name].isEnabled;
       for (const btn of list) {

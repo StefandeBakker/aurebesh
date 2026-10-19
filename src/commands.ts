@@ -110,6 +110,12 @@ export const COMMANDS: Record<string, CommandDef> = {
   },
   indent: { name: 'indent', icon: 'indent', label: '→', title: 'Indent', run: () => indent(1), isEnabled: () => canIndent(1) },
   outdent: { name: 'outdent', icon: 'outdent', label: '←', title: 'Outdent', run: () => indent(-1), isEnabled: () => canIndent(-1) },
+  /** Shows and hides the sidebar, with all the panels that there are (layout, blocks, and those of plugins); handled by the editor. */
+  sidebar: { name: 'sidebar', icon: 'sidebar', label: '▤', title: 'Sidebar', run: () => {} },
+  /** Opens and closes the panel with the building blocks; handled by the editor. */
+  blocks: { name: 'blocks', icon: 'blocks', label: '▦', title: 'Building blocks', run: () => {} },
+  /** Takes the row that has the caret away (the tools of a row are built by the editor). */
+  rowDelete: { name: 'rowDelete', icon: 'trash', label: 'Delete row', title: 'Delete row layout', run: () => {} },
   /** Opens and closes the layout panel beside the text; handled by the editor. */
   layout: { name: 'layout', icon: 'layout', label: '⚙', title: 'Layout', run: () => {} },
   /** A button that makes the editor fill the window and back; handled by the editor, which owns the view. */
