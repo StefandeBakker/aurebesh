@@ -117,6 +117,7 @@ export const LABELS_NL: Labels = {
   tableRowDel: 'Rij verwijderen',
   tableColDel: 'Kolom verwijderen',
   tableDel: 'Tabel verwijderen',
+  task: 'Takenlijst',
   callout: 'Callout',
   'ui.callout.none': 'Geen callout',
   'ui.slash': 'Invoegen',

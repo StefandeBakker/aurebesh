@@ -5,6 +5,7 @@
  *   Mod+K            link (opens the link box)      Mod+E            inline code
  *   Mod+Shift+X      strikethrough                  Mod+Shift+7 / 8  numbered / bullet list
  *   Mod+Alt+1 / 2 / 3  heading 1 / 2 / 3           Mod+Alt+C        code block
+ *   Mod+Shift+9      task list                      Mod+Enter        check / uncheck the task
  */
 export function shortcutFor(e: KeyboardEvent): string | null {
   const mod = e.ctrlKey || e.metaKey;
@@ -21,6 +22,7 @@ export function shortcutFor(e: KeyboardEvent): string | null {
     if (e.code === 'KeyX') return 'strike';
     if (e.code === 'Digit7') return 'ol';
     if (e.code === 'Digit8') return 'ul';
+    if (e.code === 'Digit9') return 'task';
     return null;
   }
   if (e.altKey && !e.shiftKey) {
@@ -48,6 +50,7 @@ const KEYS: Record<string, string> = {
   h3: 'Mod+Alt+3',
   ol: 'Mod+Shift+7',
   ul: 'Mod+Shift+8',
+  task: 'Mod+Shift+9',
 };
 
 export const isMac = (): boolean => typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
