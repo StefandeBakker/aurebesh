@@ -26,6 +26,7 @@ import { attachTableHandles } from './table-handles';
 import { CALLOUT_ID, DEFAULT_CALLOUTS, calloutCss, currentCallout, handleCalloutKey, normalizeCallouts, setCallout } from './callouts';
 import type { CalloutDef } from './callouts';
 import { attachSlashMenu } from './slash';
+import { handleSoftBreak } from './softbreak';
 import { afterListInput, boxAt, handleTaskKey, toggleChecked } from './tasks';
 import type { SlashItem } from './slash';
 import { BLOCK_MIME, CONTENT, LAYOUTS, blockHtml, currentRow, deleteRow, handleLayoutKey, insertBlock, normalizeLayouts, rowGap, rowTemplate, selectSpot, setRow, spotAt, spotAtCaret, spotLine } from './blocks';
@@ -778,6 +779,11 @@ export class Aurebesh {
     }
 
     if (handleCellArrow(e)) return; // moving the caret, not changing the text
+    if (handleSoftBreak(e, this.content)) {
+      this.syncEmpty();
+      this.emitChange();
+      return;
+    }
     if (handleTaskKey(e) !== null) {
       this.emitChange();
       return;

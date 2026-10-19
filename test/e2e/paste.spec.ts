@@ -134,6 +134,33 @@ test.describe('pasting from Google Docs', () => {
     expect(requests).toBeLessThanOrEqual(2);
   });
 
+  const spyOnFetch = (page: Page) =>
+    page.evaluate(() => {
+      (window as any).fetched = [];
+      const real = window.fetch;
+      window.fetch = (...args) => ((window as any).fetched.push(String(args[0])), real(...args));
+    });
+  const fetched = (page: Page): Promise<string[]> => page.evaluate(() => (window as any).fetched);
+
+  test('with pasteImages: "link" the editor makes no request of its own for a pasted image', async ({ page }) => {
+    await page.route(GOOGLE_IMAGES, servePicture);
+    await open(page);
+    await page.evaluate(() => ((window as any).ed.options = { media: { pasteImages: 'link' } }));
+    await spyOnFetch(page);
+    await paste(page, { html: GOOGLE_DOCS_HTML });
+    await expect.poll(async () => (await srcs(page)).length).toBe(2);
+    await page.waitForTimeout(200);
+    expect(await fetched(page)).toEqual([]);
+  });
+
+  test('by default (the base64 adapter) a pasted image link is downloaded, to be embedded', async ({ page }) => {
+    await page.route(GOOGLE_IMAGES, servePicture);
+    await open(page);
+    await spyOnFetch(page);
+    await paste(page, { html: GOOGLE_DOCS_HTML });
+    await expect.poll(async () => (await fetched(page)).length).toBe(2);
+  });
+
   test('with pasteImages: "remove" the images are left out', async ({ page }) => {
     await open(page);
     await page.evaluate(() => {
