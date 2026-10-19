@@ -1,6 +1,6 @@
 {
   "name": "aurebesh",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "A lightweight, dependency-free WYSIWYG editor for the web. Rich text, tables, code blocks, images and video, with pluggable uploads. Works in React, Vue, Angular or plain HTML.",
   "license": "MIT",
   "repository": {
