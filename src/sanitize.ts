@@ -127,7 +127,12 @@ const ASIDE_STYLES: StyleRules = {
   'margin-left': /^auto$/,
   'margin-right': /^auto$/,
 };
+/** A strikethrough can have a double line and a colour. */
+const STRIKE_STYLES: StyleRules = { 'text-decoration-style': /^double$/, 'text-decoration-color': SAFE_COLOR };
 const STYLES_BY_TAG: Record<string, StyleRules> = {
+  s: STRIKE_STYLES,
+  strike: STRIKE_STYLES,
+  del: STRIKE_STYLES,
   /** Column widths, in percent: what dragging a column border sets. */
   col: { width: /^\d{1,3}(?:\.\d{1,2})?%$/ },
   aside: ASIDE_STYLES,

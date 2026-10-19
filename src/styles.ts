@@ -38,6 +38,10 @@ export const CSS = `
 .aurebesh-ribbon .aurebesh-group button[aria-pressed="true"]:hover{background:var(--aurebesh-active-bg,#e0e9ff)}
 .aurebesh-ribbon .aurebesh-group button:not(:has(>.aurebesh-icon)){font-size:14px;font-weight:600}
 .aurebesh-ribbon .aurebesh-group button.aurebesh-cmd-italic{font-weight:500}
+/* the buttons inside a dropdown (swatches, the table size, the lists) are not ribbon buttons: they keep their own size */
+.aurebesh-ribbon .aurebesh-group .aurebesh-table-pop button{min-width:0;height:auto;border-radius:4px;font-size:13px;font-weight:400}
+.aurebesh-ribbon .aurebesh-group .aurebesh-color-grid button{width:var(--aurebesh-cell,18px);height:var(--aurebesh-cell,18px);border-radius:3px}
+.aurebesh-ribbon .aurebesh-group .aurebesh-table-grid button{width:var(--aurebesh-cell,18px);height:var(--aurebesh-cell,18px);border-radius:0}
 .aurebesh-ribbon .aurebesh-group button.aurebesh-cmd-underline{text-underline-offset:3px}
 /* the layout panel beside the text */
 /* the text and the sidebar side by side: with a maximum height the body keeps to it, and a sidebar that is taller scrolls inside it */
@@ -97,6 +101,11 @@ export const CSS = `
 .aurebesh-content th{background:var(--aurebesh-toolbar-bg,#f8f9fb);font-weight:600;text-align:start}
 .aurebesh-content.aurebesh-col-resize,.aurebesh-content.aurebesh-col-resize *{cursor:col-resize}
 .aurebesh-cmd-sidebar[aria-expanded="true"]{background:var(--aurebesh-active-bg,#e0e9ff)!important;color:var(--aurebesh-active-color,#1d4ed8)!important}
+/* the look of a strikethrough */
+.aurebesh-strike-pop{display:flex;flex-direction:column;gap:2px;width:max-content;max-width:calc(100vw - 16px)}
+.aurebesh-strike-option{padding:6px 10px;border:0;border-radius:4px;background:transparent;color:inherit;cursor:pointer;font:inherit;font-size:13px;text-align:start}
+.aurebesh-strike-option:hover,.aurebesh-strike-option[aria-pressed="true"]{background:var(--aurebesh-hover,rgba(0,0,0,.06))}
+.aurebesh-strike-pop .aurebesh-color-grid{margin-top:6px}
 /* callouts in the text: the picker, and the slash menu */
 .aurebesh-callout-option{display:flex;align-items:center;gap:8px;width:100%;padding:6px 10px;border:0;border-radius:4px;background:transparent;color:inherit;cursor:pointer;font:inherit;font-size:13px;text-align:start}
 .aurebesh-callout-option:hover,.aurebesh-callout-option[aria-pressed="true"]{background:var(--aurebesh-hover,rgba(0,0,0,.06))}
