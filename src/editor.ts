@@ -184,6 +184,8 @@ export class Aurebesh {
   private sidebar: Sidebar | null = null;
   /** The ids of the panels that the toolbar can open. */
   private panelIds: string[] = [];
+  /** The panel that was open last: the one the sidebar opens with. */
+  private lastPanel: string | null = null;
   /** Plugins hear about typing and read-only once they are attached (what was set before, they read in `attach`). */
   private attached = false;
   /** The commands of the editor and of its plugins. */
@@ -191,8 +193,6 @@ export class Aurebesh {
   private plugins: { def: AurebeshPlugin; inst: PluginInstance }[] = [];
   private sanitizers: SanitizeExtension[] = [];
   private extraIcons: Record<string, Shape[]> = {};
-  private layoutTiles: HTMLButtonElement[] = [];
-  private layoutNote: HTMLElement | null = null;
   private layoutInputs: { textWidth?: HTMLInputElement; padding?: HTMLInputElement; lineHeight?: HTMLSelectElement } = {};
   private layout: Layout = { textWidth: null, padding: null, lineHeight: null };
   private labels: Labels;
@@ -268,7 +268,9 @@ export class Aurebesh {
     const items = baseItems.length ? extendToolbar(baseItems, this.plugins.flatMap((p) => p.inst.toolbarExtend ?? [])) : baseItems;
     const quick = options.quickbar ?? (options.toolbar || pluginToolbar ? [] : DEFAULT_QUICKBAR);
     const commands = [...items, ...quick];
-    this.panelIds = ['layout', 'blocks', ...plugins.flatMap((p) => (p.panels ?? []).map((panel) => panel.id))].filter((id) => commands.includes(id));
+    // the panels there are: those with a button of their own in the toolbar, and with the `sidebar` item all of them
+    const known = ['layout', 'blocks', ...plugins.flatMap((p) => (p.panels ?? []).map((panel) => panel.id))];
+    this.panelIds = known.filter((id) => commands.includes('sidebar') || commands.includes(id));
     if (quick.length) this.buildQuickbar(quick);
     if (items.length) this.buildToolbar(items);
     this.buildContextualTools(commands);
@@ -283,9 +285,9 @@ export class Aurebesh {
     this.stage.className = 'aurebesh-stage';
     this.stage.appendChild(this.content);
     const panels: PanelDef[] = [];
-    if (commands.includes('layout')) panels.push({ id: 'layout', title: this.t('ui.layout'), build: () => this.buildLayoutPanel() });
-    if (commands.includes('blocks')) panels.push({ id: 'blocks', title: this.t('ui.blocks'), build: () => this.buildBlocksPanel() });
-    for (const p of plugins) for (const panel of p.panels ?? []) if (commands.includes(panel.id)) panels.push(panel);
+    if (this.panelIds.includes('layout')) panels.push({ id: 'layout', title: this.t('ui.layout'), build: () => this.buildLayoutPanel() });
+    if (this.panelIds.includes('blocks')) panels.push({ id: 'blocks', title: this.t('ui.blocks'), build: () => this.buildBlocksPanel() });
+    for (const p of plugins) for (const panel of p.panels ?? []) if (this.panelIds.includes(panel.id)) panels.push(panel);
     if (panels.length) {
       // the text with the sidebar beside it
       const sidebar = new Sidebar(
@@ -293,16 +295,19 @@ export class Aurebesh {
         this.t('ui.close'),
         (open) => {
           for (const id of panels.map((p) => p.id)) this.buttons.get(id)?.forEach((b) => b.setAttribute('aria-expanded', String(id === open)));
+          this.buttons.get('sidebar')?.forEach((b) => b.setAttribute('aria-expanded', String(open !== null)));
+          if (open) this.lastPanel = open;
           this.placeLinkTools();
           this.emit('panel', open);
         },
-        (id) => this.buttons.get(id)?.[0]?.focus(),
+        (id) => (this.buttons.get(id)?.[0] ?? this.buttons.get('sidebar')?.[0])?.focus(),
       );
       this.sidebar = sidebar;
       for (const panel of panels) {
         sidebar.add(panel);
         this.buttons.get(panel.id)?.forEach((b) => b.setAttribute('aria-controls', sidebar.el.id));
       }
+      this.buttons.get('sidebar')?.forEach((b) => b.setAttribute('aria-controls', sidebar.el.id));
       const body = doc.createElement('div');
       body.className = 'aurebesh-body';
       body.append(this.stage, sidebar.el);
@@ -762,7 +767,6 @@ export class Aurebesh {
     this.orientationButtons.forEach((b) => (b.disabled = readOnly || !this.page?.height));
     this.columnsSelects.forEach((s) => (s.disabled = readOnly));
     this.cellBorderSelects.forEach((s) => (s.disabled = readOnly));
-    this.layoutTiles.forEach((t) => (t.disabled = readOnly));
     if (this.attached) this.plugins.forEach((p) => p.inst.readOnlyChanged?.());
     this.modeSwitch?.sync();
     this.updateToolbar();
@@ -872,6 +876,7 @@ export class Aurebesh {
     }
     const cmd = this.commands[item];
     if (!cmd) return null;
+    if (item === 'sidebar') return this.buildSidebarToggle(cmd);
     if (this.panelIds.includes(item)) return this.buildPanelButton(cmd);
     if (item === 'font') return this.buildFontSelect();
     if (item === 'size') return this.buildSizeSelect();
@@ -968,7 +973,7 @@ export class Aurebesh {
       rovingToolbar(tools, () => this.content.focus());
     }
 
-    if (commands.includes('blocks')) this.buildRowTools();
+    if (this.panelIds.includes('blocks')) this.buildRowTools();
     if (commands.includes('image')) this.buildImageTools();
     if (commands.includes('link')) this.buildLinkTools();
   }
@@ -1219,6 +1224,18 @@ export class Aurebesh {
     return btn;
   }
 
+  /** The toolbar button that shows and hides the sidebar: it opens with the panel that was open last, or the first one. */
+  private buildSidebarToggle(cmd: CommandDef): HTMLButtonElement {
+    const btn = this.makeButton(cmd, () => {
+      if (!this.sidebar) return;
+      if (this.sidebar.current) this.sidebar.close();
+      else this.sidebar.open(this.lastPanel && this.sidebar.ids.includes(this.lastPanel) ? this.lastPanel : this.sidebar.ids[0]);
+    });
+    btn.setAttribute('aria-expanded', 'false');
+    btn.removeAttribute('aria-pressed'); // it is a disclosure button: aria-expanded says it
+    return btn;
+  }
+
   /** Opens a panel of the sidebar (the one with this id). */
   openPanel(id: string): void {
     this.sidebar?.open(id);
@@ -1302,48 +1319,6 @@ export class Aurebesh {
       return wrap;
     };
 
-    // the columns: tiles that show the number of columns
-    const cols = el('div', 'aurebesh-panel-section');
-    cols.appendChild(el('div', 'aurebesh-field-label', this.t('ui.columns')));
-    const tiles = el('div', 'aurebesh-tiles');
-    tiles.setAttribute('role', 'radiogroup');
-    tiles.setAttribute('aria-label', this.t('ui.columns'));
-    for (const n of [1, 2, 3, 4]) {
-      const tile = el('button', 'aurebesh-tile');
-      tile.type = 'button';
-      tile.tabIndex = n === 1 ? 0 : -1;
-      tile.setAttribute('role', 'radio');
-      tile.setAttribute('aria-checked', String(n === 1));
-      tile.setAttribute('aria-label', this.t(`columns.${n}`));
-      tile.title = this.t(`columns.${n}`);
-      tile.dataset.columns = String(n);
-      const bars = el('span', 'aurebesh-tile-bars');
-      for (let i = 0; i < n; i++) bars.appendChild(el('span'));
-      tile.append(bars, el('span', 'aurebesh-tile-n', String(n)));
-      tile.addEventListener('mousedown', (e) => e.preventDefault()); // the caret stays in the text
-      tile.addEventListener('click', () => {
-        this.exec('columns', String(n));
-        this.syncLayoutTiles(n);
-      });
-      tiles.appendChild(tile);
-      this.layoutTiles.push(tile);
-    }
-    tiles.addEventListener('keydown', (e) => {
-      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-      const current = this.layoutTiles.indexOf(doc.activeElement as HTMLButtonElement);
-      if (current < 0) return;
-      e.preventDefault();
-      const offset = e.key === 'ArrowRight' ? 1 : -1;
-      const next = this.layoutTiles[(current + offset + this.layoutTiles.length) % this.layoutTiles.length];
-      if (next.disabled) return;
-      next.focus();
-      next.click();
-      next.focus();
-    });
-    this.layoutNote = el('div', 'aurebesh-hint', this.t('columns.1'));
-    this.layoutNote.setAttribute('aria-live', 'polite');
-    cols.append(tiles, this.layoutNote);
-
     // how the text is shown
     const view = el('div', 'aurebesh-panel-section');
     view.appendChild(field(this.t('ui.layoutWidth'), this.buildPageSelect()));
@@ -1374,17 +1349,8 @@ export class Aurebesh {
     view.appendChild(field(this.t('ui.lineHeight'), line));
     view.appendChild(el('div', 'aurebesh-hint', this.t('ui.layoutNote')));
 
-    panel.append(cols, view);
+    panel.append(view);
     return panel;
-  }
-
-  private syncLayoutTiles(n: number): void {
-    for (const t of this.layoutTiles) {
-      const selected = t.dataset.columns === String(n);
-      t.setAttribute('aria-checked', String(selected));
-      t.tabIndex = selected ? 0 : -1;
-    }
-    if (this.layoutNote) this.layoutNote.textContent = this.t(`columns.${n}`);
   }
 
   /** Changes how the text is shown (what you leave out stays as it is). Nothing of it goes into the HTML. */
@@ -2281,7 +2247,6 @@ export class Aurebesh {
         const width = cellBorder().width;
         this.cellBorderSelects.forEach((s) => (s.value = Array.from(s.options).some((o) => o.value === width) ? width : ""));
       }
-      this.syncLayoutTiles(n);
     }
     if (inside) {
       const step = this.currentSizeStep(sel!.getRangeAt(0));
@@ -2301,6 +2266,7 @@ export class Aurebesh {
       this.fontSelects.forEach((select) => (select.value = match ? match.family : ''));
     }
     this.buttons.forEach((list, name) => {
+      if (name === 'sidebar') return; // aria-expanded says it
       const active = name === 'fullscreen' ? this.fullscreen : inside && (this.commands[name].isActive?.() ?? false);
       const enabled = this.commands[name].isEnabled;
       for (const btn of list) {

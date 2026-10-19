@@ -117,6 +117,7 @@ export const LABELS_DE: Labels = {
   tableRowDel: 'Zeile löschen',
   tableColDel: 'Spalte löschen',
   tableDel: 'Tabelle löschen',
+  sidebar: 'Seitenleiste',
   blocks: 'Bausteine',
   rowDelete: 'Zeilenlayout löschen',
   'ui.blocks': 'Bausteine',

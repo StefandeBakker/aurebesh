@@ -121,6 +121,7 @@ export const LABELS_EN: Labels = {
   tableRowDel: 'Delete row',
   tableColDel: 'Delete column',
   tableDel: 'Delete table',
+  sidebar: 'Sidebar',
   blocks: 'Building blocks',
   rowDelete: 'Delete row layout',
   'ui.blocks': 'Blocks',

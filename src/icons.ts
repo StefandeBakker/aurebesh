@@ -82,6 +82,8 @@ export const ICONS: Record<string, Shape[]> = {
   blockHeading: [['path', { d: 'M5 5v14M19 5v14M5 12h14' }]],
   blockText: [['path', { d: 'M4 6h16M4 10h16M4 14h16M4 18h9' }]],
   blockButton: [['rect', { x: 3, y: 8, width: 18, height: 8, rx: 3 }], ['path', { d: 'M8 12h8' }]],
+  // a window with a sidebar on the right
+  sidebar: [['rect', { x: 3, y: 4, width: 18, height: 16, rx: 2 }], ['path', { d: 'M15 4v16' }]],
   cellAlignTop: [['rect', { x: 4, y: 4, width: 16, height: 16, rx: 1.5 }], ['path', { d: 'M8 8h8' }]],
   cellAlignMiddle: [['rect', { x: 4, y: 4, width: 16, height: 16, rx: 1.5 }], ['path', { d: 'M8 12h8' }]],
   cellAlignBottom: [['rect', { x: 4, y: 4, width: 16, height: 16, rx: 1.5 }], ['path', { d: 'M8 16h8' }]],

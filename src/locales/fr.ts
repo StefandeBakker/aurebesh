@@ -117,6 +117,7 @@ export const LABELS_FR: Labels = {
   tableRowDel: 'Supprimer la ligne',
   tableColDel: 'Supprimer la colonne',
   tableDel: 'Supprimer le tableau',
+  sidebar: 'Barre latérale',
   blocks: 'Blocs de construction',
   rowDelete: 'Supprimer la ligne de mise en page',
   'ui.blocks': 'Blocs',

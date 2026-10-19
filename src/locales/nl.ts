@@ -117,6 +117,7 @@ export const LABELS_NL: Labels = {
   tableRowDel: 'Rij verwijderen',
   tableColDel: 'Kolom verwijderen',
   tableDel: 'Tabel verwijderen',
+  sidebar: 'Zijbalk',
   blocks: 'Bouwblokken',
   rowDelete: 'Rijindeling verwijderen',
   'ui.blocks': 'Blokken',
