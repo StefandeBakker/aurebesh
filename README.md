@@ -134,7 +134,7 @@ import 'aurebesh/element'; // registers <aurebesh-editor>
 The toolbar is made of **blocks**. In the `toolbar` option `|` starts a new block and `/` starts a second row inside a block. A block always stays in one piece: when the toolbar is narrow, whole blocks go to the next line instead of a block being cut in two. The default:
 
 ```
-font size clear clearStyle / bold italic underline underlineStyle strike strikeStyle highlight color | ul ol task / alignLeft alignCenter alignRight | h1 h2 quote / code codeblock | link image video / table hr | columns
+font size weight clear clearStyle / bold italic underline underlineStyle strike strikeStyle highlight color | ul ol task / alignLeft alignCenter alignRight | h1 h2 quote / code codeblock | link image video / table hr | columns
 ```
 
 That is five blocks: the font (typeface, size and clear formatting on top, character styles, highlight and colour below), the paragraph (lists, then alignment), the styles (headings and quote on top, then the two kinds of code, inline and block), what you can insert (link, picture and video, then table and line) and the layout (columns). Leave out every `/` and each block is a single row that wraps like before (a block with a name, `#Name`, that has more than three buttons goes to the next line after every three); a toolbar without any `|` is one block.
@@ -247,6 +247,36 @@ The HTML has no input in it, only two attributes:
 ```
 
 The box is drawn with CSS, which the editor has. On a page that only shows the HTML, put `taskListCss()` in a `<style>` (it is exported), and colour it with `--aurebesh-task-color`, `--aurebesh-task-border` and `--aurebesh-task-radius`. The sanitizer allows `data-task` on a `ul` and `data-checked="true"` on an item of one, and nothing else. In Markdown it is `- [ ] todo` and `- [x] done`, in and out, nested as well; in a list where only some items have a box, all of them get one. In text it is the content. Two limits: checking an item is a direct DOM edit, so the browser's undo does not cover it (typing and splitting are), and the state is not read out by a screen reader, because the box is not an element: use `Mod+Enter` and write the state in the text when it matters.
+
+## Font size
+
+The `size` item is a box with sizes in **points**, as in Word and Google Docs: 8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48 and 72, and *Default*, which takes the sizes of the selected text away. The box shows the size of the text that has the caret, also when it is not in the list (a heading has its own size, and shows it: 24 for a heading 1). With only a caret the size is for the text that is typed next.
+
+The sizes of the box are the `sizes` option (points, 8 to 200):
+
+```js
+new Aurebesh(el, { sizes: [10, 12, 14, 18, 24, 36] });
+```
+
+The size is a style on a span, in points, whatever the size of the text around it:
+
+```html
+<p>Normal text, <span style="font-size: 18pt">bigger</span> and <span style="font-size: 9pt">smaller</span>.</p>
+```
+
+The sanitizer allows `font-size` in `pt` or `px` (6 to 299) and the names of the seven steps that older content has (`small`, `x-large`...) on a span, and nothing else (no `em` or percentages). A browser makes the text of the page 16 px, which is 12 pt, so *12* is the normal size of the editor. `editor.exec('size', '14')` sets 14 pt from code; `'1'` to `'7'` still set one of the seven steps. Markdown has no sizes: the text is plain there. Setting a size is in the undo history (the span is made by the browser); typing a size at a caret needs the typing that follows it.
+
+## Font weight
+
+The `weight` item is a box with five weights: **light** (300), **regular** (400), **medium** (500), **semibold** (600) and **bold** (700). It gives the selected text that weight, and it shows the weight of the text that has the caret. A weight replaces the one the text had (bold included), *Regular* takes it away, and in a heading, which is bold by itself, a lighter weight makes the text lighter than the heading. Without a selection it does nothing.
+
+Bold is `<strong>` (or `<b>`), as the bold button makes it. The weights between are a style on a span:
+
+```html
+<p><span style="font-weight: 300">Light</span> text, <span style="font-weight: 600">semibold</span> text and <strong>bold</strong> text.</p>
+```
+
+The sanitizer allows `font-weight` 300, 400, 500 and 600 on a `span` and nothing else. **Which weights show depends on the font.** A browser uses the weight the font has that is nearest to the one asked for, so a font that has only regular and bold (many system fonts) shows light and medium as regular, and semibold as bold; a variable font or a font with all the weights shows every one. The HTML always says what was chosen, so it looks right again with a font that has the weight (the `fonts` option takes the families to choose from, and a page can load a font with its weights). In Markdown only bold is kept (`**text**`); the other weights are plain text. The clear buttons take a weight away with the bold: *Clear formatting* and the *Bold* entry of the list of the clear button.
 
 ## Inline code, superscript and subscript
 

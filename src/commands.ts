@@ -7,6 +7,8 @@ import { isTaskList, toggleTaskList } from './tasks';
 import { setDecoration } from './decoration';
 import type { LineStyle } from './decoration';
 import { clearInline } from './clearformat';
+import { setWeight } from './weight';
+import { setFontSize } from './fontsize';
 import type { InlineKind } from './clearformat';
 import { insertImage, insertVideo, insertVideoFile, setImageAlign, setImageAlt, setImageWidth } from './media';
 import { addColumn, addRow, canMerge, canMoveCurrent, canSplit, cellProperty, copyColumns, copyRows, deleteColumn, deleteRow, deleteTable, hasCaption, hasCopied, insertTable, mergeCells, moveCurrent, pasteColumns, pasteRows, setCellBorder, setCellProperty, splitCell, toggleCaption, toggleCellProperty, toggleHeaderRow } from './table';
@@ -153,13 +155,16 @@ export const COMMANDS: Record<string, CommandDef> = {
   orientation: { name: 'orientation', icon: 'landscape', label: '▭', title: 'Landscape', run: () => {} },
   /** A select in the toolbar, not in the default one; it is handled by the editor (`setPage`), since the format belongs to the editor, not the selection. */
   page: { name: 'page', label: 'Page', title: 'Page format', run: () => {} },
-  /** run('1'..'7'): the browser's seven size steps (small .. huge). */
+  /** run('14'): the size in points (8 and up), run('default'): the sizes go. run('1'..'7') is one of the seven size steps of the browser (small .. huge). */
   size: {
     name: 'size',
     label: 'Size',
     title: 'Size',
-    run: (step) => {
-      if (step && /^[1-7]$/.test(step)) withCss(() => exec('fontSize', step));
+    run: (value) => {
+      if (!value) return;
+      if (/^[1-7]$/.test(value)) withCss(() => exec('fontSize', value));
+      else if (value === 'default') setFontSize(null);
+      else if (Number.isFinite(Number(value)) && Number(value) >= 8 && Number(value) <= 200) setFontSize(Number(value));
     },
   },
   color: {
@@ -225,6 +230,8 @@ export const COMMANDS: Record<string, CommandDef> = {
   cellAlignMiddle: { name: 'cellAlignMiddle', icon: 'cellAlignMiddle', label: '↕', title: 'Center cell text vertically', run: () => toggleCellProperty('vertical-align', 'middle'), isActive: () => cellProperty('vertical-align') === 'middle' },
   cellAlignBottom: { name: 'cellAlignBottom', icon: 'cellAlignBottom', label: '⤓', title: 'Align cell text to the bottom', run: () => toggleCellProperty('vertical-align', 'bottom'), isActive: () => cellProperty('vertical-align') === 'bottom' },
   tableCaption: { name: 'tableCaption', icon: 'caption', label: 'Caption', title: 'Table caption', run: () => toggleCaption(), isActive: hasCaption },
+  /** The weight of the selected text, from light to bold; a box in the toolbar, built by the editor. */
+  weight: { name: 'weight', label: 'Weight', title: 'Font weight', run: (value) => value && setWeight(Number(value)) },
   /** A list to take away one kind of formatting from the selected text: bold, italic, underline, strikethrough, colour or highlight. Built by the editor. */
   clearStyle: {
     name: 'clearStyle',
@@ -252,7 +259,7 @@ export const COMMANDS: Record<string, CommandDef> = {
  * `ltr` `rtl` after `alignRight`, `h3` after `h2`, and `page` `orientation` after `columns`.
  */
 export const DEFAULT_TOOLBAR = [
-  'font', 'size', 'clear', 'clearStyle', '/', 'bold', 'italic', 'underline', 'underlineStyle', 'strike', 'strikeStyle', 'highlight', 'color', '|',
+  'font', 'size', 'weight', 'clear', 'clearStyle', '/', 'bold', 'italic', 'underline', 'underlineStyle', 'strike', 'strikeStyle', 'highlight', 'color', '|',
   'ul', 'ol', 'task', '/', 'alignLeft', 'alignCenter', 'alignRight', '|',
   'h1', 'h2', 'quote', '/', 'code', 'codeblock', '|',
   'link', 'image', 'video', '/', 'table', 'hr', '|',
