@@ -117,6 +117,7 @@ export const LABELS_DE: Labels = {
   tableRowDel: 'Zeile löschen',
   tableColDel: 'Spalte löschen',
   tableDel: 'Tabelle löschen',
+  clearStyle: 'Eine Formatierung entfernen',
   strikeStyle: 'Durchstreichungsstil',
   'ui.strike.single': 'Einfache Linie',
   'ui.strike.double': 'Doppelte Linie',

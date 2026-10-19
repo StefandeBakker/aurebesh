@@ -117,6 +117,7 @@ export const LABELS_NL: Labels = {
   tableRowDel: 'Rij verwijderen',
   tableColDel: 'Kolom verwijderen',
   tableDel: 'Tabel verwijderen',
+  clearStyle: 'Eén soort opmaak wissen',
   strikeStyle: 'Doorhaalstijl',
   'ui.strike.single': 'Enkele lijn',
   'ui.strike.double': 'Dubbele lijn',

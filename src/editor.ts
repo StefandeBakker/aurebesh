@@ -28,6 +28,8 @@ import type { CalloutDef } from './callouts';
 import { attachSlashMenu } from './slash';
 import { handleSoftBreak } from './softbreak';
 import { strikeLook } from './strike';
+import { hasInline } from './clearformat';
+import type { InlineKind } from './clearformat';
 import { afterListInput, boxAt, handleTaskKey, toggleChecked } from './tasks';
 import type { SlashItem } from './slash';
 import { BLOCK_MIME, CONTENT, LAYOUTS, blockHtml, currentRow, deleteRow, handleLayoutKey, insertBlock, normalizeLayouts, rowGap, rowTemplate, selectSpot, setRow, spotAt, spotAtCaret, spotLine } from './blocks';
@@ -212,6 +214,7 @@ export class Aurebesh {
   private modeSwitch: ModeSwitch | null = null;
   private calloutTypes: CalloutDef[] = DEFAULT_CALLOUTS;
   private calloutOptions: HTMLButtonElement[] = [];
+  private clearOptions: { kind: string; button: HTMLButtonElement }[] = [];
   private strikeOptions: { single: HTMLButtonElement[]; double: HTMLButtonElement[] } = { single: [], double: [] };
   private readOnlyState = false;
   private colors: string[];
@@ -942,6 +945,7 @@ export class Aurebesh {
     if (!cmd) return null;
     if (item === 'callout') return this.buildCalloutPicker(cmd);
     if (item === 'strikeStyle') return this.buildStrikePicker(cmd);
+    if (item === 'clearStyle') return this.buildClearPicker(cmd);
     if (item === 'sidebar') return this.buildSidebarToggle(cmd);
     if (this.panelIds.includes(item)) return this.buildPanelButton(cmd);
     if (item === 'font') return this.buildFontSelect();
@@ -1293,6 +1297,48 @@ export class Aurebesh {
     const btn = this.makeButton(cmd, () => this.sidebar?.toggle(cmd.name));
     btn.setAttribute('aria-expanded', 'false');
     return btn;
+  }
+
+  /** The button with the list of what can be taken away from the selected text, without the rest of its formatting. */
+  private buildClearPicker(cmd: CommandDef): HTMLElement {
+    const doc = this.container.ownerDocument;
+    const wrap = doc.createElement('span');
+    wrap.className = 'aurebesh-table-picker';
+    const toggle = this.makeButton(cmd, (e) => {
+      pop.hidden = !pop.hidden;
+      if (!pop.hidden && e.detail === 0) (pop.querySelector('button:not([disabled])') as HTMLElement | null)?.focus();
+    });
+    toggle.classList.add('aurebesh-swatch-btn');
+    const pop = doc.createElement('div');
+    pop.className = 'aurebesh-table-pop aurebesh-strike-pop aurebesh-clear-pop';
+    pop.hidden = true;
+    pop.setAttribute('role', 'group');
+    pop.setAttribute('aria-label', this.title(cmd));
+    const kinds: [string, string][] = [
+      ['bold', this.title(this.commands.bold)],
+      ['italic', this.title(this.commands.italic)],
+      ['underline', this.title(this.commands.underline)],
+      ['strike', this.title(this.commands.strike)],
+      ['color', this.title(this.commands.color)],
+      ['highlight', this.title(this.commands.highlight)],
+      ['all', this.title(this.commands.clear)],
+    ];
+    for (const [kind, label] of kinds) {
+      const b = doc.createElement('button');
+      b.type = 'button';
+      b.className = 'aurebesh-strike-option';
+      b.textContent = label;
+      b.addEventListener('mousedown', (e) => e.preventDefault());
+      b.addEventListener('click', () => {
+        pop.hidden = true;
+        this.exec('clearStyle', kind);
+      });
+      pop.appendChild(b);
+      this.clearOptions.push({ kind, button: b });
+    }
+    this.closeOnOutside(wrap, pop, toggle);
+    wrap.append(toggle, pop);
+    return wrap;
   }
 
   /** The button with the look of a strikethrough: a single or a double line, and a colour. */
@@ -2399,6 +2445,11 @@ export class Aurebesh {
     const inside = !!sel && sel.rangeCount > 0 && this.content.contains(sel.anchorNode);
     if (inside) this.lastRange = sel!.getRangeAt(0).cloneRange();
     if (this.tableTools && !this.pointerHeld) this.tableTools.hidden = !(inside && currentTable());
+    // the kinds that the selected text does not have cannot be taken away
+    for (const { kind, button } of this.clearOptions) {
+      const has = kind === 'all' || kind === 'color' || kind === 'highlight' || (inside && hasInline(kind as InlineKind));
+      button.disabled = !has;
+    }
     if (this.strikeOptions.single.length) {
       const look = inside ? strikeLook() : null;
       for (const b of this.strikeOptions.single) b.setAttribute('aria-pressed', String(!!look && !look.double));
@@ -2480,7 +2531,7 @@ export class Aurebesh {
       this.fontSelects.forEach((select) => (select.value = match ? match.family : ''));
     }
     this.buttons.forEach((list, name) => {
-      if (name === 'sidebar' || name === 'callout' || name === 'strikeStyle') return; // aria-expanded says it, and the callout picker sets its own state
+      if (name === 'sidebar' || name === 'callout' || name === 'strikeStyle' || name === 'clearStyle') return; // aria-expanded says it, and the callout picker sets its own state
       const active = name === 'fullscreen' ? this.fullscreen : inside && (this.commands[name].isActive?.() ?? false);
       const enabled = this.commands[name].isEnabled;
       for (const btn of list) {

@@ -117,6 +117,7 @@ export const LABELS_ES: Labels = {
   tableRowDel: 'Eliminar fila',
   tableColDel: 'Eliminar columna',
   tableDel: 'Eliminar tabla',
+  clearStyle: 'Quitar un solo tipo de formato',
   strikeStyle: 'Estilo de tachado',
   'ui.strike.single': 'Línea simple',
   'ui.strike.double': 'Línea doble',

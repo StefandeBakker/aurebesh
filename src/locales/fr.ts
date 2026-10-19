@@ -117,6 +117,7 @@ export const LABELS_FR: Labels = {
   tableRowDel: 'Supprimer la ligne',
   tableColDel: 'Supprimer la colonne',
   tableDel: 'Supprimer le tableau',
+  clearStyle: 'Effacer un seul type de mise en forme',
   strikeStyle: 'Style de barré',
   'ui.strike.single': 'Ligne simple',
   'ui.strike.double': 'Ligne double',
