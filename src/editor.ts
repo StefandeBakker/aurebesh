@@ -22,6 +22,7 @@ import type { Labels } from './labels';
 import { selectedImage } from './media';
 import { currentCell, handleCellArrow, handleTab, trackCellDrag } from './table';
 import { attachColumnResize } from './table-resize';
+import { attachTableHandles } from './table-handles';
 import { DEFAULT_FONTS, firstFamily, SAFE_FAMILY } from './fonts';
 import type { FontDef } from './fonts';
 import { base64Adapter, resultUrl } from './media';
@@ -389,6 +390,23 @@ export class Aurebesh {
         },
       ),
     );
+
+    if (commands.includes('table')) {
+      this.cleanup.push(
+        attachTableHandles({
+          content: this.content,
+          stage: this.stage,
+          canEdit: () => this.content.isContentEditable,
+          changed: () => {
+            this.emitChange();
+            this.updateToolbar();
+          },
+          focus: () => this.content.focus(),
+          warn: (message) => this.showStatus(message, true),
+          t: (key) => this.t(key),
+        }),
+      );
+    }
 
     this.statusEl = doc.createElement('div');
     this.statusEl.className = 'aurebesh-status';

@@ -100,6 +100,26 @@ export const CSS = `
 .aurebesh-content td,.aurebesh-content th{border:1px solid var(--aurebesh-border,#d0d5dd);padding:6px 8px;vertical-align:top;min-width:30px}
 .aurebesh-content th{background:var(--aurebesh-toolbar-bg,#f8f9fb);font-weight:600;text-align:start}
 .aurebesh-content.aurebesh-col-resize,.aurebesh-content.aurebesh-col-resize *{cursor:col-resize}
+/* the handles on the table with the caret: borders to drag, grips to move a row or a column, and the frames of the selected cells */
+.aurebesh-stage{position:relative}
+.aurebesh-handles{position:absolute;z-index:4;overflow:hidden;pointer-events:none}
+.aurebesh-handle{position:absolute;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none}
+.aurebesh-handle-col{width:12px;margin-inline-start:-6px;cursor:col-resize}
+.aurebesh-handle-row{height:12px;margin-top:-6px;cursor:row-resize}
+.aurebesh-handle-col::after,.aurebesh-handle-row::after{content:'';position:absolute;background:var(--aurebesh-accent,#2563eb);opacity:0;transition:opacity .1s}
+.aurebesh-handle-col::after{inset-block:0;left:5px;width:2px}
+.aurebesh-handle-row::after{inset-inline:0;top:5px;height:2px}
+.aurebesh-handle-col:hover::after,.aurebesh-handle-row:hover::after,.aurebesh-handle.is-dragging::after{opacity:.9}
+.aurebesh-handle-col-grip,.aurebesh-handle-row-grip{display:flex;align-items:center;justify-content:center;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:var(--aurebesh-toolbar-bg,#f8f9fb);color:var(--aurebesh-label,#667085);cursor:grab;opacity:.75}
+.aurebesh-handle-col-grip{width:22px;height:12px;margin-left:-11px}
+.aurebesh-handle-row-grip{width:12px;height:22px;margin-top:-11px}
+.aurebesh-handle-col-grip::before,.aurebesh-handle-row-grip::before{content:'';width:10px;height:6px;background-image:radial-gradient(currentColor 1px,transparent 1.4px);background-size:4px 4px}
+.aurebesh-handle-row-grip::before{width:6px;height:10px}
+.aurebesh-handle-col-grip:hover,.aurebesh-handle-row-grip:hover,.aurebesh-handle.is-dragging{opacity:1;background:var(--aurebesh-hover,#eef0f4)}
+.aurebesh-handle.is-dragging{cursor:grabbing}
+.aurebesh-drop{position:absolute;pointer-events:none;background:var(--aurebesh-accent,#2563eb);border-radius:2px}
+.aurebesh-cell-sel{position:absolute;box-sizing:border-box;pointer-events:none;border:2px solid var(--aurebesh-accent,#2563eb);background:color-mix(in srgb,var(--aurebesh-accent,#2563eb) 14%,transparent)}
+@media (pointer:coarse){.aurebesh-handle-col{width:32px;margin-inline-start:-16px}.aurebesh-handle-col::after{left:15px}.aurebesh-handle-row{height:32px;margin-top:-16px}.aurebesh-handle-row::after{top:15px}.aurebesh-handle-col-grip{width:34px;height:20px;margin-left:-17px}.aurebesh-handle-row-grip{width:20px;height:34px;margin-top:-17px}.aurebesh-handle-col::after,.aurebesh-handle-row::after{opacity:.35}}
 .aurebesh-content.aurebesh-col-resizing{user-select:none}
 /* the colour buttons: an icon with a bar in the colour chosen last, and a small arrow for the palette that opens */
 .aurebesh-icon-swatch{stroke:rgba(0,0,0,.35);stroke-width:.6}
