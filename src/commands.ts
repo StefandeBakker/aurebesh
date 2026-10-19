@@ -5,6 +5,8 @@ import { currentLink, isInlineCode, setLink, toggleInlineCode } from './inline';
 import { canIndent, indent } from './indent';
 import { isTaskList, toggleTaskList } from './tasks';
 import { setStrike } from './strike';
+import { clearInline } from './clearformat';
+import type { InlineKind } from './clearformat';
 import { insertImage, insertVideo, insertVideoFile, setImageAlign, setImageAlt, setImageWidth } from './media';
 import { addColumn, addRow, canMerge, canMoveCurrent, canSplit, cellProperty, copyColumns, copyRows, deleteColumn, deleteRow, deleteTable, hasCaption, hasCopied, insertTable, mergeCells, moveCurrent, pasteColumns, pasteRows, setCellBorder, setCellProperty, splitCell, toggleCaption, toggleCellProperty, toggleHeaderRow } from './table';
 
@@ -209,6 +211,19 @@ export const COMMANDS: Record<string, CommandDef> = {
   cellAlignMiddle: { name: 'cellAlignMiddle', icon: 'cellAlignMiddle', label: '↕', title: 'Center cell text vertically', run: () => toggleCellProperty('vertical-align', 'middle'), isActive: () => cellProperty('vertical-align') === 'middle' },
   cellAlignBottom: { name: 'cellAlignBottom', icon: 'cellAlignBottom', label: '⤓', title: 'Align cell text to the bottom', run: () => toggleCellProperty('vertical-align', 'bottom'), isActive: () => cellProperty('vertical-align') === 'bottom' },
   tableCaption: { name: 'tableCaption', icon: 'caption', label: 'Caption', title: 'Table caption', run: () => toggleCaption(), isActive: hasCaption },
+  /** A list to take away one kind of formatting from the selected text: bold, italic, underline, strikethrough, colour or highlight. Built by the editor. */
+  clearStyle: {
+    name: 'clearStyle',
+    icon: 'clearStyle',
+    label: 'Tx…',
+    title: 'Clear one kind of formatting',
+    run: (kind) => {
+      if (kind === 'color') COMMANDS.color.run('inherit');
+      else if (kind === 'highlight') COMMANDS.highlight.run('transparent');
+      else if (kind === 'bold' || kind === 'italic' || kind === 'underline' || kind === 'strike') clearInline(kind as InlineKind);
+      else exec('removeFormat');
+    },
+  },
   clear: { name: 'clear', icon: 'clear', label: 'Tx', title: 'Clear formatting', run: () => exec('removeFormat') },
   undo: { name: 'undo', icon: 'undo', label: '↶', title: 'Undo', run: () => exec('undo') },
   redo: { name: 'redo', icon: 'redo', label: '↷', title: 'Redo', run: () => exec('redo') },
@@ -223,7 +238,7 @@ export const COMMANDS: Record<string, CommandDef> = {
  * `ltr` `rtl` after `alignRight`, `h3` after `h2`, and `page` `orientation` after `columns`.
  */
 export const DEFAULT_TOOLBAR = [
-  'font', 'size', 'clear', '/', 'bold', 'italic', 'underline', 'strike', 'strikeStyle', 'highlight', 'color', '|',
+  'font', 'size', 'clear', 'clearStyle', '/', 'bold', 'italic', 'underline', 'strike', 'strikeStyle', 'highlight', 'color', '|',
   'ul', 'ol', 'task', '/', 'alignLeft', 'alignCenter', 'alignRight', '|',
   'h1', 'h2', 'quote', '/', 'code', 'codeblock', '|',
   'link', 'image', 'video', '/', 'table', 'hr', '|',

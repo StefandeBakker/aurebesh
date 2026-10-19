@@ -32,6 +32,8 @@ export const ICONS: Record<string, Shape[]> = {
     ['path', { d: 'M22.8 11.9 18.6 7.7 12.2 14.1l4.2 4.2z' }],
     ['path', { d: 'M16.5 9.8l4.2 4.2' }],
   ],
+  // an eraser with a line under it: takes away one kind of formatting
+  clearStyle: [['path', { d: 'M19.5 11 13 4.5a1.8 1.8 0 0 0-2.5 0L4.5 10.5a1.8 1.8 0 0 0 0 2.5l3.5 3.5h5l6.5-5.5Z' }], ['path', { d: 'M8.5 8.5l6.5 6.5M9 20.5h10' }]],
   ul: [dot(6), dot(12), dot(18), ['path', { d: 'M9.5 6H21M9.5 12H21M9.5 18H21' }]],
   // the numbers are drawn as lines, so that the icon is only shapes
   // two lines through a letter

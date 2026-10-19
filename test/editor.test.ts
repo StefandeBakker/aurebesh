@@ -201,7 +201,7 @@ describe('the default toolbar', () => {
 
   it('follows the Home tab of Word: blocks of two rows (the font, the paragraph, the styles, what can be inserted, the layout)', () => {
     expect(blocks(DEFAULT_TOOLBAR)).toEqual([
-      [['font', 'size', 'clear'], ['bold', 'italic', 'underline', 'strike', 'strikeStyle', 'highlight', 'color']],
+      [['font', 'size', 'clear', 'clearStyle'], ['bold', 'italic', 'underline', 'strike', 'strikeStyle', 'highlight', 'color']],
       [['ul', 'ol', 'task'], ['alignLeft', 'alignCenter', 'alignRight']],
       [['h1', 'h2', 'quote'], ['code', 'codeblock']], // the headings and the quote; the two kinds of code
       [['link', 'image', 'video'], ['table', 'hr']],
@@ -238,7 +238,7 @@ describe('the default toolbar', () => {
     const s = shape(el);
     expect(s).toHaveLength(5);
     expect(s.map((g) => g.length)).toEqual([2, 2, 2, 2, 1]);
-    expect(s[0][0]).toEqual(['Font', 'Size', 'Clear formatting']);
+    expect(s[0][0]).toEqual(['Font', 'Size', 'Clear formatting', 'Clear one kind of formatting']);
     expect(s[0][1].slice(0, 4)).toEqual(['Bold', 'Italic', 'Underline', 'Strikethrough']);
     expect(s[0][1]).not.toContain('Inline code'); // inline code is with the code block, not with the character styles
     expect(s[2]).toEqual([['Heading 1', 'Heading 2', 'Quote'], ['Inline code', 'Code block']]);

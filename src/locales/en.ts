@@ -121,6 +121,7 @@ export const LABELS_EN: Labels = {
   tableRowDel: 'Delete row',
   tableColDel: 'Delete column',
   tableDel: 'Delete table',
+  clearStyle: 'Clear one kind of formatting',
   strikeStyle: 'Strikethrough style',
   'ui.strike.single': 'Single line',
   'ui.strike.double': 'Double line',

@@ -103,6 +103,7 @@ export const CSS = `
 .aurebesh-cmd-sidebar[aria-expanded="true"]{background:var(--aurebesh-active-bg,#e0e9ff)!important;color:var(--aurebesh-active-color,#1d4ed8)!important}
 /* the look of a strikethrough */
 .aurebesh-strike-pop{display:flex;flex-direction:column;gap:2px;width:max-content;max-width:calc(100vw - 16px)}
+.aurebesh-strike-option:disabled{opacity:.4;cursor:default;background:transparent}
 .aurebesh-strike-option{padding:6px 10px;border:0;border-radius:4px;background:transparent;color:inherit;cursor:pointer;font:inherit;font-size:13px;text-align:start}
 .aurebesh-strike-option:hover,.aurebesh-strike-option[aria-pressed="true"]{background:var(--aurebesh-hover,rgba(0,0,0,.06))}
 .aurebesh-strike-pop .aurebesh-color-grid{margin-top:6px}
