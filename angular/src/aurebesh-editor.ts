@@ -33,6 +33,7 @@ import type { AurebeshElement } from 'aurebesh/element';
 /** The inputs that are attributes of the element, with the name of the attribute. */
 const ATTRIBUTES: Record<string, string> = {
   placeholder: 'placeholder',
+  language: 'language',
   page: 'page',
   pageOrientation: 'page-orientation',
   pageMargin: 'page-margin',
@@ -56,6 +57,8 @@ export class AurebeshEditor implements ControlValueAccessor, AfterViewInit, OnCh
   /** Everything that cannot be an attribute (media adapter, fonts, colours, labels, plugins...). */
   @Input() options?: AurebeshOptions;
   @Input() placeholder?: string;
+  /** The language of the texts of the editor: 'nl', 'de', 'fr', 'es', 'en'. Default: the `lang` of the page, or the language of the browser. */
+  @Input() language?: string;
   /** Page format: 'a4', 'a5', 'ticket-80', ..., or a width such as '600px' / '80mm' (a number is px). */
   @Input() page?: string | number;
   @Input() pageOrientation?: 'portrait' | 'landscape';

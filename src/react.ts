@@ -28,6 +28,8 @@ export interface AurebeshEditorProps {
   /** Called when the words / characters change. */
   onCount?: (stats: TextStats) => void;
   options?: AurebeshOptions;
+  /** The language of the texts of the editor: 'nl', 'de', 'fr', 'es', 'en'. Default: the `lang` of the page, or the language of the browser. */
+  language?: string;
   /** Page format: 'a4', 'a5', 'ticket-80', ..., or a width such as '600px' / '80mm' (a number is px). The editor shows a sheet of that size. */
   page?: string | number;
   pageOrientation?: 'portrait' | 'landscape';
@@ -51,7 +53,7 @@ export interface AurebeshEditorProps {
 
 export const AurebeshEditor = forwardRef<AurebeshElement, AurebeshEditorProps>(function AurebeshEditor(props, ref) {
   defineAurebeshElement();
-  const { value, defaultValue, onChange, onError, onReady, onCount, onPageChange, options, page, pageOrientation, pageMargin, maxLength, counter, placeholder, readOnly, required, name, toolbar, id, className, style } = props;
+  const { value, defaultValue, onChange, onError, onReady, onCount, onPageChange, options, language, page, pageOrientation, pageMargin, maxLength, counter, placeholder, readOnly, required, name, toolbar, id, className, style } = props;
   const el = useRef<AurebeshElement | null>(null);
   useImperativeHandle(ref, () => el.current as AurebeshElement);
   const handlers = useRef({ onChange, onError, onReady, onCount, onPageChange });
@@ -98,6 +100,7 @@ export const AurebeshEditor = forwardRef<AurebeshElement, AurebeshEditorProps>(f
     class: className,
     style,
     placeholder,
+    language,
     page: page === undefined ? undefined : String(page),
     'page-orientation': pageOrientation,
     'page-margin': pageMargin,
