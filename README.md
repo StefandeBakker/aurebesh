@@ -371,7 +371,7 @@ On the element: `<aurebesh-editor modes>` (all three), `modes="markdown"` or `mo
 
 ### What a Markdown round trip keeps and loses
 
-Markdown to HTML to Markdown gives the same Markdown for what the editor writes itself (the tests check this). Written by hand, Markdown is normalised: `*a*` and `_a_` both come back as `*a*`, a setext heading (`Title` over `=====`) as `# Title`, `*` and `+` bullets as `-`, and a soft line break in a paragraph as a space.
+Markdown to HTML to Markdown gives the same Markdown for what the editor writes itself (the tests check this). Written by hand, Markdown is normalised: `*a*` and `_a_` both come back as `*a*`, a setext heading (`Title` over `=====`) as `# Title`, `*` and `+` bullets as `-`, and a soft line break in a paragraph as a space. A line break made with `Shift+Enter` is two spaces and a new line (`one  ⏎two`), or a backslash at the end of the line; in a heading and in a table cell, which have only one line, it is `<br>`, which is read back as a break too.
 
 | | Read from Markdown | Written to Markdown |
 |---|---|---|
@@ -443,6 +443,7 @@ To add a language to your own application without changing the package, pass its
 | `Mod+Shift+X` | Strikethrough |
 | `Mod+Shift+7` / `Mod+Shift+8` / `Mod+Shift+9` | Numbered / bullet / task list |
 | `Mod+Enter` | Check or uncheck the task with the caret |
+| `Shift+Enter` | A line break inside the block (`<br>`), where `Enter` starts a new one; the same in every browser, in a list item, a heading, a quote, a callout and a table cell (in a code block it is a new line) |
 | `Mod+Alt+1` / `2` / `3` | Heading 1 / 2 / 3 |
 | `Mod+Alt+C` | Code block |
 | `Ctrl/Cmd+click` on a link | Open the link in a new tab (a plain click only puts the caret in it) |
