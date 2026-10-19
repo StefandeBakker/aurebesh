@@ -12,7 +12,7 @@ const start = async (page: Page, initial = '<p>one</p><p>two</p>', extra: Record
 };
 const pick = async (page: Page, type: string) => {
   await page.locator('.aurebesh-cmd-callout').click();
-  await page.locator(`.aurebesh-callout-option[data-callout="${type}"]`).click();
+  await page.locator(`.aurebesh-callout-option[data-callout-type="${type}"]`).click();
 };
 
 test.describe('the callout button', () => {
@@ -31,8 +31,8 @@ test.describe('the callout button', () => {
     await pick(page, 'warning');
     expect(await html(page)).toBe('<div data-callout="warning"><p>one</p></div>');
     await page.locator('.aurebesh-cmd-callout').click();
-    await expect(page.locator('.aurebesh-callout-option[data-callout="warning"]')).toHaveAttribute('aria-pressed', 'true');
-    await page.locator('.aurebesh-callout-option[data-callout=""]').click();
+    await expect(page.locator('.aurebesh-callout-option[data-callout-type="warning"]')).toHaveAttribute('aria-pressed', 'true');
+    await page.locator('.aurebesh-callout-option[data-callout-type=""]').click();
     expect(await html(page)).toBe('<p>one</p>');
   });
 
