@@ -426,6 +426,17 @@ function selectedRect(): { table: HTMLTableElement; rect: [number, number, numbe
   return at ? { table, rect: [at.r, at.c, at.r + at.rs - 1, at.c + at.cs - 1] } : null;
 }
 
+/** The table and the cells of the selection (every cell once; the cell under the caret alone when nothing is selected over cells). */
+export function selectionCells(): { table: HTMLTableElement; cells: Cell[] } | null {
+  const found = selectedRect();
+  if (!found) return null;
+  const model = modelOf(found.table);
+  const [r1, c1, r2, c2] = found.rect;
+  const cells = new Set<Cell>();
+  for (let r = r1; r <= r2; r++) for (let c = c1; c <= c2; c++) if (model.m[r][c]) cells.add(model.m[r][c]!);
+  return { table: found.table, cells: [...cells] };
+}
+
 /** The value of a property on the cell under the caret ('' when it has none). */
 export function cellProperty(prop: CellProperty): string {
   const cell = currentCell();
@@ -880,6 +891,116 @@ export function pasteColumns(): void {
     });
     return [r, right + 1];
   });
+}
+
+// ---- moving rows and columns, selecting them --------------------------------------------------------------
+
+/** Whether a cell that is merged over several rows (`axis` 'row') or columns lies in the given range of rows or columns. */
+function spansIn(model: Model, axis: 'row' | 'column', from: number, to: number): boolean {
+  const [lo, hi] = [Math.min(from, to), Math.max(from, to)];
+  const seen = new Set<Cell>();
+  for (let r = 0; r < model.m.length; r++) {
+    for (let c = 0; c < model.cols; c++) {
+      if ((axis === 'row' ? r : c) < lo || (axis === 'row' ? r : c) > hi) continue;
+      const cell = model.m[r][c];
+      if (!cell || seen.has(cell)) continue;
+      seen.add(cell);
+      if (spanOf(cell, axis === 'row' ? 'rowspan' : 'colspan') > 1) return true;
+    }
+  }
+  return false;
+}
+
+/** Whether row `from` can move to the place of row `to`: not when a cell that is merged over rows lies in between. */
+export function canMoveRow(table: HTMLTableElement, from: number, to: number): boolean {
+  const model = modelOf(table);
+  return from !== to && from >= 0 && to >= 0 && from < model.m.length && to < model.m.length && !spansIn(model, 'row', from, to);
+}
+
+export function canMoveColumn(table: HTMLTableElement, from: number, to: number): boolean {
+  const model = modelOf(table);
+  return from !== to && from >= 0 && to >= 0 && from < model.cols && to < model.cols && !spansIn(model, 'column', from, to);
+}
+
+/** Moves a row so that it ends up as row `to` (the rows in between shift by one). One step for undo; false when it cannot. */
+export function moveRow(table: HTMLTableElement, from: number, to: number): boolean {
+  if (!canMoveRow(table, from, to)) return false;
+  editTable(
+    table,
+    (model) => {
+      const { m, rows } = model;
+      const [tr] = rows.splice(from, 1);
+      const [line] = m.splice(from, 1);
+      // without the moved row, the row at index `to` is the one it goes in front of (or, at the end, it goes after the last one)
+      const ref = rows[to];
+      if (ref) ref.before(tr);
+      else rows[rows.length - 1].after(tr);
+      rows.splice(to, 0, tr);
+      m.splice(to, 0, line);
+      return [to, 0];
+    },
+    (fresh, grid) => selectCells(grid, [to, 0, to, (grid[0]?.length ?? 1) - 1]),
+  );
+  return true;
+}
+
+/** Moves a column so that it ends up as column `to`, with its width. One step for undo; false when it cannot. */
+export function moveColumn(table: HTMLTableElement, from: number, to: number): boolean {
+  if (!canMoveColumn(table, from, to)) return false;
+  editTable(
+    table,
+    (model, copy) => {
+      const widths = readWidths(copy, model.cols);
+      const hadWidths = !!copy.querySelector(':scope > colgroup') && colsOf(copy).length === model.cols;
+      model.m.forEach((row) => {
+        const [cell] = row.splice(from, 1);
+        row.splice(to, 0, cell);
+      });
+      if (hadWidths) {
+        const [w] = widths.splice(from, 1);
+        widths.splice(to, 0, w);
+        writeWidths(copy, widths);
+      }
+      return [0, to];
+    },
+    (fresh, grid) => selectCells(grid, [0, to, grid.length - 1, to]),
+  );
+  return true;
+}
+
+/** Selects all the cells of a row or of a column, as a drag over them would. */
+export function selectLine(table: HTMLTableElement, axis: 'row' | 'column', index: number): void {
+  const model = modelOf(table);
+  const rect: [number, number, number, number] = axis === 'row' ? [index, 0, index, model.cols - 1] : [0, index, model.m.length - 1, index];
+  if (axis === 'row' ? index >= model.m.length : index >= model.cols) return;
+  selectCells(model.m, rect);
+}
+
+/** The index of the row (`axis` 'row') or the first column of the cell under the caret, or -1. */
+export function currentIndex(axis: 'row' | 'column'): number {
+  const cell = currentCell();
+  const table = cell?.closest('table');
+  const at = cell && table ? locate(modelOf(table), cell) : null;
+  return at ? (axis === 'row' ? at.r : at.c) : -1;
+}
+
+/** The step in the grid for a move on the screen: left in a table that runs right to left is to a higher column. */
+function gridStep(table: HTMLTableElement, axis: 'row' | 'column', step: -1 | 1): number {
+  return axis === 'column' && getComputedStyle(table).direction === 'rtl' ? -step : step;
+}
+
+/** Moves the row (`axis` 'row') or the column of the cell under the caret one place: -1 up or left, 1 down or right. */
+export function moveCurrent(axis: 'row' | 'column', step: -1 | 1): void {
+  const table = currentCell()?.closest('table');
+  const index = currentIndex(axis);
+  if (table && index >= 0) (axis === 'row' ? moveRow : moveColumn)(table, index, index + gridStep(table, axis, step));
+}
+
+/** Whether the row or the column of the cell under the caret can move that way. */
+export function canMoveCurrent(axis: 'row' | 'column', step: -1 | 1): boolean {
+  const table = currentCell()?.closest('table');
+  const index = currentIndex(axis);
+  return !!table && index >= 0 && (axis === 'row' ? canMoveRow : canMoveColumn)(table, index, index + gridStep(table, axis, step));
 }
 
 /** Tab / Shift+Tab moves between cells; Tab in the last cell adds a row. Returns true when handled. */

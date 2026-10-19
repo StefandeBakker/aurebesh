@@ -63,6 +63,8 @@ const CELL_STYLES: StyleRules = {
   'background-color': SAFE_COLOR,
   border: new RegExp(`^(?:none|[0-8]px (?:solid|dashed|dotted|double) ${SAFE_COLOR.source.slice(1, -1)})$`, 'i'),
 };
+/** A row can be made taller by dragging its lower border: its height in pixels. */
+const ROW_STYLES: StyleRules = { height: /^(?:[2-9]\d|[1-9]\d{2}|1\d{3})(?:\.\d)?px$/ };
 const IMG_STYLES: StyleRules = {
   width: /^\d{1,3}%$/,
   display: /^block$/,
@@ -95,6 +97,7 @@ const STYLES_BY_TAG: Record<string, StyleRules> = {
   ...Object.fromEntries(['p', 'h1', 'h2', 'h3', 'li', 'blockquote', 'caption'].map((t) => [t, BLOCK_STYLES])),
   td: CELL_STYLES,
   th: CELL_STYLES,
+  tr: ROW_STYLES,
   div: COLUMN_STYLES,
 };
 
