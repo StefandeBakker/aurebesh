@@ -23,6 +23,10 @@ import { selectedImage } from './media';
 import { currentCell, handleCellArrow, handleTab, trackCellDrag } from './table';
 import { attachColumnResize } from './table-resize';
 import { attachTableHandles } from './table-handles';
+import { CALLOUT_ID, DEFAULT_CALLOUTS, calloutCss, currentCallout, handleCalloutKey, normalizeCallouts, setCallout } from './callouts';
+import type { CalloutDef } from './callouts';
+import { attachSlashMenu } from './slash';
+import type { SlashItem } from './slash';
 import { BLOCK_MIME, CONTENT, LAYOUTS, blockHtml, currentRow, deleteRow, handleLayoutKey, insertBlock, normalizeLayouts, rowGap, rowTemplate, selectSpot, setRow, spotAt, spotAtCaret, spotLine } from './blocks';
 import type { Spot } from './blocks';
 import { DEFAULT_FONTS, firstFamily, SAFE_FAMILY } from './fonts';
@@ -72,6 +76,10 @@ export interface Layout {
 }
 
 export interface AurebeshOptions {
+  /** The callout types (see `CalloutDef`); default: note, tip, important, warning and caution. Their colours can also be set with CSS variables. */
+  callouts?: CalloutDef[];
+  /** The slash menu: typing `/` at the start of a line lists what to insert (callouts, headings, lists...). Default: on when the toolbar has the `callout` item. */
+  slash?: boolean;
   /**
    * The format of `value`, of what `getValue()` and `setValue()` use without a format, and of the `change` event: 'html' (default),
    * 'markdown' (a Markdown-first editor: you give it Markdown and get Markdown back) or the name of a format that a plugin adds.
@@ -199,6 +207,8 @@ export class Aurebesh {
   private valueFormat: OutputFormat = 'html';
   private language = 'en';
   private modeSwitch: ModeSwitch | null = null;
+  private calloutTypes: CalloutDef[] = DEFAULT_CALLOUTS;
+  private calloutOptions: HTMLButtonElement[] = [];
   private readOnlyState = false;
   private colors: string[];
   private adapter: MediaAdapter | null;
@@ -223,6 +233,17 @@ export class Aurebesh {
     const doc = container.ownerDocument;
     const plugins = options.plugins ?? [];
     this.valueFormat = options.valueFormat ?? 'html';
+    if (options.callouts) {
+      this.calloutTypes = options.callouts.filter((t) => CALLOUT_ID.test(t.id));
+      // the styles of the types the page gave: after the built-in ones, so that they win
+      const sig = JSON.stringify(this.calloutTypes);
+      if (!Array.from(doc.head.querySelectorAll('style[data-aurebesh-callouts]')).some((s) => s.getAttribute('data-aurebesh-callouts') === sig)) {
+        const style = doc.createElement('style');
+        style.setAttribute('data-aurebesh-callouts', sig);
+        style.textContent = calloutCss(this.calloutTypes);
+        doc.head.appendChild(style);
+      }
+    }
     this.language = resolveLanguage(options.language, container);
     this.labels = { ...DEFAULT_LABELS, ...LANGUAGES[this.language], ...Object.assign({}, ...plugins.map((p) => p.labels)), ...options.labels } as Labels;
     this.commands = { ...COMMANDS };
@@ -358,6 +379,7 @@ export class Aurebesh {
       // Deleting an embed leaves its empty wrapper behind.
       this.content.querySelectorAll(':scope > div:empty').forEach((d) => d.remove());
       normalizeLayouts(this.content);
+      normalizeCallouts(this.content);
       this.syncEmpty();
       this.plugins.forEach((p) => p.inst.input?.());
       this.emitChange();
@@ -412,6 +434,10 @@ export class Aurebesh {
         },
       ),
     );
+
+    if (options.slash ?? commands.includes('callout')) {
+      this.cleanup.push(attachSlashMenu({ content: this.content, items: () => this.slashItems(), t: (key) => this.t(key), canEdit: () => this.content.isContentEditable }));
+    }
 
     if (commands.includes('table')) {
       this.cleanup.push(
@@ -732,6 +758,11 @@ export class Aurebesh {
 
     if (handleCellArrow(e)) return; // moving the caret, not changing the text
     if (handleLayoutKey(e, this.content)) return; // Backspace at the start of a column would take the layout apart
+    if (handleCalloutKey(e, this.content)) {
+      this.syncEmpty();
+      this.emitChange();
+      return;
+    }
     if (handleListKey(e) || handleTab(e) || handleCodeKey(e)) this.emitChange();
   }
 
@@ -876,6 +907,7 @@ export class Aurebesh {
     }
     const cmd = this.commands[item];
     if (!cmd) return null;
+    if (item === 'callout') return this.buildCalloutPicker(cmd);
     if (item === 'sidebar') return this.buildSidebarToggle(cmd);
     if (this.panelIds.includes(item)) return this.buildPanelButton(cmd);
     if (item === 'font') return this.buildFontSelect();
@@ -1222,6 +1254,79 @@ export class Aurebesh {
     const btn = this.makeButton(cmd, () => this.sidebar?.toggle(cmd.name));
     btn.setAttribute('aria-expanded', 'false');
     return btn;
+  }
+
+  private calloutLabel(def: CalloutDef): string {
+    return def.label ?? this.labels[`callout.${def.id}`] ?? def.id;
+  }
+
+  /** Puts the blocks of the selection in a callout of the type (or takes the callout away, with null). */
+  applyCallout(type: string | null): void {
+    if (!this.content.isContentEditable) return;
+    if (!this.content.contains(this.container.ownerDocument.getSelection()?.anchorNode ?? null)) this.restoreSelection();
+    this.content.focus();
+    setCallout(this.content, type);
+    this.syncEmpty();
+    this.emitChange();
+    this.updateToolbar();
+  }
+
+  /** The button with the list of callout types: the selection goes in one, the one it is in is marked, and "no callout" takes it away. */
+  private buildCalloutPicker(cmd: CommandDef): HTMLElement {
+    const doc = this.container.ownerDocument;
+    const wrap = doc.createElement('span');
+    wrap.className = 'aurebesh-table-picker';
+    const toggle = this.makeButton(cmd, () => {
+      pop.hidden = !pop.hidden;
+      if (!pop.hidden && !this.calloutOptions.length) return;
+    });
+    const pop = doc.createElement('div');
+    pop.className = 'aurebesh-table-pop aurebesh-callout-list';
+    pop.hidden = true;
+    pop.setAttribute('role', 'group');
+    pop.setAttribute('aria-label', this.title(cmd));
+    const option = (label: string, type: string | null, color?: string) => {
+      const b = doc.createElement('button');
+      b.type = 'button';
+      b.className = 'aurebesh-callout-option';
+      b.dataset.callout = type ?? '';
+      b.setAttribute('aria-pressed', 'false');
+      const dot = doc.createElement('span');
+      dot.className = 'aurebesh-callout-dot';
+      if (color) dot.style.setProperty('--c', color);
+      else dot.style.background = 'transparent';
+      dot.style.border = color ? '' : '1px dashed currentColor';
+      b.append(dot, doc.createTextNode(label));
+      b.addEventListener('mousedown', (e) => e.preventDefault()); // the selection stays in the text
+      b.addEventListener('click', () => {
+        pop.hidden = true;
+        this.applyCallout(type);
+      });
+      pop.appendChild(b);
+      this.calloutOptions.push(b);
+    };
+    for (const def of this.calloutTypes) option(this.calloutLabel(def), def.id, def.color);
+    option(this.t('ui.callout.none'), null);
+    this.closeOnOutside(wrap, pop, toggle);
+    wrap.append(toggle, pop);
+    return wrap;
+  }
+
+  /** What the slash menu offers: the callouts, the headings, the lists and more. */
+  private slashItems(): SlashItem[] {
+    const items: SlashItem[] = this.calloutTypes.map((def) => ({
+      id: `callout-${def.id}`,
+      label: this.calloutLabel(def),
+      keywords: 'callout alert admonition',
+      run: () => this.applyCallout(def.id),
+    }));
+    for (const name of ['h1', 'h2', 'h3', 'ul', 'ol', 'quote', 'codeblock', 'hr']) {
+      items.push({ id: name, label: this.title(this.commands[name]), run: () => this.exec(name) });
+    }
+    if (this.panelIds.includes('blocks')) {
+      for (const l of LAYOUTS) items.push({ id: l.id, label: this.t(`block.${l.id}`), keywords: 'row columns layout', run: () => this.addBlock(l.id) });
+    }
+    return items;
   }
 
   /** The toolbar button that shows and hides the sidebar: it opens with the panel that was open last, or the first one. */
@@ -2195,6 +2300,11 @@ export class Aurebesh {
     const inside = !!sel && sel.rangeCount > 0 && this.content.contains(sel.anchorNode);
     if (inside) this.lastRange = sel!.getRangeAt(0).cloneRange();
     if (this.tableTools && !this.pointerHeld) this.tableTools.hidden = !(inside && currentTable());
+    if (this.calloutOptions.length) {
+      const now = inside ? currentCallout(this.content)?.getAttribute('data-callout') ?? '' : '';
+      for (const b of this.calloutOptions) b.setAttribute('aria-pressed', String((b.dataset.callout ?? '') === now && (now !== '' || b.dataset.callout === '')));
+      for (const list of this.buttons.get('callout') ?? []) list.setAttribute('aria-pressed', String(now !== ''));
+    }
     if (this.rowTools) {
       const row = inside && this.content.isContentEditable ? currentRow(this.content) : null;
       if (row) {
@@ -2266,7 +2376,7 @@ export class Aurebesh {
       this.fontSelects.forEach((select) => (select.value = match ? match.family : ''));
     }
     this.buttons.forEach((list, name) => {
-      if (name === 'sidebar') return; // aria-expanded says it
+      if (name === 'sidebar' || name === 'callout') return; // aria-expanded says it, and the callout picker sets its own state
       const active = name === 'fullscreen' ? this.fullscreen : inside && (this.commands[name].isActive?.() ?? false);
       const enabled = this.commands[name].isEnabled;
       for (const btn of list) {

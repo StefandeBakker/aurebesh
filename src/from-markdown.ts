@@ -395,6 +395,13 @@ function parseBlocks(lines: string[], refs: Refs): string {
         else break;
         i++;
       }
+      // an alert (> [!NOTE]) is a callout
+      const alert = /^\[!([A-Za-z][A-Za-z0-9-]{0,19})\][ \t]*$/.exec(inner[0] ?? '');
+      if (alert) {
+        const body = parseBlocks(inner.slice(1), refs);
+        out.push(`<div data-callout="${alert[1].toLowerCase()}">${body || '<p><br></p>'}</div>`);
+        continue;
+      }
       out.push(`<blockquote>${parseBlocks(inner, refs)}</blockquote>`);
       continue;
     }

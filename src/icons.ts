@@ -84,6 +84,8 @@ export const ICONS: Record<string, Shape[]> = {
   blockButton: [['rect', { x: 3, y: 8, width: 18, height: 8, rx: 3 }], ['path', { d: 'M8 12h8' }]],
   // a window with a sidebar on the right
   sidebar: [['rect', { x: 3, y: 4, width: 18, height: 16, rx: 2 }], ['path', { d: 'M15 4v16' }]],
+  // a box with a bar on its left side and a line of text
+  callout: [['rect', { x: 3.5, y: 4.5, width: 17, height: 15, rx: 2 }], ['path', { d: 'M3.5 4.5v15M8.5 10h8M8.5 14h5' }]],
   cellAlignTop: [['rect', { x: 4, y: 4, width: 16, height: 16, rx: 1.5 }], ['path', { d: 'M8 8h8' }]],
   cellAlignMiddle: [['rect', { x: 4, y: 4, width: 16, height: 16, rx: 1.5 }], ['path', { d: 'M8 12h8' }]],
   cellAlignBottom: [['rect', { x: 4, y: 4, width: 16, height: 16, rx: 1.5 }], ['path', { d: 'M8 16h8' }]],
