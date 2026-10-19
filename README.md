@@ -134,7 +134,7 @@ import 'aurebesh/element'; // registers <aurebesh-editor>
 The toolbar is made of **blocks**. In the `toolbar` option `|` starts a new block and `/` starts a second row inside a block. A block always stays in one piece: when the toolbar is narrow, whole blocks go to the next line instead of a block being cut in two. The default:
 
 ```
-font size clear / bold italic underline strike highlight color | ul ol / alignLeft alignCenter alignRight | h1 h2 quote / code codeblock | link image video / table hr | columns
+font size clear / bold italic underline strike strikeStyle highlight color | ul ol task / alignLeft alignCenter alignRight | h1 h2 quote / code codeblock | link image video / table hr | columns
 ```
 
 That is five blocks: the font (typeface, size and clear formatting on top, character styles, highlight and colour below), the paragraph (lists, then alignment), the styles (headings and quote on top, then the two kinds of code, inline and block), what you can insert (link, picture and video, then table and line) and the layout (columns). Leave out every `/` and each block is a single row that wraps like before (a block with a name, `#Name`, that has more than three buttons goes to the next line after every three); a toolbar without any `|` is one block.
@@ -146,7 +146,7 @@ That is five blocks: the font (typeface, size and clear formatting on top, chara
 Items that are not in the default have a place in the same blocks, so a toolbar with everything reads like this:
 
 ```
-font size clear / bold italic underline strike sub sup highlight color | ul ol / alignLeft alignCenter alignRight alignJustify ltr rtl | h1 h2 h3 quote / code codeblock | link image video / table hr | columns page orientation
+font size clear / bold italic underline strike strikeStyle sub sup highlight color | ul ol task / alignLeft alignCenter alignRight alignJustify ltr rtl | h1 h2 h3 quote / code codeblock | link image video / table hr | columns page orientation
 ```
 
 **A ribbon.** Give a block a name with `#Name` and the toolbar gets the larger look of a ribbon: the name above the buttons, bigger buttons, a tinted pressed state. `>` sends the blocks after it to the far end of the toolbar. `indent` and `outdent` move a paragraph, heading or quote in steps of 24px (a list item goes one level deeper or back), and `fullscreen` makes the editor fill the window (Escape returns). Hovering a button shows a tooltip with its name and shortcut.
@@ -247,6 +247,18 @@ The HTML has no input in it, only two attributes:
 ```
 
 The box is drawn with CSS, which the editor has. On a page that only shows the HTML, put `taskListCss()` in a `<style>` (it is exported), and colour it with `--aurebesh-task-color`, `--aurebesh-task-border` and `--aurebesh-task-radius`. The sanitizer allows `data-task` on a `ul` and `data-checked="true"` on an item of one, and nothing else. In Markdown it is `- [ ] todo` and `- [x] done`, in and out, nested as well; in a list where only some items have a box, all of them get one. In text it is the content. Two limits: checking an item is a direct DOM edit, so the browser's undo does not cover it (typing and splitting are), and the state is not read out by a screen reader, because the box is not an element: use `Mod+Enter` and write the state in the text when it matters.
+
+## Strikethrough: a double line and a colour
+
+The `strike` item (`Mod+Shift+X`) strikes the text through with a single line, as before. The `strikeStyle` item, a button with a list next to it, gives it another look: **single line**, **double line**, and a **colour** for the line (the palette of the editor, or *Automatic* for the colour of the text). It acts on the selected text, which is struck through first when it is not, and with the caret in a struck-through piece of text it acts on all of it. The current look is marked in the list.
+
+The text stays in `<s>` and the look is two properties on it, so the text is still struck through where the styles are not read (a mail client, Markdown):
+
+```html
+<s style="text-decoration-style: double; text-decoration-color: #dc2626">gone</s>
+```
+
+The sanitizer allows `text-decoration-style: double` and `text-decoration-color` (a hex or `rgb()` colour) on `s`, `strike` and `del`, and nothing else. In Markdown every look is `~~text~~`: a double line and a colour are not kept. The look is a direct DOM edit, so the browser's undo does not take it back (the strikethrough itself it does). Other lines under or through text (a wavy underline, a double underline) are not there yet.
 
 ## Callouts
 

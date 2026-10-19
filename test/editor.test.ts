@@ -148,12 +148,12 @@ describe('colors', () => {
     );
     expect(sanitize('<span style="color: url(javascript:x); position: fixed">x</span>')).toBe('x');
   });
-  it('renders color and highlight pickers with 40 swatches each', () => {
+  it('renders color and highlight pickers with 40 swatches each, and one more for the strikethrough', () => {
     const el = document.createElement('div');
     new Aurebesh(el);
-    const text = '.aurebesh-toolbar:not(.aurebesh-table-tools) .aurebesh-color-grid'; // the table tools have two more, for the cells
-    expect(el.querySelectorAll(text).length).toBe(2);
-    expect(el.querySelectorAll(text + ' button').length).toBe(80);
+    const text = '.aurebesh-toolbar:not(.aurebesh-table-tools) .aurebesh-color-grid'; // the table tools have two more, for the cells; the strikethrough look has one
+    expect(el.querySelectorAll(text).length).toBe(3);
+    expect(el.querySelectorAll(text + ' button').length).toBe(120);
     expect(el.querySelectorAll('.aurebesh-table-tools .aurebesh-color-grid').length).toBe(2);
   });
 });
@@ -201,7 +201,7 @@ describe('the default toolbar', () => {
 
   it('follows the Home tab of Word: blocks of two rows (the font, the paragraph, the styles, what can be inserted, the layout)', () => {
     expect(blocks(DEFAULT_TOOLBAR)).toEqual([
-      [['font', 'size', 'clear'], ['bold', 'italic', 'underline', 'strike', 'highlight', 'color']],
+      [['font', 'size', 'clear'], ['bold', 'italic', 'underline', 'strike', 'strikeStyle', 'highlight', 'color']],
       [['ul', 'ol', 'task'], ['alignLeft', 'alignCenter', 'alignRight']],
       [['h1', 'h2', 'quote'], ['code', 'codeblock']], // the headings and the quote; the two kinds of code
       [['link', 'image', 'video'], ['table', 'hr']],
