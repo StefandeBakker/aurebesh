@@ -9,7 +9,7 @@ describe('the look of a strikethrough in the HTML', () => {
   });
 
   it('drops what a strikethrough should not have', () => {
-    const out = sanitize('<s style="text-decoration-style: wavy; text-decoration-color: url(x); position: fixed; color: red">gone</s>');
+    const out = sanitize('<s style="text-decoration-style: groove; text-decoration-color: url(x); position: fixed; color: red">gone</s>');
     expect(out).toBe('<s>gone</s>');
   });
 
@@ -22,5 +22,23 @@ describe('the look of a strikethrough in Markdown', () => {
   it('is ~~ for every look: Markdown has one kind of line', () => {
     expect(toMarkdown('<p><s style="text-decoration-style: double; text-decoration-color: #dc2626">gone</s> here</p>')).toBe('~~gone~~ here');
     expect(fromMarkdown('~~gone~~')).toBe('<p><del>gone</del></p>');
+  });
+});
+
+describe('the look of an underline in the HTML', () => {
+  it('keeps the kind of line and a colour on an underline', () => {
+    for (const style of ['double', 'dashed', 'dotted', 'wavy']) {
+      const html = `<u style="text-decoration-style: ${style}; text-decoration-color: #dc2626">text</u>`;
+      expect(sanitize(html)).toBe(html);
+    }
+  });
+
+  it('drops what an underline should not have', () => {
+    expect(sanitize('<u style="text-decoration-style: groove; text-decoration-color: url(x); text-decoration-line: overline">text</u>')).toBe('<u>text</u>');
+    expect(sanitize('<span style="text-decoration-style: wavy">x</span>')).toBe('x'); // only a line has it
+  });
+
+  it('is plain <u> in Markdown, where the look is not kept', () => {
+    expect(toMarkdown('<p><u style="text-decoration-style: wavy">text</u></p>')).toBe('<u>text</u>');
   });
 });

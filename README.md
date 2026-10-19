@@ -134,7 +134,7 @@ import 'aurebesh/element'; // registers <aurebesh-editor>
 The toolbar is made of **blocks**. In the `toolbar` option `|` starts a new block and `/` starts a second row inside a block. A block always stays in one piece: when the toolbar is narrow, whole blocks go to the next line instead of a block being cut in two. The default:
 
 ```
-font size clear clearStyle / bold italic underline strike strikeStyle highlight color | ul ol task / alignLeft alignCenter alignRight | h1 h2 quote / code codeblock | link image video / table hr | columns
+font size clear clearStyle / bold italic underline underlineStyle strike strikeStyle highlight color | ul ol task / alignLeft alignCenter alignRight | h1 h2 quote / code codeblock | link image video / table hr | columns
 ```
 
 That is five blocks: the font (typeface, size and clear formatting on top, character styles, highlight and colour below), the paragraph (lists, then alignment), the styles (headings and quote on top, then the two kinds of code, inline and block), what you can insert (link, picture and video, then table and line) and the layout (columns). Leave out every `/` and each block is a single row that wraps like before (a block with a name, `#Name`, that has more than three buttons goes to the next line after every three); a toolbar without any `|` is one block.
@@ -146,7 +146,7 @@ That is five blocks: the font (typeface, size and clear formatting on top, chara
 Items that are not in the default have a place in the same blocks, so a toolbar with everything reads like this:
 
 ```
-font size clear clearStyle / bold italic underline strike strikeStyle sub sup highlight color | ul ol task / alignLeft alignCenter alignRight alignJustify ltr rtl | h1 h2 h3 quote / code codeblock | link image video / table hr | columns page orientation
+font size clear clearStyle / bold italic underline underlineStyle strike strikeStyle sub sup highlight color | ul ol task / alignLeft alignCenter alignRight alignJustify ltr rtl | h1 h2 h3 quote / code codeblock | link image video / table hr | columns page orientation
 ```
 
 **A ribbon.** Give a block a name with `#Name` and the toolbar gets the larger look of a ribbon: the name above the buttons, bigger buttons, a tinted pressed state. `>` sends the blocks after it to the far end of the toolbar. `indent` and `outdent` move a paragraph, heading or quote in steps of 24px (a list item goes one level deeper or back), and `fullscreen` makes the editor fill the window (Escape returns). Hovering a button shows a tooltip with its name and shortcut.
@@ -252,17 +252,23 @@ The box is drawn with CSS, which the editor has. On a page that only shows the H
 
 The `clear` item takes away all formatting of the selected text. The `clearStyle` item (a button with a list, an eraser) takes away only one kind and leaves the rest: **bold**, **italic**, **underline**, **strikethrough**, **text colour** or **highlight** (and *Clear formatting* for everything). A kind that the selected text does not have is greyed out. It works on the selected text; where only part of it has the formatting, all of it ends up without. `Mod+\` clears all formatting from the keyboard; bold, italic, underline and strikethrough already have their own shortcuts, which toggle them. It uses the commands of the browser, so every step is in the undo history (taking away something that only part of the text has is two steps).
 
-## Strikethrough: a double line and a colour
+## Underline and strikethrough: the kind of line and its colour
 
-The `strike` item (`Mod+Shift+X`) strikes the text through with a single line, as before. The `strikeStyle` item, a button with a list next to it, gives it another look: **single line**, **double line**, and a **colour** for the line (the palette of the editor, or *Automatic* for the colour of the text). It acts on the selected text, which is struck through first when it is not, and with the caret in a struck-through piece of text it acts on all of it. The current look is marked in the list.
+The `underline` and `strike` items (`Mod+U`, `Mod+Shift+X`) draw a single line, as before. Two items next to them, `underlineStyle` and `strikeStyle` (a button with a list), give the line another look:
 
-The text stays in `<s>` and the look is two properties on it, so the text is still struck through where the styles are not read (a mail client, Markdown):
+- **Underline**: *solid*, *dashed*, *dotted*, *double* or *wavy*, and a **colour** for the line that differs from the colour of the text.
+- **Strikethrough**: a *single* or a *double* line, and a colour.
+
+The colour is from the palette of the editor, or *Automatic* for the colour of the text. It acts on the selected text, which gets the line first when it has none, and with the caret in an underlined or struck-through piece of text it acts on all of it. The current kind is marked in the list.
+
+The text stays in `<u>` or `<s>` and the look is two properties on it, so the text still has its line where the styles are not read (a mail client, Markdown):
 
 ```html
-<s style="text-decoration-style: double; text-decoration-color: #dc2626">gone</s>
+<u style="text-decoration-style: wavy; text-decoration-color: #dc2626">check this</u>
+<s style="text-decoration-style: double">gone</s>
 ```
 
-The sanitizer allows `text-decoration-style: double` and `text-decoration-color` (a hex or `rgb()` colour) on `s`, `strike` and `del`, and nothing else. In Markdown every look is `~~text~~`: a double line and a colour are not kept. The look is a direct DOM edit, so the browser's undo does not take it back (the strikethrough itself it does). Other lines under or through text (a wavy underline, a double underline) are not there yet.
+The sanitizer allows `text-decoration-style` (`double`, `dashed`, `dotted` or `wavy`) and `text-decoration-color` (a hex or `rgb()` colour) on `u`, `s`, `strike` and `del`, and nothing else. In Markdown the line is `<u>text</u>` and `~~text~~`: the kind of line and the colour are not kept. The look is a direct DOM edit, so the browser's undo does not take it back (the line itself it does). A line above the text (overline) and the thickness of a line are not there.
 
 ## Callouts
 
