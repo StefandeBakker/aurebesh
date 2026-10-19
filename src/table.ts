@@ -248,7 +248,12 @@ export function insertTable(rows: number, cols: number): void {
  * (plain DOM edits would be invisible to Ctrl+Z). `mutate` changes the grid and returns the position to put the caret
  * in, or null when nothing is left and the table should go.
  */
-function editTable(table: HTMLTableElement, mutate: (model: Model, copy: HTMLTableElement) => Coord | null): void {
+function editTable(
+  table: HTMLTableElement,
+  mutate: (model: Model, copy: HTMLTableElement) => Coord | null,
+  /** What to do with the selection afterwards, instead of putting the caret in the cell at the position `mutate` returned. */
+  after?: (fresh: HTMLTableElement, grid: (Cell | null)[][]) => void,
+): void {
   const root = table.closest(ROOT);
   if (!root) return;
   const copy = table.cloneNode(true) as HTMLTableElement;
@@ -264,8 +269,25 @@ function editTable(table: HTMLTableElement, mutate: (model: Model, copy: HTMLTab
   if (!fresh) return;
   fresh.removeAttribute('data-new');
   const grid = modelOf(fresh).m;
+  if (after) return after(fresh, grid);
   const cell = grid[Math.min(target[0], grid.length - 1)]?.[Math.min(target[1], (grid[0]?.length ?? 1) - 1)];
   if (cell) placeCaret(cell);
+}
+
+/** Selects the cells from the first to the last one, as a drag over them would (so that the next table command sees the same cells). */
+function selectCells(grid: (Cell | null)[][], [r1, c1, r2, c2]: [number, number, number, number]): void {
+  const first = grid[r1]?.[c1];
+  const last = grid[r2]?.[c2];
+  if (!first) return;
+  if (!last || last === first) return placeCaret(first);
+  const range = document.createRange();
+  range.setStart(first, 0);
+  range.setEnd(last, last.childNodes.length);
+  const sel = document.getSelection();
+  sel?.removeAllRanges();
+  sel?.addRange(range);
+  dragged.start = first;
+  dragged.end = last;
 }
 
 function selectNodes(first: Node, last: Node = first): void {
@@ -372,13 +394,128 @@ export function toggleHeaderRow(): void {
     const swap = new Map<Cell, Cell>();
     for (const old of first) {
       const swapped = document.createElement(toHeader ? 'th' : 'td') as Cell;
-      for (const attr of ['colspan', 'rowspan']) if (old!.hasAttribute(attr)) swapped.setAttribute(attr, old!.getAttribute(attr)!);
+      for (const attr of ['colspan', 'rowspan', 'style']) if (old!.hasAttribute(attr)) swapped.setAttribute(attr, old!.getAttribute(attr)!);
       swapped.append(...Array.from(old!.childNodes));
       swap.set(old!, swapped);
     }
     model.m.forEach((row) => row.forEach((x, i) => (row[i] = swap.get(x!) ?? x)));
     return [r, c];
   });
+}
+
+// ---- cell properties and the caption ----------------------------------------------------------------------
+
+/** What can be set on a cell, as the CSS property it is written as. */
+export type CellProperty = 'background-color' | 'vertical-align' | 'text-align' | 'border';
+
+/** The table around the caret: from a cell, or from its caption. */
+export function currentTable(): HTMLTableElement | null {
+  const table = elementOf(document.getSelection()?.anchorNode)?.closest('table') as HTMLTableElement | null | undefined;
+  return table?.closest(ROOT) ? table : null;
+}
+
+/** The table and the rectangle of grid positions the selection reaches (the cell under the caret, when nothing is selected over cells). */
+function selectedRect(): { table: HTMLTableElement; rect: [number, number, number, number] } | null {
+  const cell = currentCell();
+  const table = cell?.closest('table');
+  if (!cell || !table) return null;
+  const model = modelOf(table);
+  const rect = rectOf(model, selectedCells(table));
+  if (rect) return { table, rect };
+  const at = locate(model, cell);
+  return at ? { table, rect: [at.r, at.c, at.r + at.rs - 1, at.c + at.cs - 1] } : null;
+}
+
+/** The value of a property on the cell under the caret ('' when it has none). */
+export function cellProperty(prop: CellProperty): string {
+  const cell = currentCell();
+  if (!cell) return '';
+  return cell.style.getPropertyValue(prop).trim();
+}
+
+function writeCellProperty(cell: Cell, prop: CellProperty, value: string): void {
+  if (value) cell.style.setProperty(prop, value);
+  else cell.style.removeProperty(prop);
+  if (!cell.getAttribute('style')?.trim()) cell.removeAttribute('style');
+}
+
+/**
+ * Sets a property on all the cells of the selection (an empty value takes it away again). The change is one step for undo, and
+ * the cells stay selected, so the next change goes to the same cells.
+ */
+export function setCellProperty(prop: CellProperty, value: string): void {
+  const found = selectedRect();
+  if (!found) return;
+  const [r1, c1, r2, c2] = found.rect;
+  editTable(
+    found.table,
+    (model) => {
+      const done = new Set<Cell>();
+      for (let r = r1; r <= r2; r++) {
+        for (let c = c1; c <= c2; c++) {
+          const cell = model.m[r][c];
+          if (!cell || done.has(cell)) continue;
+          done.add(cell);
+          writeCellProperty(cell, prop, value);
+        }
+      }
+      return [r1, c1];
+    },
+    (_fresh, grid) => selectCells(grid, found.rect),
+  );
+}
+
+/** Sets a property to a value, or takes it away when the cell under the caret has that value already (for a button that is on or off). */
+export function toggleCellProperty(prop: CellProperty, value: string): void {
+  setCellProperty(prop, cellProperty(prop) === value ? '' : value);
+}
+
+const DEFAULT_BORDER_COLOR = '#9aa3b2';
+
+/** The width ('1px', 'none'...) and the colour of the border of the cell under the caret; '' for what it does not have. */
+export function cellBorder(): { width: string; color: string } {
+  const m = /^(\S+)\s+(?:solid|dashed|dotted|double)\s+(.+)$/.exec(cellProperty('border'));
+  if (!m) return { width: '', color: '' };
+  return m[1] === '0px' ? { width: 'none', color: '' } : { width: m[1], color: m[2] }; // no border is a border that is not there
+}
+
+/**
+ * Sets the width of the border of the selected cells ('1px', '2px', 'none'; '' takes the border away) or its colour. A colour without a
+ * width gives a thin border, a width without a colour a grey one.
+ */
+export function setCellBorder(part: 'width' | 'color', value: string): void {
+  const now = cellBorder();
+  // "No border" is written as a border of no width: browsers write `border: none` as four properties, which the sanitizer would drop
+  if (part === 'width' && (value === '' || value === 'none')) return setCellProperty('border', value === '' ? '' : '0px solid transparent');
+  const width = part === 'width' ? value : now.width && now.width !== 'none' ? now.width : '1px';
+  const color = part === 'color' ? value : now.color || DEFAULT_BORDER_COLOR;
+  setCellProperty('border', value === '' && part === 'color' ? `${width} solid ${DEFAULT_BORDER_COLOR}` : `${width} solid ${color}`);
+}
+
+/** Whether the table around the caret has a caption. */
+export function hasCaption(): boolean {
+  return !!currentTable()?.caption;
+}
+
+/** Adds a caption above the table (the caret goes into it), or takes it away. */
+export function toggleCaption(): void {
+  const table = currentTable();
+  if (!table) return;
+  const adding = !table.caption;
+  const cell = currentCell();
+  const at = cell ? locate(modelOf(table), cell) : null;
+  editTable(
+    table,
+    (_model, copy) => {
+      if (copy.caption) copy.caption.remove();
+      else copy.createCaption().appendChild(document.createElement('br'));
+      return [at?.r ?? 0, at?.c ?? 0];
+    },
+    (fresh, grid) => {
+      if (adding && fresh.caption) placeCaret(fresh.caption);
+      else if (grid[0]?.[0]) placeCaret(at ? grid[Math.min(at.r, grid.length - 1)][Math.min(at.c, grid[0].length - 1)] ?? grid[0][0]! : grid[0][0]!);
+    },
+  );
 }
 
 // ---- merging and splitting --------------------------------------------------------------------------------
@@ -501,7 +638,19 @@ export function deleteTable(table: HTMLTableElement | null = currentCell()?.clos
 
 /** Tab / Shift+Tab moves between cells; Tab in the last cell adds a row. Returns true when handled. */
 export function handleTab(e: KeyboardEvent): boolean {
-  if (e.key !== 'Tab' || e.ctrlKey || e.altKey || e.metaKey) return false;
+  if ((e.key !== 'Tab' && e.key !== 'Enter') || e.ctrlKey || e.altKey || e.metaKey) return false;
+  // in the caption, Enter and Tab go on to the first cell (a line break in a caption is not wanted)
+  const caption = elementOf(document.getSelection()?.anchorNode)?.closest('caption');
+  if (caption?.closest(ROOT)) {
+    const first = caption.closest('table')?.querySelector('td,th');
+    if (e.key === 'Enter' || !e.shiftKey) {
+      if (first) placeCaret(first);
+      e.preventDefault();
+      return true;
+    }
+    return false;
+  }
+  if (e.key === 'Enter') return false;
   const cell = currentCell();
   const table = cell?.closest('table');
   if (!cell || !table) return false;
