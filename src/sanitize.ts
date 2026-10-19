@@ -10,7 +10,8 @@ const ALLOWED_TAGS = new Set([
 ]);
 const DROP_WITH_CONTENT = new Set(['script', 'style', 'iframe', 'object', 'embed', 'noscript', 'template']);
 const ALLOWED_ATTRS: Record<string, string[]> = {
-  a: ['href', 'title', 'target', 'rel'],
+  a: ['href', 'title', 'target', 'rel', 'data-button'],
+  div: ['data-layout'],
   td: ['colspan', 'rowspan'],
   th: ['colspan', 'rowspan'],
   img: ['src', 'alt', 'title', 'width', 'height'],
@@ -62,6 +63,28 @@ const CELL_STYLES: StyleRules = {
   'vertical-align': /^(?:top|middle|bottom)$/,
   'background-color': SAFE_COLOR,
   border: new RegExp(`^(?:none|[0-8]px (?:solid|dashed|dotted|double) ${SAFE_COLOR.source.slice(1, -1)})$`, 'i'),
+};
+/**
+ * Layout (the building blocks): a row is a <div data-layout="row"> that is a grid, its columns <div data-layout="col"> hold the content.
+ * Only a grid of up to six columns in fr or percent, a gap, and the alignment of what is in it.
+ */
+const FRACTION = '\\d{1,3}(?:\\.\\d{1,2})?(?:fr|%)';
+const ROW_LAYOUT_STYLES: StyleRules = {
+  display: /^grid$/,
+  'grid-template-columns': new RegExp(`^${FRACTION}(?: ${FRACTION}){0,5}$`),
+  gap: /^\d{1,2}px$/,
+  'align-items': /^(?:start|center|end|stretch)$/,
+};
+const COL_LAYOUT_STYLES: StyleRules = { ...BOX_STYLES, 'min-width': /^0(?:px)?$/ };
+/** A link that is a button: what makes it look like one. */
+const BUTTON_STYLES: StyleRules = {
+  display: /^inline-block$/,
+  padding: PADDING,
+  'background-color': SAFE_COLOR,
+  color: SAFE_COLOR,
+  'border-radius': /^\d{1,2}px$/,
+  'text-decoration': /^none$/,
+  'font-weight': /^(?:400|500|600|700|bold|normal)$/,
 };
 /** A row can be made taller by dragging its lower border: its height in pixels. */
 const ROW_STYLES: StyleRules = { height: /^(?:[2-9]\d|[1-9]\d{2}|1\d{3})(?:\.\d)?px$/ };
@@ -154,11 +177,16 @@ function clean(parent: Node, ext: SanitizeExtension[]): void {
       continue;
     }
     const allowed = [...(ALLOWED_ATTRS[tag] ?? []), ...(DIR_TAGS.has(tag) ? ['dir'] : []), ...ext.flatMap((e) => e.attributes?.[tag] ?? [])];
-    const style = safeStyle(el.getAttribute('style'), STYLES_BY_TAG[tag]);
+    // a layout row or column, and a button, have styles that other divs and links do not
+    const layout = tag === 'div' ? el.getAttribute('data-layout') : null;
+    const rules = layout === 'row' ? ROW_LAYOUT_STYLES : layout === 'col' ? COL_LAYOUT_STYLES : tag === 'a' && el.hasAttribute('data-button') ? BUTTON_STYLES : STYLES_BY_TAG[tag];
+    const style = safeStyle(el.getAttribute('style'), rules);
     for (const attr of Array.from(el.attributes)) {
       if (!allowed.includes(attr.name)) el.removeAttribute(attr.name);
     }
     if (style) el.setAttribute('style', style);
+    if (tag === 'div' && layout !== null && layout !== 'row' && layout !== 'col') el.removeAttribute('data-layout');
+    if (tag === 'a' && el.hasAttribute('data-button')) el.setAttribute('data-button', '');
     for (const e of ext) e.clean?.(el);
     // Text direction (Word and Docs paste `dir="RTL"`): on blocks only, and only a known value.
     if (DIR_TAGS.has(tag)) {

@@ -119,25 +119,11 @@ describe('the layout panel', () => {
     el.remove();
   });
 
-  it('starts from the layout option, and offers the columns as tiles', () => {
+  it('starts from the layout option, and has no columns: the building blocks do that', () => {
     const el = build({ toolbar: ['layout'], layout: { lineHeight: 1.5 } });
     expect((el.querySelector('.aurebesh') as HTMLElement).style.getPropertyValue('--aurebesh-line')).toBe('1.5');
-    const tiles = Array.from(el.querySelectorAll('.aurebesh-tile'));
-    expect(tiles.map((t) => t.getAttribute('aria-label'))).toEqual(['One column', 'Two columns', 'Three columns', 'Four columns']);
-    expect(tiles.every((t) => t.getAttribute('role') === 'radio')).toBe(true);
-    el.remove();
-  });
-
-  it('uses one tab stop and arrow keys to select a column', () => {
-    const el = build({ toolbar: ['layout'] });
-    (el.querySelector('button[title="Layout"]') as HTMLButtonElement).click();
-    const tiles = Array.from(el.querySelectorAll('.aurebesh-tile')) as HTMLButtonElement[];
-    expect(tiles.map((tile) => tile.tabIndex)).toEqual([0, -1, -1, -1]);
-    tiles[0].focus();
-    tiles[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
-    expect(document.activeElement).toBe(tiles[1]);
-    expect(tiles.map((tile) => tile.getAttribute('aria-checked'))).toEqual(['false', 'true', 'false', 'false']);
-    expect(tiles.map((tile) => tile.tabIndex)).toEqual([-1, 0, -1, -1]);
+    expect(el.querySelector('.aurebesh-tile')).toBeNull();
+    expect(Array.from(el.querySelectorAll('.aurebesh-panel .aurebesh-field-label')).map((l) => l.textContent)).toEqual(['Width', 'Maximum text width', 'Padding', 'Line spacing']);
     el.remove();
   });
 });
