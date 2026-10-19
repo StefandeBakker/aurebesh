@@ -33,7 +33,7 @@ export type {
 } from './media';
 export { parseVideoUrl } from './media-urls';
 export type { MediaOptions } from './editor';
-export { DEFAULT_LABELS, LABELS_NL } from './labels';
+export { DEFAULT_LABELS, LABELS_EN, LABELS_NL, LABELS_DE, LABELS_FR, LABELS_ES, LANGUAGES, matchLanguage, resolveLanguage } from './labels';
 export type { Labels } from './labels';
 export { DEFAULT_COLORS } from './colors';
 export { DEFAULT_FONTS } from './fonts';
