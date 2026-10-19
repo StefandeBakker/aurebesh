@@ -4,10 +4,12 @@ import { currentDirection, setDirection } from './direction';
 import { currentLink, isInlineCode, setLink, toggleInlineCode } from './inline';
 import { canIndent, indent } from './indent';
 import { insertImage, insertVideo, insertVideoFile, setImageAlign, setImageAlt, setImageWidth } from './media';
-import { addColumn, addRow, canMerge, canSplit, deleteColumn, deleteRow, deleteTable, insertTable, mergeCells, splitCell, toggleHeaderRow } from './table';
+import { addColumn, addRow, canMerge, canSplit, cellProperty, deleteColumn, deleteRow, deleteTable, hasCaption, insertTable, mergeCells, setCellBorder, setCellProperty, splitCell, toggleCaption, toggleCellProperty, toggleHeaderRow } from './table';
 
 /** Shown in a second toolbar row while the cursor is inside a table. */
 export const TABLE_TOOLS = ['tableHeader', 'tableRowAdd', 'tableColAdd', 'tableRowDel', 'tableColDel', 'tableMerge', 'tableSplit', 'tableDel'];
+/** The look of the selected cells and the caption, also in that row: the colour pickers and the border width are built by the editor. */
+export const CELL_TOOLS = ['cellAlignLeft', 'cellAlignCenter', 'cellAlignRight', 'cellAlignTop', 'cellAlignMiddle', 'cellAlignBottom', 'tableCaption'];
 
 export interface CommandDef {
   name: string;
@@ -169,6 +171,17 @@ export const COMMANDS: Record<string, CommandDef> = {
   tableRowDel: { name: 'tableRowDel', label: '− Row', title: 'Delete row', run: () => deleteRow() },
   tableColDel: { name: 'tableColDel', label: '− Col', title: 'Delete column', run: () => deleteColumn() },
   tableDel: { name: 'tableDel', label: 'Delete table', title: 'Delete table', run: () => deleteTable() },
+  /** Cell properties: they work on the cells that are selected (or the one under the caret). The pickers are built by the editor. */
+  cellBackground: { name: 'cellBackground', icon: 'cellFill', label: 'Fill', title: 'Cell background', run: (color) => setCellProperty('background-color', color ?? '') },
+  cellBorderColor: { name: 'cellBorderColor', icon: 'cellBorder', label: 'Border', title: 'Border color', run: (color) => setCellBorder('color', color ?? '') },
+  cellBorder: { name: 'cellBorder', icon: 'cellBorder', label: 'Border', title: 'Cell border', run: (width) => setCellBorder('width', width ?? '') },
+  cellAlignLeft: { name: 'cellAlignLeft', icon: 'alignLeft', label: '⇤', title: 'Align cell text left', run: () => toggleCellProperty('text-align', 'left'), isActive: () => cellProperty('text-align') === 'left' },
+  cellAlignCenter: { name: 'cellAlignCenter', icon: 'alignCenter', label: '↔', title: 'Center cell text', run: () => toggleCellProperty('text-align', 'center'), isActive: () => cellProperty('text-align') === 'center' },
+  cellAlignRight: { name: 'cellAlignRight', icon: 'alignRight', label: '⇥', title: 'Align cell text right', run: () => toggleCellProperty('text-align', 'right'), isActive: () => cellProperty('text-align') === 'right' },
+  cellAlignTop: { name: 'cellAlignTop', icon: 'cellAlignTop', label: '⤒', title: 'Align cell text to the top', run: () => toggleCellProperty('vertical-align', 'top'), isActive: () => cellProperty('vertical-align') === 'top' },
+  cellAlignMiddle: { name: 'cellAlignMiddle', icon: 'cellAlignMiddle', label: '↕', title: 'Center cell text vertically', run: () => toggleCellProperty('vertical-align', 'middle'), isActive: () => cellProperty('vertical-align') === 'middle' },
+  cellAlignBottom: { name: 'cellAlignBottom', icon: 'cellAlignBottom', label: '⤓', title: 'Align cell text to the bottom', run: () => toggleCellProperty('vertical-align', 'bottom'), isActive: () => cellProperty('vertical-align') === 'bottom' },
+  tableCaption: { name: 'tableCaption', icon: 'caption', label: 'Caption', title: 'Table caption', run: () => toggleCaption(), isActive: hasCaption },
   clear: { name: 'clear', icon: 'clear', label: 'Tx', title: 'Clear formatting', run: () => exec('removeFormat') },
   undo: { name: 'undo', icon: 'undo', label: '↶', title: 'Undo', run: () => exec('undo') },
   redo: { name: 'redo', icon: 'redo', label: '↷', title: 'Redo', run: () => exec('redo') },

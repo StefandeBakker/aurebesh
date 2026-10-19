@@ -5,7 +5,7 @@ import { IFRAME_ATTRS, isEmbedSrc, isSafeImageSrc, isSafeVideoSrc } from './medi
 const ALLOWED_TAGS = new Set([
   'p', 'br', 'div', 'span', 'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del',
   'h1', 'h2', 'h3', 'blockquote', 'ul', 'ol', 'li', 'a', 'code', 'pre', 'hr',
-  'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'colgroup', 'col',
+  'table', 'caption', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'colgroup', 'col',
   'img', 'video', 'sup', 'sub', 'aside',
 ]);
 const DROP_WITH_CONTENT = new Set(['script', 'style', 'iframe', 'object', 'embed', 'noscript', 'template']);
@@ -53,6 +53,16 @@ const BLOCK_STYLES: StyleRules = {
   /** Indent: steps of 24px, up to eight (see indent.ts). */
   'margin-inline-start': /^(?:24|48|72|96|120|144|168|192)px$/,
 };
+/**
+ * The look of a table cell: how its text sits (horizontal and vertical), a background and a border (one width, style and colour for
+ * all four sides). A browser writes the border with the colour as rgb(), which SAFE_COLOR allows too.
+ */
+const CELL_STYLES: StyleRules = {
+  'text-align': /^(?:left|center|right|justify)$/,
+  'vertical-align': /^(?:top|middle|bottom)$/,
+  'background-color': SAFE_COLOR,
+  border: new RegExp(`^(?:none|[0-8]px (?:solid|dashed|dotted|double) ${SAFE_COLOR.source.slice(1, -1)})$`, 'i'),
+};
 const IMG_STYLES: StyleRules = {
   width: /^\d{1,3}%$/,
   display: /^block$/,
@@ -82,7 +92,9 @@ const STYLES_BY_TAG: Record<string, StyleRules> = {
   aside: ASIDE_STYLES,
   span: SPAN_STYLES,
   img: IMG_STYLES,
-  ...Object.fromEntries(['p', 'h1', 'h2', 'h3', 'li', 'blockquote', 'td', 'th'].map((t) => [t, BLOCK_STYLES])),
+  ...Object.fromEntries(['p', 'h1', 'h2', 'h3', 'li', 'blockquote', 'caption'].map((t) => [t, BLOCK_STYLES])),
+  td: CELL_STYLES,
+  th: CELL_STYLES,
   div: COLUMN_STYLES,
 };
 

@@ -4,7 +4,8 @@ import { handleListKey } from './lists';
 import { applyMarkdown } from './markdown';
 import { shortcutFor, shortcutLabel } from './shortcuts';
 import { DEFAULT_COLORS, SAFE_COLOR } from './colors';
-import { COMMANDS, DEFAULT_QUICKBAR, DEFAULT_TOOLBAR, TABLE_TOOLS } from './commands';
+import { CELL_TOOLS, COMMANDS, DEFAULT_QUICKBAR, DEFAULT_TOOLBAR, TABLE_TOOLS } from './commands';
+import { cellBorder, currentTable } from './table';
 import { Sidebar } from './sidebar';
 import type { PanelDef } from './sidebar';
 import { extendToolbar } from './plugin';
@@ -172,6 +173,7 @@ export class Aurebesh {
   private lastImage: HTMLImageElement | null = null;
   private sizeSelects: HTMLSelectElement[] = [];
   private columnsSelects: HTMLSelectElement[] = [];
+  private cellBorderSelects: HTMLSelectElement[] = [];
   private sidebar: Sidebar | null = null;
   /** The ids of the panels that the toolbar can open. */
   private panelIds: string[] = [];
@@ -722,6 +724,7 @@ export class Aurebesh {
     this.sizeSelects.forEach((s) => (s.disabled = readOnly));
     this.orientationButtons.forEach((b) => (b.disabled = readOnly || !this.page?.height));
     this.columnsSelects.forEach((s) => (s.disabled = readOnly));
+    this.cellBorderSelects.forEach((s) => (s.disabled = readOnly));
     this.layoutTiles.forEach((t) => (t.disabled = readOnly));
     if (this.attached) this.plugins.forEach((p) => p.inst.readOnlyChanged?.());
     this.modeSwitch?.sync();
@@ -918,6 +921,11 @@ export class Aurebesh {
       tools.setAttribute('aria-label', this.t('ui.tableTools'));
       tools.hidden = true;
       for (const name of TABLE_TOOLS) tools.appendChild(this.makeButton(COMMANDS[name]));
+      // the look of the selected cells: background, border, how the text sits, and the caption
+      tools.appendChild(this.buildColorPicker(COMMANDS.cellBackground, '', this.t('ui.noFill')));
+      tools.appendChild(this.buildCellBorder());
+      tools.appendChild(this.buildColorPicker(COMMANDS.cellBorderColor, '', this.t('ui.defaultBorderColor')));
+      for (const name of CELL_TOOLS) tools.appendChild(this.makeButton(COMMANDS[name]));
       this.tableTools = tools;
       this.root.appendChild(tools);
       rovingToolbar(tools, () => this.content.focus());
@@ -925,6 +933,24 @@ export class Aurebesh {
 
     if (commands.includes('image')) this.buildImageTools();
     if (commands.includes('link')) this.buildLinkTools();
+  }
+
+  /** The width of the border of the selected cells. */
+  private buildCellBorder(): HTMLSelectElement {
+    const doc = this.container.ownerDocument;
+    const select = doc.createElement('select');
+    select.className = 'aurebesh-cellborder';
+    select.title = this.title(COMMANDS.cellBorder);
+    select.setAttribute('aria-label', this.title(COMMANDS.cellBorder));
+    for (const [value, key] of [['', 'default'], ['none', 'none'], ['1px', 'thin'], ['2px', 'medium'], ['4px', 'thick']]) {
+      const opt = doc.createElement('option');
+      opt.value = value;
+      opt.textContent = this.t(`border.${key}`);
+      select.appendChild(opt);
+    }
+    select.addEventListener('change', () => this.exec('cellBorder', select.value));
+    this.cellBorderSelects.push(select);
+    return select;
   }
 
   /** Row that appears while the caret is in a link: its address, Open (new tab), Edit and Remove. */
@@ -2004,7 +2030,7 @@ export class Aurebesh {
     const sel = this.container.ownerDocument.getSelection();
     const inside = !!sel && sel.rangeCount > 0 && this.content.contains(sel.anchorNode);
     if (inside) this.lastRange = sel!.getRangeAt(0).cloneRange();
-    if (this.tableTools && !this.pointerHeld) this.tableTools.hidden = !(inside && currentCell());
+    if (this.tableTools && !this.pointerHeld) this.tableTools.hidden = !(inside && currentTable());
     if (this.linkTools) {
       const link = inside && this.content.isContentEditable ? currentLink() : null;
       if (link) {
@@ -2031,6 +2057,10 @@ export class Aurebesh {
     if (inside) {
       const n = currentColumns();
       this.columnsSelects.forEach((s) => (s.value = String(n)));
+      if (this.cellBorderSelects.length) {
+        const width = cellBorder().width;
+        this.cellBorderSelects.forEach((s) => (s.value = Array.from(s.options).some((o) => o.value === width) ? width : ""));
+      }
       this.syncLayoutTiles(n);
     }
     if (inside) {
