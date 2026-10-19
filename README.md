@@ -246,19 +246,60 @@ editor.setPage('600px');                            // a width: 600, '600px', '8
 - **Column widths**: drag the border between two columns (the pointer changes). Widths are stored as percentages in a `<colgroup>` (`<col style="width: 40%">`), so the table keeps its proportions when the editor is resized; a column never gets narrower than 5%. Dragging is a direct DOM edit, so Ctrl+Z does not undo it, and it needs a mouse or pen (not touch yet). Adding or deleting a column keeps the other widths in proportion.
 - The sanitizer keeps `colspan`/`rowspan` (plain numbers) and `<col>` widths in percent; a `<colgroup>` without usable widths (Word writes one) is removed. Markdown cannot merge cells: the text goes in the first position a merged cell covers, the rest stays empty.
 
-## Output formats: HTML, Markdown, text
+## HTML, Markdown and text: in and out
 
 ```js
-editor.getHTML();                // clean, sanitized HTML (the default, and what `change` emits)
-editor.getMarkdown();            // GitHub-flavoured Markdown
-editor.getText();                // plain text
-editor.getValue('markdown');     // any of 'html' | 'markdown' | 'text'
-import { toMarkdown, toText } from 'aurebesh'; // the same for any HTML string (needs a DOM)
+editor.getHTML();                 // clean, sanitized HTML (the default, and what `change` emits)
+editor.getMarkdown();             // GitHub-flavoured Markdown
+editor.getText();                 // plain text
+editor.getValue('markdown');      // any of 'html' | 'markdown' | 'text'
+
+editor.setHTML('<p>Hello</p>');
+editor.setMarkdown('# Hello\n\n- **bold** item');   // Markdown in
+editor.setValue('# Hello', 'markdown');              // the same, by format: 'html' | 'markdown' | 'text'
+import { toMarkdown, fromMarkdown, toText } from 'aurebesh'; // the same for any string (needs a DOM)
 ```
 
-- Web component: `el.markdown`, `el.text`, and `format="markdown"` (or `"text"`) makes a surrounding `<form>` submit that format instead of HTML. `el.value` always stays HTML, because that is what you set the content with.
-- Markdown covers headings, bold, italic, strikethrough, inline code, code blocks, links, images, quotes, lists (nested too) and tables (GFM; the first row becomes the header row). Underline and sub/superscript stay as inline HTML. Colours, fonts, sizes, alignment and columns are dropped, since Markdown cannot express them. A video becomes a link; sidebars become quotes.
-- Output only for now: there is no `setMarkdown()`.
+- **Markdown in** is read as GitHub-flavoured Markdown and goes through the sanitizer like any HTML, so Markdown that contains HTML (`<script>`, `onerror=`, `javascript:` links) cannot bring anything unsafe in. Like `setHTML` it does not send `change`. `fromMarkdown(md)` gives the sanitized HTML for a string without an editor.
+- `setValue(text, 'text')` makes a paragraph of each block of lines and a line break of each other line; nothing in it is read as markup.
+- Web component: `el.markdown` (read and write), `el.text`, and `format="markdown"` (or `"text"`) makes a surrounding `<form>` submit that format.
+
+**Markdown-first.** With `valueFormat: 'markdown'` the editor works in Markdown: `value` is Markdown, `getValue()` and `setValue()` use it by default, and `change` sends Markdown. `getHTML()` still gives HTML. On the element it is the `value-format="markdown"` attribute; then `el.value` is Markdown, the text inside the element is the initial Markdown, and a form submits Markdown. The wrappers need nothing special: React, Vue and Angular take `options={{ valueFormat: 'markdown' }}` and then `value` / `v-model` / `[(value)]` are Markdown.
+
+```html
+<aurebesh-editor value-format="markdown"># My notes
+
+- one
+- two</aurebesh-editor>
+```
+
+**Writing in Markdown or HTML: the views.** The `modes` option puts a small switch in the footer, on the right (the word and character counts stay on the left): **Editor**, **HTML** and **Markdown**. The HTML and Markdown views show the content as text that you can edit; what you type replaces the content of the editor (after a short pause, when the field loses the focus and when you switch back), and it is sanitized like any HTML. The toolbar is out of use while a source view shows, since it works on the text of the editor.
+
+```js
+new Aurebesh(el, { modes: true });                      // Editor | HTML | Markdown
+new Aurebesh(el, { modes: ['markdown'] });              // Editor | Markdown
+new Aurebesh(el, { modes: true, mode: 'markdown' });    // start in the Markdown view
+editor.getMode(); editor.setMode('html');               // from code
+editor.on('mode', (mode) => {});                        // 'editor' | 'html' | 'markdown'
+```
+
+On the element: `<aurebesh-editor modes>` (all three), `modes="markdown"` or `modes="html,markdown"`, `mode="markdown"`, and a `mode` event. Together with `value-format="markdown"` this gives an editor for Markdown content that can be written visually or as text. Switching to the Markdown view of a text with things Markdown cannot hold (colours, columns...) shows a note, because going back may change it. The texts are in the `ui.mode.*` labels.
+
+### What a Markdown round trip keeps and loses
+
+Markdown to HTML to Markdown gives the same Markdown for what the editor writes itself (the tests check this). Written by hand, Markdown is normalised: `*a*` and `_a_` both come back as `*a*`, a setext heading (`Title` over `=====`) as `# Title`, `*` and `+` bullets as `-`, and a soft line break in a paragraph as a space.
+
+| | Read from Markdown | Written to Markdown |
+|---|---|---|
+| Headings | `#` to `######` and underlined; `####` and deeper become `h3` (the editor has three levels) | `#` to `###` |
+| Text | **strong**, *emphasis*, `~~strike~~`, `` `code` ``, backslash escapes, entities, hard breaks (two spaces or `\`) | the same |
+| Links and images | inline, reference (`[a][r]` with `[r]: url`), `<automatic>`, bare `https://` and `www.` links, titles | inline, with the title |
+| Lists | bullet and numbered, nested, tight and loose, lazy continuation | the same; the start number of a numbered list is not kept |
+| Blocks | quotes (nested), fenced and indented code, horizontal lines, tables with their alignment (`:---`, `:---:`, `---:`) | the same |
+| HTML | read and then sanitized: what the editor knows stays (`<u>`, `<sub>`, `<sup>`, `<br>`, tables...), the rest is removed | `<u>`, `<sub>` and `<sup>` stay inline HTML |
+| **Lost** | the language after a code fence (` ```js `), task list boxes (`- [ ]` stays text), footnotes, `h4` to `h6` as such, raw HTML the sanitizer does not allow | colours, fonts and sizes, text alignment, indent, columns and page, merged table cells (the text stays in the first cell); a video becomes a link |
+
+Markdown cannot express what the editor can, so an editor with colours or columns is better stored as HTML; Markdown is for content that is Markdown by nature (documentation, notes, READMEs).
 
 ## Right-to-left languages (Arabic, Hebrew, …)
 
