@@ -4,10 +4,10 @@ import { currentDirection, setDirection } from './direction';
 import { currentLink, isInlineCode, setLink, toggleInlineCode } from './inline';
 import { canIndent, indent } from './indent';
 import { insertImage, insertVideo, insertVideoFile, setImageAlign, setImageAlt, setImageWidth } from './media';
-import { addColumn, addRow, canMerge, canSplit, cellProperty, deleteColumn, deleteRow, deleteTable, hasCaption, insertTable, mergeCells, setCellBorder, setCellProperty, splitCell, toggleCaption, toggleCellProperty, toggleHeaderRow } from './table';
+import { addColumn, addRow, canMerge, canSplit, cellProperty, copyColumns, copyRows, deleteColumn, deleteRow, deleteTable, hasCaption, hasCopied, insertTable, mergeCells, pasteColumns, pasteRows, setCellBorder, setCellProperty, splitCell, toggleCaption, toggleCellProperty, toggleHeaderRow } from './table';
 
 /** Shown in a second toolbar row while the cursor is inside a table. */
-export const TABLE_TOOLS = ['tableHeader', 'tableRowAdd', 'tableColAdd', 'tableRowDel', 'tableColDel', 'tableMerge', 'tableSplit', 'tableDel'];
+export const TABLE_TOOLS = ['tableHeader', 'tableRowAdd', 'tableColAdd', 'tableRowDel', 'tableColDel', 'tableRowCopy', 'tableRowPaste', 'tableColCopy', 'tableColPaste', 'tableMerge', 'tableSplit', 'tableDel'];
 /** The look of the selected cells and the caption, also in that row: the colour pickers and the border width are built by the editor. */
 export const CELL_TOOLS = ['cellAlignLeft', 'cellAlignCenter', 'cellAlignRight', 'cellAlignTop', 'cellAlignMiddle', 'cellAlignBottom', 'tableCaption'];
 
@@ -166,6 +166,10 @@ export const COMMANDS: Record<string, CommandDef> = {
   tableHeader: { name: 'tableHeader', label: 'Header', title: 'Toggle header row', run: () => toggleHeaderRow() },
   tableRowAdd: { name: 'tableRowAdd', label: '+ Row', title: 'Insert row below', run: () => addRow() },
   tableColAdd: { name: 'tableColAdd', label: '+ Col', title: 'Insert column right', run: () => addColumn() },
+  tableRowCopy: { name: 'tableRowCopy', icon: 'rowCopy', label: 'Copy row', title: 'Copy row', run: () => copyRows() },
+  tableRowPaste: { name: 'tableRowPaste', icon: 'rowPaste', label: 'Paste row', title: 'Paste row below', run: () => pasteRows(), isEnabled: () => hasCopied('row') },
+  tableColCopy: { name: 'tableColCopy', icon: 'colCopy', label: 'Copy col', title: 'Copy column', run: () => copyColumns() },
+  tableColPaste: { name: 'tableColPaste', icon: 'colPaste', label: 'Paste col', title: 'Paste column right', run: () => pasteColumns(), isEnabled: () => hasCopied('column') },
   tableMerge: { name: 'tableMerge', label: 'Merge', title: 'Merge cells', run: () => mergeCells(), isEnabled: canMerge },
   tableSplit: { name: 'tableSplit', label: 'Split', title: 'Split cell', run: () => splitCell(), isEnabled: canSplit },
   tableRowDel: { name: 'tableRowDel', label: '− Row', title: 'Delete row', run: () => deleteRow() },

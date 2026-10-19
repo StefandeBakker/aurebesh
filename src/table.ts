@@ -636,6 +636,252 @@ export function deleteTable(table: HTMLTableElement | null = currentCell()?.clos
   if (sel && (!sel.rangeCount || !root.contains(sel.anchorNode))) placeCaret(root.lastElementChild ?? root);
 }
 
+// ---- keyboard: up and down through the grid ---------------------------------------------------------------
+
+type Sel = Selection & { modify?: (alter: string, direction: string, granularity: string) => void };
+
+/** The caret of a collapsed selection: where it is on the screen, or null. */
+function caretPoint(cell: Cell): { x: number; top: number; bottom: number } | null {
+  const sel = document.getSelection();
+  if (!sel?.rangeCount || !sel.isCollapsed) return null;
+  const rect = sel.getRangeAt(0).getClientRects()[0] ?? cell.getBoundingClientRect(); // an empty line has no rectangle of its own
+  return { x: rect.left, top: rect.top, bottom: rect.bottom };
+}
+
+/** Puts the caret in a cell as close to the horizontal position `x` as possible, on its first or its last line. */
+function enterCell(cell: Cell, x: number, edge: 'first' | 'last'): void {
+  const box = cell.getBoundingClientRect();
+  const style = getComputedStyle(cell);
+  const line = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.4 || 18;
+  const y = edge === 'first' ? box.top + (parseFloat(style.paddingTop) || 0) + line / 2 : box.bottom - (parseFloat(style.paddingBottom) || 0) - line / 2;
+  const doc = document as Document & { caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null };
+  let range: Range | null = null;
+  if (doc.caretRangeFromPoint) range = doc.caretRangeFromPoint(x, y);
+  else if (doc.caretPositionFromPoint) {
+    const pos = doc.caretPositionFromPoint(x, y);
+    if (pos) {
+      range = document.createRange();
+      range.setStart(pos.offsetNode, pos.offset);
+      range.collapse(true);
+    }
+  }
+  if (range && cellOf(elementOf(range.startContainer)) === cell) {
+    const sel = document.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    return;
+  }
+  const fallback = document.createRange();
+  fallback.selectNodeContents(cell);
+  fallback.collapse(edge === 'first');
+  const sel = document.getSelection();
+  sel?.removeAllRanges();
+  sel?.addRange(fallback);
+}
+
+/**
+ * Up and Down at the top or the bottom line of a cell go to the cell above or below it in the grid. Browsers go by the order of the
+ * cells in the HTML, which in a table with merged cells is not the order on the screen (down from a cell can end up beside it). Inside a
+ * cell, and at the edge of the table, the browser does what it does. Returns true when handled.
+ */
+export function handleCellArrow(e: KeyboardEvent): boolean {
+  if ((e.key !== 'ArrowUp' && e.key !== 'ArrowDown') || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey || e.isComposing) return false;
+  const sel = document.getSelection() as Sel | null;
+  if (!sel?.rangeCount || !sel.isCollapsed || !sel.modify) return false;
+  const cell = cellOf(elementOf(sel.anchorNode));
+  const table = cell?.closest('table');
+  if (!cell || !table) return false;
+  const down = e.key === 'ArrowDown';
+  const caret = caretPoint(cell);
+  if (!caret) return false;
+
+  // Another line in the cell: move by one line, as the browser would; when that leaves the cell, the caret is back where it was.
+  const saved = sel.getRangeAt(0).cloneRange();
+  sel.modify('move', down ? 'forward' : 'backward', 'line');
+  const stayed = cellOf(elementOf(sel.anchorNode)) === cell;
+  const moved = sel.anchorNode !== saved.startContainer || sel.anchorOffset !== saved.startOffset;
+  if (stayed && moved) {
+    e.preventDefault();
+    return true;
+  }
+  sel.removeAllRanges();
+  sel.addRange(saved);
+
+  const model = modelOf(table);
+  const at = locate(model, cell);
+  const row = at ? (down ? at.r + at.rs : at.r - 1) : -1;
+  if (!at) return false;
+  if (row < 0 || row >= model.m.length) {
+    // past the edge of the table: on to the block after (or before) it, not to the next cell in the HTML, which is where a browser goes
+    const next = down ? table.nextElementSibling : table.previousElementSibling;
+    if (!next) return false;
+    const range = document.createRange();
+    range.selectNodeContents(next);
+    range.collapse(down);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    e.preventDefault();
+    return true;
+  }
+  // the cell in that row that is under the caret
+  let target: Cell | null = null;
+  for (const candidate of new Set(model.m[row])) {
+    const box = candidate?.getBoundingClientRect();
+    if (candidate && box && caret.x >= box.left - 1 && caret.x < box.right) target = candidate;
+  }
+  target ??= model.m[row][at.c];
+  if (!target) return false;
+  e.preventDefault();
+  enterCell(target, caret.x, down ? 'first' : 'last');
+  return true;
+}
+
+// ---- copying and pasting rows and columns -----------------------------------------------------------------
+
+interface Copied {
+  /** What a line is: a row (its cells from left to right) or a column (its cells from top to bottom). */
+  kind: 'row' | 'column';
+  lines: { tag: string; html: string; style: string | null }[][];
+}
+
+/** What was copied last: it can be pasted in any table of the page. */
+let copied: Copied | null = null;
+
+/** Whether rows ('row') or columns ('column') were copied, so there is something to paste. */
+export function hasCopied(kind: 'row' | 'column'): boolean {
+  return copied?.kind === kind;
+}
+
+const entryOf = (cell: Cell | null | undefined) => ({ tag: cell?.tagName === 'TH' ? 'th' : 'td', html: cell?.innerHTML ?? '', style: cell?.getAttribute('style') ?? null });
+const emptyEntry = (tag: string) => ({ tag, html: '', style: null });
+
+/** The text of the copied cells as a spreadsheet takes it (tabs between cells, a line for each row), and as a table. */
+function toClipboard(lines: Copied['lines'], kind: Copied['kind']): void {
+  const rows = kind === 'row' ? lines : lines[0].map((_, r) => lines.map((line) => line[r]));
+  const text = rows.map((row) => row.map((x) => (x.html ? htmlText(x.html) : '')).join('\t')).join('\n');
+  const html = `<table><tbody>${rows.map((row) => `<tr>${row.map((x) => `<${x.tag}${x.style ? ` style="${x.style.replace(/"/g, '&quot;')}"` : ''}>${x.html}</${x.tag}>`).join('')}</tr>`).join('')}</tbody></table>`;
+  const clipboard = navigator.clipboard as Clipboard | undefined;
+  if (!clipboard?.write || typeof ClipboardItem === 'undefined') return;
+  clipboard
+    .write([new ClipboardItem({ 'text/plain': new Blob([text], { type: 'text/plain' }), 'text/html': new Blob([html], { type: 'text/html' }) })])
+    .catch(() => {}); // not allowed here (no permission, or not a secure page): what was copied can still be pasted in the editor
+}
+
+function htmlText(html: string): string {
+  const box = document.createElement('div');
+  box.innerHTML = html;
+  return (box.textContent ?? '').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Copies the rows the selection reaches (the whole rows). A merged cell is copied as the one cell it is, in the row it starts in; the
+ * rows are also put on the clipboard as a table and as text, for a spreadsheet or another document.
+ */
+export function copyRows(): void {
+  const found = selectedRect();
+  if (!found) return;
+  const [r1, , r2] = found.rect;
+  const model = modelOf(found.table);
+  const lines: Copied['lines'] = [];
+  for (let r = r1; r <= r2; r++) {
+    const line: Copied['lines'][number] = [];
+    for (let c = 0; c < model.cols; c++) {
+      const cell = model.m[r][c];
+      const at = cell && locate(model, cell);
+      const origin = !!at && at.c === c && (at.r === r || (r === r1 && at.r < r1));
+      line.push(origin ? entryOf(cell) : emptyEntry(entryOf(cell).tag));
+    }
+    lines.push(line);
+  }
+  copied = { kind: 'row', lines };
+  toClipboard(lines, 'row');
+}
+
+/** Copies the columns the selection reaches, like `copyRows`. */
+export function copyColumns(): void {
+  const found = selectedRect();
+  if (!found) return;
+  const [, c1, , c2] = found.rect;
+  const model = modelOf(found.table);
+  const lines: Copied['lines'] = [];
+  for (let c = c1; c <= c2; c++) {
+    const line: Copied['lines'][number] = [];
+    for (let r = 0; r < model.m.length; r++) {
+      const cell = model.m[r][c];
+      const at = cell && locate(model, cell);
+      const origin = !!at && at.r === r && (at.c === c || (c === c1 && at.c < c1));
+      line.push(origin ? entryOf(cell) : emptyEntry(entryOf(cell).tag));
+    }
+    lines.push(line);
+  }
+  copied = { kind: 'column', lines };
+  toClipboard(lines, 'column');
+}
+
+function fromEntry(entry: Copied['lines'][number][number]): Cell {
+  const cell = newCell(entry.tag);
+  if (entry.html) cell.innerHTML = entry.html; // an empty one keeps the line break a new cell has
+  if (entry.style) cell.setAttribute('style', entry.style);
+  return cell;
+}
+
+/** Pastes the copied rows below the row of the cell under the caret. */
+export function pasteRows(): void {
+  const h = here();
+  if (!h || copied?.kind !== 'row') return;
+  const lines = copied.lines;
+  const { c, rs } = h.at;
+  const below = h.at.r + rs - 1;
+  editTable(h.table, (model) => {
+    const { m, rows, cols } = model;
+    lines.forEach((line, k) => {
+      const at = below + k;
+      const fresh: Cell[] = [];
+      for (let i = 0; i < cols; i++) {
+        const up = m[at][i]!;
+        const down = m[at + 1]?.[i];
+        // like a new row: a cell that continues into the next row grows to take in the new one
+        fresh.push(down && down === up ? up : fromEntry(line[i] ?? emptyEntry('td')));
+      }
+      const tr = document.createElement('tr');
+      rows[at].after(tr);
+      rows.splice(at + 1, 0, tr);
+      m.splice(at + 1, 0, fresh);
+    });
+    return [below + 1, c];
+  });
+}
+
+/** Pastes the copied columns right of the column of the cell under the caret. */
+export function pasteColumns(): void {
+  const h = here();
+  if (!h || copied?.kind !== 'column') return;
+  const lines = copied.lines;
+  const { r, c, cs } = h.at;
+  const right = c + cs - 1;
+  editTable(h.table, (model, copy) => {
+    lines.forEach((line, k) => {
+      const at = right + k;
+      const before = model.cols;
+      const made = new Map<Cell, Cell>();
+      model.m.forEach((row, i) => {
+        const left = row[at]!;
+        const next = row[at + 1];
+        let entry: Cell;
+        if (next && next === left) entry = left; // a cell that continues into the next column grows to take in the new one
+        else {
+          entry = made.get(left) ?? fromEntry(line[i] ?? emptyEntry(left.tagName === 'TH' ? 'th' : 'td'));
+          made.set(left, entry);
+        }
+        row.splice(at + 1, 0, entry);
+      });
+      model.cols++;
+      adjustWidths(copy, before, { added: at + 1 });
+    });
+    return [r, right + 1];
+  });
+}
+
 /** Tab / Shift+Tab moves between cells; Tab in the last cell adds a row. Returns true when handled. */
 export function handleTab(e: KeyboardEvent): boolean {
   if ((e.key !== 'Tab' && e.key !== 'Enter') || e.ctrlKey || e.altKey || e.metaKey) return false;
@@ -669,5 +915,17 @@ export function handleTab(e: KeyboardEvent): boolean {
   }
   const next = cells[i + step];
   if (next) placeCaret(next);
+  else if (step === -1) {
+    // Shift+Tab in the first cell goes to the end of what is before the table
+    const before = table.previousElementSibling;
+    if (before) {
+      const range = document.createRange();
+      range.selectNodeContents(before);
+      range.collapse(false);
+      const sel = document.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    }
+  }
   return true;
 }

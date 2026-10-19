@@ -20,7 +20,7 @@ import { canOpenLink, currentLink, normalizeLink, openLink } from './inline';
 import { DEFAULT_LABELS, LANGUAGES, resolveLanguage } from './labels';
 import type { Labels } from './labels';
 import { selectedImage } from './media';
-import { currentCell, handleTab, trackCellDrag } from './table';
+import { currentCell, handleCellArrow, handleTab, trackCellDrag } from './table';
 import { attachColumnResize } from './table-resize';
 import { DEFAULT_FONTS, firstFamily, SAFE_FAMILY } from './fonts';
 import type { FontDef } from './fonts';
@@ -690,6 +690,7 @@ export class Aurebesh {
       }
     }
 
+    if (handleCellArrow(e)) return; // moving the caret, not changing the text
     if (handleListKey(e) || handleTab(e) || handleCodeKey(e)) this.emitChange();
   }
 
