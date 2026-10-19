@@ -197,6 +197,37 @@ new Aurebesh(el, { plugins: [notes] });
 
 On the element: `el.options = { plugins: [notes] }`. React and Vue pass them in `options` too.
 
+## Building blocks: rows, columns and content
+
+The `blocks` toolbar item opens a panel in the sidebar with blocks to build a layout from, in the order *rows, columns, content*:
+
+- **Layout**: a row of 1 column, 2 columns, 3 columns, 30 / 70, 70 / 30 or 25 / 50 / 25.
+- **Content**: heading, text, image, button (a link that looks like one) and divider.
+
+**Drag** a block onto the text: a line shows where it will go (before or after the block under the pointer, or in a column), and it can go in a column, also a row in a column. **Click** a block to add it after the block that has the caret instead (or in the place of an empty line), which is how to do it with the keyboard and on a touch screen, where dragging between the panel and the text does not work. A heading or a paragraph is added with its text selected, so that typing replaces it; an image asks for a file (and goes through the upload adapter); a button is a link, so its address is changed with the link tools. Adding a block is one step for undo.
+
+While the caret is in a row, a row of tools shows its **distribution** (the presets, or the one the HTML has), the **gap** between the columns, and **Delete row layout**. A new distribution with fewer columns moves the content of the columns that go to the last one that stays; with more, the new columns are empty. The editor keeps the layout whole: every column has something to type in, there is a paragraph beside a row at the start and the end of the text, and Backspace at the very start of a column (or Delete at the very end) does nothing instead of joining the column with what is beside it.
+
+```js
+new Aurebesh(el, { toolbar: [...DEFAULT_TOOLBAR, 'blocks'] });
+editor.addBlock('row2');          // from code: after the block that has the caret
+editor.addBlock('heading');
+```
+
+A row is plain HTML, a grid of columns, and nothing of the editor is in it:
+
+```html
+<div data-layout="row" style="display: grid; grid-template-columns: 3fr 7fr; gap: 16px">
+  <div data-layout="col" style="min-width: 0"><h2>Heading</h2></div>
+  <div data-layout="col" style="min-width: 0"><p>Text</p>
+    <p><a href="https://example.com" data-button="" style="display: inline-block; padding: 10px 20px; background-color: #2563eb; color: #ffffff; border-radius: 6px; text-decoration: none">Button</a></p></div>
+</div>
+```
+
+The sanitizer allows this and no more: a `div` with `data-layout` `row` or `col`; on a row `display: grid`, `grid-template-columns` of up to six columns in `fr` or `%`, `gap` in px and `align-items`; on a column padding, a background and `min-width: 0`; on a link that has `data-button` the few styles of a button. Anything else is removed, so a grid cannot be used for more than a layout. CSS grid is not supported by e-mail clients: for HTML e-mail use a table instead (see Tables). In Markdown and text the columns are the content one after the other. The editor shows the columns with a dashed outline; the HTML you get has none of it, so give `[data-layout="row"]` and the columns the look and the responsive behaviour you want in your own CSS (for example one column on a narrow screen, with `grid-template-columns` set to `1fr` in a media query with `!important`).
+
+Reordering blocks by dragging them inside the text, and a panel with the properties of the block that is selected, are not there yet.
+
 ## Counter, limit and ready
 
 ```js
