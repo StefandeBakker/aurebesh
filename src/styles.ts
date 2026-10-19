@@ -198,7 +198,9 @@ export const CSS = `
 .aurebesh-count[hidden]{display:none}
 .aurebesh-count.over{color:#b42318;font-weight:600}
 .aurebesh-status.error{color:#b42318;background:#fef3f2}
-.aurebesh-content :not(pre)>code{padding:1px 5px;border-radius:4px;background:var(--aurebesh-code-bg,#f3f4f6);font-size:.9em}
+.aurebesh-content :not(pre)>code{padding:var(--aurebesh-code-padding,1px 5px);border:1px solid var(--aurebesh-code-border,rgba(0,0,0,.1));border-radius:var(--aurebesh-code-radius,4px);background:var(--aurebesh-code-bg,#f3f4f6);color:var(--aurebesh-code-color,inherit);font-size:.9em;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+/* the line keeps its height with a superscript or a subscript, whatever the size of the text */
+.aurebesh-content sup,.aurebesh-content sub{font-size:.75em;line-height:0}
 .aurebesh-size{max-width:90px}
 .aurebesh{position:relative}
 /* a popover on the link: see placeLinkTools */
