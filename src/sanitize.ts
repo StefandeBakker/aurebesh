@@ -11,7 +11,7 @@ const ALLOWED_TAGS = new Set([
 const DROP_WITH_CONTENT = new Set(['script', 'style', 'iframe', 'object', 'embed', 'noscript', 'template']);
 const ALLOWED_ATTRS: Record<string, string[]> = {
   a: ['href', 'title', 'target', 'rel', 'data-button'],
-  div: ['data-layout'],
+  div: ['data-layout', 'data-callout'],
   td: ['colspan', 'rowspan'],
   th: ['colspan', 'rowspan'],
   img: ['src', 'alt', 'title', 'width', 'height'],
@@ -31,6 +31,8 @@ export interface SanitizeExtension {
 
 export function sanitize(html: string, extensions: SanitizeExtension[] = []): string {
   const doc = new DOMParser().parseFromString(html, 'text/html');
+  // the empty paragraphs the editor keeps beside a callout, to be able to type there, are not content
+  doc.body.querySelectorAll('p[data-guard]').forEach((p) => p.innerHTML === '<br>' && p.remove());
   clean(doc.body, extensions);
   return doc.body.innerHTML;
 }
@@ -186,6 +188,8 @@ function clean(parent: Node, ext: SanitizeExtension[]): void {
     }
     if (style) el.setAttribute('style', style);
     if (tag === 'div' && layout !== null && layout !== 'row' && layout !== 'col') el.removeAttribute('data-layout');
+    // a callout has a type that is a plain name (it is written in CSS and in Markdown)
+    if (tag === 'div' && el.hasAttribute('data-callout') && !/^[a-z][a-z0-9-]{0,19}$/.test(el.getAttribute('data-callout')!)) el.removeAttribute('data-callout');
     if (tag === 'a' && el.hasAttribute('data-button')) el.setAttribute('data-button', '');
     for (const e of ext) e.clean?.(el);
     // Text direction (Word and Docs paste `dir="RTL"`): on blocks only, and only a known value.

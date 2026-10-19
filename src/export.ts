@@ -176,6 +176,11 @@ function table(el: Element): string {
 
 function block(el: Element, indent = ''): string {
   const tag = el.tagName.toLowerCase();
+  // a callout is an alert, as GitHub writes them: a quote that starts with its type in brackets
+  if (tag === 'div' && el.hasAttribute('data-callout')) {
+    const body = blocks(el).join('\n\n').split('\n').map((l) => (l ? `> ${l}` : '>'));
+    return [`> [!${el.getAttribute('data-callout')!.toUpperCase()}]`, ...body].join('\n');
+  }
   const heading = /^h([1-6])$/.exec(tag);
   if (heading) return `${'#'.repeat(Number(heading[1]))} ${Array.from(el.childNodes).map(inline).join('').trim()}`;
   switch (tag) {

@@ -228,6 +228,33 @@ The sanitizer allows this and no more: a `div` with `data-layout` `row` or `col`
 
 Reordering blocks by dragging them inside the text, and a panel with the properties of the block that is selected, are not there yet.
 
+## Callouts
+
+A callout is a block that stands out: a note, a tip, a warning. Add the `callout` item to the toolbar for a button with the types (it puts the blocks of the selection in one, changes the type of the one the caret is in, and takes it away with *No callout*), or type `/` at the start of a line for the slash menu, which also has the headings, the lists, the quote, the code block and the divider. Type to narrow it, arrow keys and Enter to pick, Escape to close; it is a listbox, and the text area names the active option with `aria-activedescendant`.
+
+The types are the ones GitHub knows: `note`, `tip`, `important`, `warning` and `caution`, each with an icon and a colour. Enter on an empty last line leaves the callout, and Backspace at its start takes it away (the text stays). Wrapping and unwrapping are one step for undo.
+
+```js
+new Aurebesh(el, {
+  toolbar: [...DEFAULT_TOOLBAR, 'callout'],   // the slash menu is on when there is a callout item; slash: false turns it off
+  callouts: [{ id: 'deal', label: 'Deal', color: '#ff0066' }, { id: 'note' }],  // your own types; default: the five above
+});
+```
+
+A callout is plain HTML, and the colour is a CSS variable, so it can be changed in CSS as well as in the options:
+
+```html
+<div data-callout="warning"><p>Check the <strong>settings</strong> first.</p></div>
+```
+
+```css
+:root { --aurebesh-callout-warning: #b45309; --aurebesh-callout-radius: 12px; }
+```
+
+The editor styles callouts itself. On a page where you only show the HTML, use `calloutCss()` (with `DEFAULT_CALLOUTS` or your own types) to get the same CSS as a string and put it in a `<style>`. A `CalloutDef` is `{ id, label?, color?, icon? }`: the `id` is a name of up to 20 letters, digits and hyphens, the `color` a hex or `rgb()` value, the `icon` one of `note`, `tip`, `important`, `warning` or `caution` (default `note`).
+
+The sanitizer allows `data-callout` on a `div` when the value is such a name, and nothing else of it (no classes, no styles). The type is only visual: the colour and the icon are not read out, so write the word in the text ("Warning: …") when it matters. In Markdown a callout is an alert, `> [!WARNING]` followed by the quote, and an alert is read back as a callout; in text it is its content. The empty paragraph that the editor keeps beside a callout at the start or the end of the text, to be able to type there, is not in the HTML you get.
+
 ## Counter, limit and ready
 
 ```js
