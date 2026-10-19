@@ -117,6 +117,7 @@ export const LABELS_ES: Labels = {
   tableRowDel: 'Eliminar fila',
   tableColDel: 'Eliminar columna',
   tableDel: 'Eliminar tabla',
+  sidebar: 'Barra lateral',
   blocks: 'Bloques de construcción',
   rowDelete: 'Eliminar la fila de diseño',
   'ui.blocks': 'Bloques',
