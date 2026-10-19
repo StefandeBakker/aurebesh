@@ -57,6 +57,15 @@ export function clearInline(kind: InlineKind): void {
   const anchor = sel.anchorNode && (sel.anchorNode.nodeType === Node.ELEMENT_NODE ? (sel.anchorNode as Element) : sel.anchorNode.parentElement);
   const root = anchor?.closest(ROOT);
   if (!root) return;
+  if (kind === 'bold') {
+    // a weight between regular and bold is a style on a span
+    const picked = sel.getRangeAt(0);
+    root.querySelectorAll<HTMLElement>('[style*="font-weight"]').forEach((el) => {
+      if (!picked.intersectsNode(el)) return;
+      el.style.removeProperty('font-weight');
+      if (!el.getAttribute('style')?.trim()) el.removeAttribute('style');
+    });
+  }
   const state = share(kind, root, sel.getRangeAt(0));
   if (state === 'none') return;
   // the command toggles: on everything first when only part has it, then off

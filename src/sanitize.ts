@@ -58,8 +58,11 @@ const SPAN_STYLES: StyleRules = {
   'font-family': SAFE_FAMILY,
   color: SAFE_COLOR,
   'background-color': SAFE_COLOR,
-  'font-size': /^(?:x-small|small|medium|large|x-large|xx-large|xxx-large)$/,
+  // the sizes of the toolbar are in points; the names are the steps of older content, and pixels come from other editors
+  'font-size': /^(?:x-small|small|medium|large|x-large|xx-large|xxx-large|(?:[6-9]|[1-9]\d|[12]\d\d)(?:\.\d{1,2})?(?:pt|px))$/,
   'text-transform': TEXT_TRANSFORM,
+  // the weights between regular and bold; bold itself is <strong>
+  'font-weight': /^(?:300|400|500|600)$/,
 };
 /** Padding of a filled box: one to four lengths in pt, px or em. */
 const PADDING = /^\d{1,3}(?:\.\d{1,2})?(?:pt|px|em)(?:\s+\d{1,3}(?:\.\d{1,2})?(?:pt|px|em)){0,3}$/;

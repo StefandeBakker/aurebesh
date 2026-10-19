@@ -27,6 +27,8 @@ import { CALLOUT_ID, DEFAULT_CALLOUTS, calloutCss, currentCallout, handleCallout
 import type { CalloutDef } from './callouts';
 import { attachSlashMenu } from './slash';
 import { handleSoftBreak } from './softbreak';
+import { WEIGHTS, currentWeight } from './weight';
+import { DEFAULT_SIZES, applyPendingSize, currentSize } from './fontsize';
 import { decorationLook } from './decoration';
 import type { DecorationKind } from './decoration';
 import { hasInline } from './clearformat';
@@ -120,6 +122,8 @@ export interface AurebeshOptions {
   media?: MediaOptions;
   /** Swatches offered by the 'color' and 'highlight' toolbar items (hex or rgb()). Defaults to DEFAULT_COLORS. */
   colors?: string[];
+  /** The sizes of the 'size' toolbar item, in points (8 and up). Default: 8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72. */
+  sizes?: number[];
   /** Fonts offered by the 'font' toolbar item. Defaults to DEFAULT_FONTS. */
   fonts?: FontDef[];
   /** Initial HTML content. It is sanitized. */
@@ -193,6 +197,8 @@ export class Aurebesh {
   private formLink: HTMLAnchorElement | null = null;
   private lastImage: HTMLImageElement | null = null;
   private sizeSelects: HTMLSelectElement[] = [];
+  private sizes: number[] = DEFAULT_SIZES;
+  private weightSelects: HTMLSelectElement[] = [];
   private columnsSelects: HTMLSelectElement[] = [];
   private cellBorderSelects: HTMLSelectElement[] = [];
   private sidebar: Sidebar | null = null;
@@ -241,6 +247,7 @@ export class Aurebesh {
     const doc = container.ownerDocument;
     const plugins = options.plugins ?? [];
     this.valueFormat = options.valueFormat ?? 'html';
+    if (options.sizes) this.sizes = options.sizes.filter((n) => Number.isFinite(n) && n >= 8 && n <= 200);
     if (options.callouts) {
       this.calloutTypes = options.callouts.filter((t) => CALLOUT_ID.test(t.id));
       // the styles of the types the page gave: after the built-in ones, so that they win
@@ -399,6 +406,7 @@ export class Aurebesh {
       });
       normalizeLayouts(this.content);
       normalizeCallouts(this.content);
+      applyPendingSize();
       this.syncEmpty();
       this.plugins.forEach((p) => p.inst.input?.());
       this.emitChange();
@@ -832,6 +840,7 @@ export class Aurebesh {
     this.buttons.forEach((list) => list.forEach((b) => (b.disabled = readOnly)));
     this.fontSelects.forEach((s) => (s.disabled = readOnly));
     this.sizeSelects.forEach((s) => (s.disabled = readOnly));
+    this.weightSelects.forEach((s) => (s.disabled = readOnly));
     this.orientationButtons.forEach((b) => (b.disabled = readOnly || !this.page?.height));
     this.columnsSelects.forEach((s) => (s.disabled = readOnly));
     this.cellBorderSelects.forEach((s) => (s.disabled = readOnly));
@@ -952,6 +961,7 @@ export class Aurebesh {
     if (this.panelIds.includes(item)) return this.buildPanelButton(cmd);
     if (item === 'font') return this.buildFontSelect();
     if (item === 'size') return this.buildSizeSelect();
+    if (item === 'weight') return this.buildWeightSelect();
     if (item === 'columns') return this.buildColumnsSelect();
     if (item === 'orientation') return this.buildOrientationButton();
     if (item === 'fullscreen') return this.makeButton(cmd, () => this.setFullscreen(!this.fullscreen));
@@ -2284,78 +2294,83 @@ export class Aurebesh {
   }
 
   /** Text size: the browser's steps small .. huge. Picks apply to the selection and the box returns to its title. */
+  /** The weight of the selected text, from light to bold; it shows the weight of the text that has the caret. */
+  private buildWeightSelect(): HTMLSelectElement {
+    const doc = this.container.ownerDocument;
+    const select = doc.createElement('select');
+    select.className = 'aurebesh-weight';
+    select.title = this.t('ui.weight');
+    select.setAttribute('aria-label', this.t('ui.weight'));
+    const placeholder = doc.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = this.t('ui.weight');
+    this.asPlaceholder(placeholder);
+    select.appendChild(placeholder);
+    for (const weight of WEIGHTS) {
+      const opt = doc.createElement('option');
+      opt.value = String(weight);
+      opt.textContent = this.t(`weight.${weight}`);
+      select.appendChild(opt);
+    }
+    select.value = '';
+    select.addEventListener('change', () => {
+      if (select.value) this.exec('weight', select.value);
+    });
+    this.weightSelects.push(select);
+    return select;
+  }
+
+  /** The size of the selected text in points; it shows the size of the text that has the caret. */
   private buildSizeSelect(): HTMLSelectElement {
     const doc = this.container.ownerDocument;
     const select = doc.createElement('select');
     select.className = 'aurebesh-size';
-    select.title = this.t('ui.size');
-    select.setAttribute('aria-label', this.t('ui.size'));
+    const name = `${this.t('ui.size')} (pt)`;
+    select.title = name;
+    select.setAttribute('aria-label', name);
     const placeholder = doc.createElement('option');
     placeholder.value = '';
     placeholder.textContent = this.t('ui.size');
     this.asPlaceholder(placeholder);
     select.appendChild(placeholder);
-    for (const [step, key] of [['2', 'size.small'], ['3', 'size.normal'], ['4', 'size.large'], ['5', 'size.larger'], ['6', 'size.huge']]) {
+    for (const points of this.sizes) {
       const opt = doc.createElement('option');
-      opt.value = step;
-      opt.textContent = this.t(key);
+      opt.value = String(points);
+      opt.textContent = String(points);
       select.appendChild(opt);
     }
+    const reset = doc.createElement('option');
+    reset.value = 'default';
+    reset.textContent = this.t('ui.sizeDefault');
+    select.appendChild(reset);
     select.value = '';
     select.addEventListener('change', () => {
       const chosen = select.value;
       if (!chosen) return;
       this.exec('size', chosen);
       // With only a caret there is no text to measure yet: show the choice until the caret moves.
-      if (this.container.ownerDocument.getSelection()?.isCollapsed) select.value = chosen;
+      if (this.container.ownerDocument.getSelection()?.isCollapsed) select.value = chosen === 'default' ? '' : chosen;
     });
     this.sizeSelects.push(select);
     return select;
   }
 
-  /**
-   * The element holding the first piece of text that is really selected. A selection dragged over a sized word often
-   * starts at the very end of the text before it, so the start container itself says nothing about the selected text.
-   */
-  private firstSelectedElement(range: Range): HTMLElement | null {
-    const toElement = (n: Node | null): HTMLElement | null => (n && (n.nodeType === Node.ELEMENT_NODE ? (n as HTMLElement) : n.parentElement)) || null;
-    if (!range.collapsed) {
-      const ancestor = range.commonAncestorContainer;
-      const root = ancestor.nodeType === Node.ELEMENT_NODE ? ancestor : ancestor.parentNode!;
-      const walker = this.container.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-      for (let n = walker.nextNode() as Text | null; n; n = walker.nextNode() as Text | null) {
-        if (!range.intersectsNode(n)) continue;
-        const from = n === range.startContainer ? range.startOffset : 0;
-        const to = n === range.endContainer ? range.endOffset : n.length;
-        if (n.data.slice(from, to).trim()) return toElement(n);
-      }
+  /** Shows a size in the box: one of the sizes in it, or (for text that has another size) a choice of its own that goes with the next one. */
+  private showSize(select: HTMLSelectElement, points: number | null): void {
+    select.querySelector('option[data-other]')?.remove();
+    if (points === null) {
+      select.value = '';
+      return;
     }
-    let node: Node = range.startContainer;
-    if (node.nodeType === Node.ELEMENT_NODE) node = node.childNodes[range.startOffset] ?? node;
-    return toElement(node);
-  }
-
-  /**
-   * The size step (as used by the size select) of the selected text: an explicit keyword size when there is one,
-   * otherwise measured from the real font size, so `<font size>`, `1.5em` and nested sizes work as well.
-   */
-  private currentSizeStep(range: Range): string {
-    const keywords: Record<string, string> = { 'x-small': '1', small: '2', medium: '3', large: '4', 'x-large': '5', 'xx-large': '6', 'xxx-large': '7' };
-    const start = this.firstSelectedElement(range);
-    for (let el = start; el && el !== this.content; el = el.parentElement) {
-      if (/^H[1-6]$/.test(el.tagName)) return ''; // headings have their own size
-      const size = el.style?.fontSize;
-      if (size && keywords[size]) return keywords[size];
+    const value = String(points);
+    if (!Array.from(select.options).some((o) => o.value === value)) {
+      const other = select.ownerDocument.createElement('option');
+      other.value = value;
+      other.textContent = value;
+      other.setAttribute('data-other', '');
+      select.insertBefore(other, select.options[1] ?? null);
     }
-    if (!start) return '';
-    const view = this.container.ownerDocument.defaultView;
-    if (!view) return '3';
-    const ratio = parseFloat(view.getComputedStyle(start).fontSize) / parseFloat(view.getComputedStyle(this.content).fontSize);
-    if (!ratio) return '3';
-    // relative to normal text: small 13/16, normal 1, large 18/16, larger 1.5, huge 2
-    const steps: [string, number][] = [['2', 0.8125], ['3', 1], ['4', 1.125], ['5', 1.5], ['6', 2]];
-    const [step, value] = steps.reduce((best, s) => (Math.abs(s[1] - ratio) < Math.abs(best[1] - ratio) ? s : best));
-    return Math.abs(value - ratio) / value < 0.06 ? step : '';
+    select.value = value;
   }
 
   /** Link popover: edits the link at the caret (field is prefilled), applies, or removes it. */
@@ -2517,10 +2532,12 @@ export class Aurebesh {
       }
     }
     if (inside) {
-      const step = this.currentSizeStep(sel!.getRangeAt(0));
-      this.sizeSelects.forEach((select) => {
-        select.value = Array.from(select.options).some((o) => o.value === step) ? step : '';
-      });
+      const points = currentSize();
+      this.sizeSelects.forEach((select) => this.showSize(select, points));
+    }
+    if (inside) {
+      const weight = String(currentWeight() ?? '');
+      this.weightSelects.forEach((select) => (select.value = Array.from(select.options).some((o) => o.value === weight) ? weight : ''));
     }
     if (inside) {
       let current = '';

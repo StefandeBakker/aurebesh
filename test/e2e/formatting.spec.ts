@@ -28,13 +28,13 @@ test.describe('formatting', () => {
     await open(page);
     await type(page, 'big');
     await selectAll(page);
-    await page.locator('select.aurebesh-size').selectOption('5');
-    expect(await html(page)).toMatch(/font-size:\s*[\w-]*large/);
+    await page.locator('select.aurebesh-size').selectOption('24');
+    expect(await html(page)).toMatch(/font-size:\s*24pt/);
     await page.evaluate(() => {
       const ed = (window as any).ed;
       ed.instance.setHTML(ed.value);
     });
-    expect(await html(page)).toMatch(/font-size:\s*[\w-]*large/);
+    expect(await html(page)).toMatch(/font-size:\s*24pt/);
   });
 
   test('alignment is applied and survives a reload through the sanitizer', async ({ page }) => {
@@ -103,13 +103,13 @@ test.describe('formatting', () => {
     // choosing a real value works
     await type(page, 'x');
     await selectAll(page);
-    await page.locator('select.aurebesh-size').selectOption('5');
+    await page.locator('select.aurebesh-size').selectOption('20');
     await page.locator('select.aurebesh-font').selectOption({ index: 2 });
     expect(await html(page)).toContain('font-family');
   });
 
   test('the size box shows the size of the selected text', async ({ page }) => {
-    await open(page, '<h1>Heading</h1><p>plain <span style="font-size: x-large">big</span> and <span style="font-size: small">small</span></p>');
+    await open(page, '<h1>Heading</h1><p>plain <span style="font-size: 20pt">big</span> and <span style="font-size: 9pt">small</span></p>');
     const size = page.locator('select.aurebesh-size');
     const placeAndSelect = (text: string) =>
       page.evaluate((t) => {
@@ -131,19 +131,19 @@ test.describe('formatting', () => {
       }, text);
 
     await placeAndSelect('big');
-    await expect(size).toHaveValue('5');
+    await expect(size).toHaveValue('20');
     await placeAndSelect('small');
-    await expect(size).toHaveValue('2');
+    await expect(size).toHaveValue('9');
     await placeAndSelect('plain');
-    await expect(size).toHaveValue('3');
+    await expect(size).toHaveValue('12'); // the text of the page: 16px
     await placeAndSelect('Heading');
-    await expect(size).toHaveValue(''); // headings have their own size: back to the title
+    await expect(size).toHaveValue('24'); // a heading has its own size, and it shows
 
     // after choosing a size the box keeps showing it
     await placeAndSelect('plain');
-    await size.selectOption('6');
-    await expect(size).toHaveValue('6');
-    expect(await html(page)).toMatch(/font-size:\s*xx-large/);
+    await size.selectOption('28');
+    await expect(size).toHaveValue('28');
+    expect(await html(page)).toMatch(/font-size:\s*28pt/);
   });
 
   test('the size box also recognises other markup, and selections that start just before the sized text', async ({ page }) => {
@@ -151,7 +151,7 @@ test.describe('formatting', () => {
     // Raw DOM on purpose: the sanitizer would strip <font> and em sizes, but a browser can produce them in the live editor.
     await page.evaluate(() => {
       document.querySelector('.aurebesh-content')!.innerHTML =
-        '<p>plain <font size="5">legacy</font> <span style="font-size: 1.5em">em</span> <span style="font-size: x-large">drag</span> tail</p>';
+        '<p>plain <font size="5">legacy</font> <span style="font-size: 1.5em">em</span> <span style="font-size: 18pt">drag</span> tail</p>';
     });
     const size = page.locator('select.aurebesh-size');
     const select = (from: string, to: string, fromEnd = false) =>
@@ -178,11 +178,11 @@ test.describe('formatting', () => {
       );
 
     await select('legacy', 'legacy');
-    await expect(size).toHaveValue('5'); // <font size="5">
+    await expect(size).toHaveValue('18'); // <font size="5">: x-large, 24px
     await select('em', 'em');
-    await expect(size).toHaveValue('5'); // 1.5em
+    await expect(size).toHaveValue('18'); // 1.5em: 24px
     await select('plain ', 'drag', true); // starts at the end of "plain " and runs over the sized words
-    await expect(size).toHaveValue('5');
+    await expect(size).toHaveValue('18');
   });
 
   test.describe('opening links', () => {
