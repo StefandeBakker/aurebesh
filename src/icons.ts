@@ -77,6 +77,11 @@ export const ICONS: Record<string, Shape[]> = {
   moveDown: [['path', { d: 'M12 4v14M6.5 12.5 12 18l5.5-5.5' }]],
   moveLeft: [['path', { d: 'M20 12H6M11.5 6.5 6 12l5.5 5.5' }]],
   moveRight: [['path', { d: 'M4 12h14M12.5 6.5 18 12l-5.5 5.5' }]],
+  // the building blocks: four of them, a heading, a text, a button
+  blocks: [['rect', { x: 3.5, y: 3.5, width: 7, height: 7, rx: 1.4 }], ['rect', { x: 13.5, y: 3.5, width: 7, height: 7, rx: 1.4 }], ['rect', { x: 3.5, y: 13.5, width: 7, height: 7, rx: 1.4 }], ['rect', { x: 13.5, y: 13.5, width: 7, height: 7, rx: 1.4 }]],
+  blockHeading: [['path', { d: 'M5 5v14M19 5v14M5 12h14' }]],
+  blockText: [['path', { d: 'M4 6h16M4 10h16M4 14h16M4 18h9' }]],
+  blockButton: [['rect', { x: 3, y: 8, width: 18, height: 8, rx: 3 }], ['path', { d: 'M8 12h8' }]],
   cellAlignTop: [['rect', { x: 4, y: 4, width: 16, height: 16, rx: 1.5 }], ['path', { d: 'M8 8h8' }]],
   cellAlignMiddle: [['rect', { x: 4, y: 4, width: 16, height: 16, rx: 1.5 }], ['path', { d: 'M8 12h8' }]],
   cellAlignBottom: [['rect', { x: 4, y: 4, width: 16, height: 16, rx: 1.5 }], ['path', { d: 'M8 16h8' }]],

@@ -23,6 +23,8 @@ import { selectedImage } from './media';
 import { currentCell, handleCellArrow, handleTab, trackCellDrag } from './table';
 import { attachColumnResize } from './table-resize';
 import { attachTableHandles } from './table-handles';
+import { BLOCK_MIME, CONTENT, LAYOUTS, blockHtml, currentRow, deleteRow, handleLayoutKey, insertBlock, normalizeLayouts, rowGap, rowTemplate, selectSpot, setRow, spotAt, spotAtCaret, spotLine } from './blocks';
+import type { Spot } from './blocks';
 import { DEFAULT_FONTS, firstFamily, SAFE_FAMILY } from './fonts';
 import type { FontDef } from './fonts';
 import { base64Adapter, resultUrl } from './media';
@@ -161,6 +163,10 @@ export class Aurebesh {
   private fontSelects: HTMLSelectElement[] = [];
   private lastRange: Range | null = null;
   private tableTools: HTMLElement | null = null;
+  private rowTools: HTMLElement | null = null;
+  private rowSelects: { layout?: HTMLSelectElement; gap?: HTMLSelectElement } = {};
+  private lastRow: HTMLElement | null = null;
+  private blockLine: HTMLElement | null = null;
   private imageTools: HTMLElement | null = null;
   private imageAltInput: HTMLInputElement | null = null;
   private linkTools: HTMLElement | null = null;
@@ -262,7 +268,7 @@ export class Aurebesh {
     const items = baseItems.length ? extendToolbar(baseItems, this.plugins.flatMap((p) => p.inst.toolbarExtend ?? [])) : baseItems;
     const quick = options.quickbar ?? (options.toolbar || pluginToolbar ? [] : DEFAULT_QUICKBAR);
     const commands = [...items, ...quick];
-    this.panelIds = ['layout', ...plugins.flatMap((p) => (p.panels ?? []).map((panel) => panel.id))].filter((id) => commands.includes(id));
+    this.panelIds = ['layout', 'blocks', ...plugins.flatMap((p) => (p.panels ?? []).map((panel) => panel.id))].filter((id) => commands.includes(id));
     if (quick.length) this.buildQuickbar(quick);
     if (items.length) this.buildToolbar(items);
     this.buildContextualTools(commands);
@@ -278,6 +284,7 @@ export class Aurebesh {
     this.stage.appendChild(this.content);
     const panels: PanelDef[] = [];
     if (commands.includes('layout')) panels.push({ id: 'layout', title: this.t('ui.layout'), build: () => this.buildLayoutPanel() });
+    if (commands.includes('blocks')) panels.push({ id: 'blocks', title: this.t('ui.blocks'), build: () => this.buildBlocksPanel() });
     for (const p of plugins) for (const panel of p.panels ?? []) if (commands.includes(panel.id)) panels.push(panel);
     if (panels.length) {
       // the text with the sidebar beside it
@@ -345,6 +352,7 @@ export class Aurebesh {
     this.listen(this.content, 'input', () => {
       // Deleting an embed leaves its empty wrapper behind.
       this.content.querySelectorAll(':scope > div:empty').forEach((d) => d.remove());
+      normalizeLayouts(this.content);
       this.syncEmpty();
       this.plugins.forEach((p) => p.inst.input?.());
       this.emitChange();
@@ -356,9 +364,18 @@ export class Aurebesh {
     this.listen(this.content, 'beforeinput', (e) => this.onBeforeInput(e as InputEvent));
     this.listen(this.content, 'dragover', (e) => {
       const drag = e as DragEvent;
+      if (drag.dataTransfer?.types.includes(BLOCK_MIME)) {
+        if (!this.content.isContentEditable) return;
+        e.preventDefault(); // a block can be dropped here
+        const spot = spotAt(this.content, drag.clientX, drag.clientY);
+        this.showBlockLine(spot);
+        return;
+      }
       // Files are taken by the editor, anything else only when a plugin says it wants it (it then gets the `drop`).
       if (drag.dataTransfer?.types.includes('Files') || this.plugins.some((p) => p.inst.dragover?.(drag))) e.preventDefault();
     });
+    this.listen(this.content, 'dragleave', () => this.showBlockLine(null));
+    this.listen(this.content.ownerDocument, 'dragend', () => this.showBlockLine(null));
     this.listen(this.content, 'drop', (e) => this.onDrop(e as DragEvent));
     this.listen(this.content, 'click', (e) => this.onClick(e as MouseEvent));
     this.listen(doc, 'selectionchange', () => this.updateToolbar());
@@ -709,6 +726,7 @@ export class Aurebesh {
     }
 
     if (handleCellArrow(e)) return; // moving the caret, not changing the text
+    if (handleLayoutKey(e, this.content)) return; // Backspace at the start of a column would take the layout apart
     if (handleListKey(e) || handleTab(e) || handleCodeKey(e)) this.emitChange();
   }
 
@@ -950,6 +968,7 @@ export class Aurebesh {
       rovingToolbar(tools, () => this.content.focus());
     }
 
+    if (commands.includes('blocks')) this.buildRowTools();
     if (commands.includes('image')) this.buildImageTools();
     if (commands.includes('link')) this.buildLinkTools();
   }
@@ -1546,6 +1565,159 @@ export class Aurebesh {
     return wrap;
   }
 
+  /** Shows (or hides, with null) the line that tells where a dragged block would go. */
+  private showBlockLine(spot: Spot | null): void {
+    if (!spot) {
+      this.blockLine?.remove();
+      this.blockLine = null;
+      return;
+    }
+    if (!this.blockLine) {
+      this.blockLine = this.container.ownerDocument.createElement('div');
+      this.blockLine.className = 'aurebesh-blockdrop';
+      this.blockLine.setAttribute('aria-hidden', 'true');
+      this.container.ownerDocument.body.appendChild(this.blockLine);
+    }
+    const line = spotLine(spot);
+    Object.assign(this.blockLine.style, { left: `${line.left}px`, width: `${line.width}px`, top: `${line.top}px` });
+  }
+
+  /** Puts a building block in the text: at the spot, or after the block that has the caret. The image asks for a file first. */
+  addBlock(id: string, spot?: Spot | null): void {
+    if (!this.content.isContentEditable) return;
+    if (!spot) {
+      this.restoreSelection(); // the click was in the sidebar: where the caret was
+      spot = spotAtCaret(this.content);
+    }
+    if (id === 'image') {
+      const input = this.container.ownerDocument.createElement('input');
+      input.type = 'file';
+      input.accept = IMAGE_TYPES.join(',');
+      const at = spot;
+      input.addEventListener('change', () => {
+        if (!input.files?.length) return;
+        selectSpot(this.content, at);
+        void this.uploadFiles(input.files);
+      });
+      input.click();
+      return;
+    }
+    if (!insertBlock(this.content, blockHtml(id, (key) => this.t(key)), spot)) return;
+    this.syncEmpty();
+    this.emitChange();
+    this.updateToolbar();
+  }
+
+  /** The panel with the building blocks: layouts and content, to drag into the text or to click. */
+  private buildBlocksPanel(): HTMLElement {
+    const doc = this.container.ownerDocument;
+    const panel = doc.createElement('div');
+    panel.className = 'aurebesh-panel-blocks';
+    const hint = doc.createElement('div');
+    hint.className = 'aurebesh-hint';
+    hint.textContent = this.t('ui.blocks.hint');
+    panel.appendChild(hint);
+    const section = (title: string) => {
+      const heading = doc.createElement('div');
+      heading.className = 'aurebesh-blocks-title';
+      heading.textContent = title;
+      const grid = doc.createElement('div');
+      grid.className = 'aurebesh-blocks';
+      grid.setAttribute('role', 'group');
+      grid.setAttribute('aria-label', title);
+      panel.append(heading, grid);
+      return grid;
+    };
+    const add = (grid: HTMLElement, id: string, preview: Element) => {
+      const b = doc.createElement('button');
+      b.type = 'button';
+      b.className = 'aurebesh-block';
+      b.draggable = true;
+      b.dataset.block = id;
+      const name = this.t(`block.${id}`);
+      b.title = name;
+      b.setAttribute('aria-label', name);
+      const label = doc.createElement('span');
+      label.textContent = name;
+      b.append(preview, label);
+      b.addEventListener('click', () => this.addBlock(id));
+      b.addEventListener('dragstart', (e) => {
+        e.dataTransfer?.setData(BLOCK_MIME, id);
+        if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy';
+      });
+      grid.appendChild(b);
+    };
+    const layouts = section(this.t('ui.blocks.layout'));
+    for (const l of LAYOUTS) {
+      const bars = doc.createElement('span');
+      bars.className = 'aurebesh-block-bars';
+      for (const part of l.template.split(' ')) {
+        const bar = doc.createElement('span');
+        bar.style.flex = String(parseFloat(part));
+        bars.appendChild(bar);
+      }
+      add(layouts, l.id, bars);
+    }
+    const content = section(this.t('ui.blocks.content'));
+    const icons: Record<string, string> = { heading: 'blockHeading', text: 'blockText', image: 'image', button: 'blockButton', divider: 'hr' };
+    for (const id of CONTENT) {
+      const icon = iconElement(doc, icons[id], this.extraIcons);
+      add(content, id, icon ?? doc.createElement('span'));
+    }
+    return panel;
+  }
+
+  /** The row that appears while the caret is in a layout row: how its columns are distributed, the gap between them, and Delete. */
+  private buildRowTools(): void {
+    const doc = this.container.ownerDocument;
+    const tools = doc.createElement('div');
+    tools.className = 'aurebesh-toolbar aurebesh-row-tools';
+    tools.setAttribute('role', 'toolbar');
+    tools.setAttribute('aria-label', this.t('ui.rowTools'));
+    tools.hidden = true;
+    const select = (className: string, label: string, options: [string, string][]) => {
+      const s = doc.createElement('select');
+      s.className = className;
+      s.title = label;
+      s.setAttribute('aria-label', label);
+      for (const [value, text] of options) {
+        const o = doc.createElement('option');
+        o.value = value;
+        o.textContent = text;
+        s.appendChild(o);
+      }
+      tools.appendChild(s);
+      return s;
+    };
+    const layout = select('aurebesh-rowlayout', this.t('ui.rowLayout'), LAYOUTS.map((l) => [l.template, this.t(`block.${l.id}`)]));
+    const gap = select('aurebesh-rowgap', this.t('ui.rowGap'), [0, 8, 16, 24, 32].map((n) => [String(n), `${n}px`]));
+    layout.addEventListener('change', () => this.changeRow(layout.value));
+    gap.addEventListener('change', () => this.changeRow(undefined, Number(gap.value)));
+    this.rowSelects = { layout, gap };
+    const del = this.makeButton(COMMANDS.rowDelete, () => {
+      const row = this.lastRow;
+      if (!row || !row.isConnected) return;
+      deleteRow(this.content, row);
+      this.syncEmpty();
+      this.emitChange();
+      this.updateToolbar();
+    });
+    tools.appendChild(del);
+    this.rowTools = tools;
+    this.root.appendChild(tools);
+    rovingToolbar(tools, () => this.content.focus());
+  }
+
+  private changeRow(template?: string, gap?: number): void {
+    const row = this.lastRow;
+    if (!row || !row.isConnected) return;
+    this.content.focus();
+    setRow(this.content, row, template ?? rowTemplate(row), gap ?? rowGap(row));
+    this.syncEmpty();
+    this.emitChange();
+    this.updateToolbar();
+  }
+
   /** Uploads files through the configured adapter and inserts the results at the caret. */
   async uploadFiles(files: File[] | FileList): Promise<void> {
     for (const file of Array.from(files)) {
@@ -1580,6 +1752,13 @@ export class Aurebesh {
   }
 
   private onDrop(e: DragEvent): void {
+    const block = e.dataTransfer?.getData(BLOCK_MIME);
+    if (block) {
+      e.preventDefault();
+      this.showBlockLine(null);
+      if (this.content.isContentEditable) this.addBlock(block, spotAt(this.content, e.clientX, e.clientY));
+      return;
+    }
     if (this.plugins.some((p) => p.inst.drop?.(e))) return;
     const files = e.dataTransfer?.files;
     if (!files?.length || !this.content.isContentEditable) return;
@@ -2050,6 +2229,28 @@ export class Aurebesh {
     const inside = !!sel && sel.rangeCount > 0 && this.content.contains(sel.anchorNode);
     if (inside) this.lastRange = sel!.getRangeAt(0).cloneRange();
     if (this.tableTools && !this.pointerHeld) this.tableTools.hidden = !(inside && currentTable());
+    if (this.rowTools) {
+      const row = inside && this.content.isContentEditable ? currentRow(this.content) : null;
+      if (row) {
+        this.lastRow = row;
+        const { layout, gap } = this.rowSelects;
+        if (layout) {
+          const template = rowTemplate(row);
+          // a distribution that is not one of the presets (from other HTML) is shown as it is
+          layout.querySelector('option[data-custom]')?.remove();
+          if (!Array.from(layout.options).some((o) => o.value === template)) {
+            const o = this.container.ownerDocument.createElement('option');
+            o.value = template;
+            o.dataset.custom = '';
+            o.textContent = template;
+            layout.appendChild(o);
+          }
+          layout.value = template;
+        }
+        if (gap) gap.value = String(rowGap(row));
+      }
+      this.rowTools.hidden = !row && !this.rowTools.contains(this.container.ownerDocument.activeElement);
+    }
     if (this.linkTools) {
       const link = inside && this.content.isContentEditable ? currentLink() : null;
       if (link) {
