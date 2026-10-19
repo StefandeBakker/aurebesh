@@ -213,7 +213,7 @@ test.describe('accessibility', () => {
     await first.focus();
     await page.keyboard.press('ArrowRight');
     const second = await page.evaluate(() => (document.activeElement as HTMLElement).getAttribute('title'));
-    expect(second).toBe('Bold'); // the first is Clear formatting: the boxes for font and size are not buttons
+    expect(second).toBe('Clear one kind of formatting'); // the first is Clear formatting: the boxes for font and size are not buttons
     await page.keyboard.press('End');
     expect(await page.evaluate(() => (document.activeElement as HTMLElement).getAttribute('title'))).toBe('Horizontal line'); // columns is a box, so this is the last button
     await page.keyboard.press('Home');

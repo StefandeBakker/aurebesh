@@ -248,6 +248,14 @@ The HTML has no input in it, only two attributes:
 
 The box is drawn with CSS, which the editor has. On a page that only shows the HTML, put `taskListCss()` in a `<style>` (it is exported), and colour it with `--aurebesh-task-color`, `--aurebesh-task-border` and `--aurebesh-task-radius`. The sanitizer allows `data-task` on a `ul` and `data-checked="true"` on an item of one, and nothing else. In Markdown it is `- [ ] todo` and `- [x] done`, in and out, nested as well; in a list where only some items have a box, all of them get one. In text it is the content. Two limits: checking an item is a direct DOM edit, so the browser's undo does not cover it (typing and splitting are), and the state is not read out by a screen reader, because the box is not an element: use `Mod+Enter` and write the state in the text when it matters.
 
+## Inline code, superscript and subscript
+
+**Inline code** (`code` item, `Mod+E`) puts the selected text in `<code>`; the same button, with the caret in code or a selection that reaches it, takes the code away. The other formatting stays: bold and links in the text go along into the code, taking the code away leaves them where they were, and a selection over several blocks gets a piece of code in each (and stays those blocks). Code is not put in code. It is done with the commands of the browser, so it is in the undo history; a few cases that a browser does not do as code (for example in bold text) are done in the DOM, and the undo history does not have those. In Markdown it is backticks, with a longer fence when the code has a backtick in it; Markdown has no formatting inside code, so what is bold or a link in it is plain there.
+
+The box can be set with CSS variables on the editor or on a page above it: `--aurebesh-code-bg`, `--aurebesh-code-color`, `--aurebesh-code-border`, `--aurebesh-code-padding` and `--aurebesh-code-radius`. The box has a thin border (so that code in a text with a grey background still shows), and a line of code that wraps keeps its box on both lines.
+
+**Superscript** (`sup`, `Mod+.`) and **subscript** (`sub`, `Mod+,`) do not go together: the one applied last stays, also in a browser that would keep both. They are `<sup>` and `<sub>` in the HTML and in Markdown (which has no syntax for them, so it stays HTML), a quarter smaller than the text around them, and they do not change the height of the line, also in big text or in a heading. The buttons are not in the default toolbar; add `sub` and `sup` after `strike`.
+
 ## Clearing one kind of formatting
 
 The `clear` item takes away all formatting of the selected text. The `clearStyle` item (a button with a list, an eraser) takes away only one kind and leaves the rest: **bold**, **italic**, **underline**, **strikethrough**, **text colour** or **highlight** (and *Clear formatting* for everything). A kind that the selected text does not have is greyed out. It works on the selected text; where only part of it has the formatting, all of it ends up without. `Mod+\` clears all formatting from the keyboard; bold, italic, underline and strikethrough already have their own shortcuts, which toggle them. It uses the commands of the browser, so every step is in the undo history (taking away something that only part of the text has is two steps).
@@ -464,6 +472,7 @@ To add a language to your own application without changing the package, pass its
 | `Mod+E` | Inline code (again to remove) |
 | `Mod+Shift+X` | Strikethrough |
 | `Mod+\` | Clear all formatting |
+| `Mod+.` / `Mod+,` | Superscript / subscript |
 | `Mod+Shift+7` / `Mod+Shift+8` / `Mod+Shift+9` | Numbered / bullet / task list |
 | `Mod+Enter` | Check or uncheck the task with the caret |
 | `Shift+Enter` | A line break inside the block (`<br>`), where `Enter` starts a new one; the same in every browser, in a list item, a heading, a quote, a callout and a table cell (in a code block it is a new line) |

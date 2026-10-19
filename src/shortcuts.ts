@@ -6,6 +6,7 @@
  *   Mod+Shift+X      strikethrough                  Mod+Shift+7 / 8  numbered / bullet list
  *   Mod+Alt+1 / 2 / 3  heading 1 / 2 / 3           Mod+Alt+C        code block
  *   Mod+\              clear all formatting
+ *   Mod+.            superscript                    Mod+,            subscript
  *   Mod+Shift+9      task list                      Mod+Enter        check / uncheck the task
  */
 export function shortcutFor(e: KeyboardEvent): string | null {
@@ -18,6 +19,8 @@ export function shortcutFor(e: KeyboardEvent): string | null {
     if (e.code === 'KeyK') return 'link';
     if (e.code === 'KeyE') return 'code';
     if (e.code === 'Backslash') return 'clear';
+    if (e.code === 'Period') return 'sup';
+    if (e.code === 'Comma') return 'sub';
     return null;
   }
   if (e.shiftKey && !e.altKey) {
@@ -54,6 +57,8 @@ const KEYS: Record<string, string> = {
   ul: 'Mod+Shift+8',
   task: 'Mod+Shift+9',
   clear: 'Mod+\\',
+  sup: 'Mod+.',
+  sub: 'Mod+,',
 };
 
 export const isMac = (): boolean => typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);

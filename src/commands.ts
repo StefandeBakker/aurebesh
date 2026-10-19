@@ -32,6 +32,11 @@ export interface CommandDef {
 }
 
 const exec = (cmd: string, value?: string) => document.execCommand(cmd, false, value);
+/** Superscript and subscript do not go together: where a browser leaves both on, the other one is taken away. */
+const exclusive = (cmd: string, other: string) => {
+  document.execCommand(cmd);
+  if (document.queryCommandState(cmd) && document.queryCommandState(other)) document.execCommand(other);
+};
 const state = (cmd: string) => {
   try {
     return document.queryCommandState(cmd);
@@ -77,8 +82,8 @@ export const COMMANDS: Record<string, CommandDef> = {
   underline: { name: 'underline', label: 'U', title: 'Underline', run: () => exec('underline'), isActive: () => state('underline') },
   strike: { name: 'strike', label: 'S', title: 'Strikethrough', run: () => exec('strikeThrough'), isActive: () => state('strikeThrough') },
   code: { name: 'code', icon: 'code', label: '</>', title: 'Inline code', run: toggleInlineCode, isActive: isInlineCode },
-  sup: { name: 'sup', label: 'x²', title: 'Superscript', run: () => exec('superscript'), isActive: () => state('superscript') },
-  sub: { name: 'sub', label: 'x₂', title: 'Subscript', run: () => exec('subscript'), isActive: () => state('subscript') },
+  sup: { name: 'sup', label: 'x²', title: 'Superscript', run: () => exclusive('superscript', 'subscript'), isActive: () => state('superscript') },
+  sub: { name: 'sub', label: 'x₂', title: 'Subscript', run: () => exclusive('subscript', 'superscript'), isActive: () => state('subscript') },
   h1: { name: 'h1', label: 'H1', title: 'Heading 1', run: toggleBlock('h1'), isActive: isBlock('h1') },
   h2: { name: 'h2', label: 'H2', title: 'Heading 2', run: toggleBlock('h2'), isActive: isBlock('h2') },
   /** Not in the default toolbar; reachable with Mod+Alt+3 and the `### ` Markdown shortcut. */
