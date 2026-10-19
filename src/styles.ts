@@ -87,7 +87,7 @@ export const CSS = `
 .aurebesh-content aside>:last-child{margin-bottom:0}
 .aurebesh-content div[style*="column-count"]{margin:.5em 0;padding:4px 0;outline:1px dashed var(--aurebesh-border,#d0d5dd);outline-offset:4px}
 .aurebesh-content div[style*="column-count"] :is(table,pre,blockquote,aside,img,video,iframe){break-inside:avoid}
-.aurebesh-font,.aurebesh-size,.aurebesh-columns,.aurebesh-pagesel{height:28px;max-width:130px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:var(--aurebesh-bg,#fff);color:inherit;font:inherit;font-size:13px}
+.aurebesh-font,.aurebesh-size,.aurebesh-columns,.aurebesh-pagesel,.aurebesh-cellborder{height:28px;max-width:130px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:var(--aurebesh-bg,#fff);color:inherit;font:inherit;font-size:13px}
 .aurebesh-toolbar[hidden],.aurebesh-table-pop[hidden]{display:none}
 .aurebesh-table-tools{background:var(--aurebesh-table-tools-bg,#eef3ff)}
 .aurebesh-table-picker{position:relative;display:inline-block}
@@ -100,10 +100,31 @@ export const CSS = `
 .aurebesh-content td,.aurebesh-content th{border:1px solid var(--aurebesh-border,#d0d5dd);padding:6px 8px;vertical-align:top;min-width:30px}
 .aurebesh-content th{background:var(--aurebesh-toolbar-bg,#f8f9fb);font-weight:600;text-align:start}
 .aurebesh-content.aurebesh-col-resize,.aurebesh-content.aurebesh-col-resize *{cursor:col-resize}
+/* the handles on the table with the caret: borders to drag, grips to move a row or a column, and the frames of the selected cells */
+.aurebesh-stage{position:relative}
+.aurebesh-handles{position:absolute;z-index:4;overflow:hidden;pointer-events:none}
+.aurebesh-handle{position:absolute;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none}
+.aurebesh-handle-col{width:12px;margin-inline-start:-6px;cursor:col-resize}
+.aurebesh-handle-row{height:12px;margin-top:-6px;cursor:row-resize}
+.aurebesh-handle-col::after,.aurebesh-handle-row::after{content:'';position:absolute;background:var(--aurebesh-accent,#2563eb);opacity:0;transition:opacity .1s}
+.aurebesh-handle-col::after{inset-block:0;left:5px;width:2px}
+.aurebesh-handle-row::after{inset-inline:0;top:5px;height:2px}
+.aurebesh-handle-col:hover::after,.aurebesh-handle-row:hover::after,.aurebesh-handle.is-dragging::after{opacity:.9}
+.aurebesh-handle-col-grip,.aurebesh-handle-row-grip{display:flex;align-items:center;justify-content:center;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:var(--aurebesh-toolbar-bg,#f8f9fb);color:var(--aurebesh-label,#667085);cursor:grab;opacity:.75}
+.aurebesh-handle-col-grip{width:22px;height:12px;margin-left:-11px}
+.aurebesh-handle-row-grip{width:12px;height:22px;margin-top:-11px}
+.aurebesh-handle-col-grip::before,.aurebesh-handle-row-grip::before{content:'';width:10px;height:6px;background-image:radial-gradient(currentColor 1px,transparent 1.4px);background-size:4px 4px}
+.aurebesh-handle-row-grip::before{width:6px;height:10px}
+.aurebesh-handle-col-grip:hover,.aurebesh-handle-row-grip:hover,.aurebesh-handle.is-dragging{opacity:1;background:var(--aurebesh-hover,#eef0f4)}
+.aurebesh-handle.is-dragging{cursor:grabbing}
+.aurebesh-drop{position:absolute;pointer-events:none;background:var(--aurebesh-accent,#2563eb);border-radius:2px}
+.aurebesh-cell-sel{position:absolute;box-sizing:border-box;pointer-events:none;border:2px solid var(--aurebesh-accent,#2563eb);background:color-mix(in srgb,var(--aurebesh-accent,#2563eb) 14%,transparent)}
+@media (pointer:coarse){.aurebesh-handle-col{width:32px;margin-inline-start:-16px}.aurebesh-handle-col::after{left:15px}.aurebesh-handle-row{height:32px;margin-top:-16px}.aurebesh-handle-row::after{top:15px}.aurebesh-handle-col-grip{width:34px;height:20px;margin-left:-17px}.aurebesh-handle-row-grip{width:20px;height:34px;margin-top:-17px}.aurebesh-handle-col::after,.aurebesh-handle-row::after{opacity:.35}}
 .aurebesh-content.aurebesh-col-resizing{user-select:none}
 /* the colour buttons: an icon with a bar in the colour chosen last, and a small arrow for the palette that opens */
 .aurebesh-icon-swatch{stroke:rgba(0,0,0,.35);stroke-width:.6}
-.aurebesh-swatch-color .aurebesh-icon-swatch{fill:var(--swatch,currentColor)}
+.aurebesh-swatch-color .aurebesh-icon-swatch,.aurebesh-swatch-cellBorderColor .aurebesh-icon-swatch{fill:var(--swatch,currentColor)}
+.aurebesh-swatch-cellBackground .aurebesh-icon-swatch{fill:var(--swatch,transparent)}
 .aurebesh-swatch-highlight .aurebesh-icon-swatch{fill:var(--swatch,#facc15)}
 .aurebesh-swatch-btn::after{content:'';flex:none;margin-inline-start:3px;border:3px solid transparent;border-top-color:currentColor;border-bottom-width:0;opacity:.7}
 .aurebesh-color-grid{display:grid;grid-template-columns:repeat(10,var(--aurebesh-cell,18px));gap:2px}
@@ -112,7 +133,7 @@ export const CSS = `
 .aurebesh-toolbar button:focus-visible,.aurebesh-toolbar select:focus-visible,.aurebesh-table-pop input:focus-visible,.aurebesh-table-pop button:focus-visible,.aurebesh-alt:focus-visible{outline:2px solid var(--aurebesh-accent,#2563eb);outline-offset:1px}
 @media (pointer:coarse){
 .aurebesh-toolbar button{min-width:40px;height:40px}
-.aurebesh-font,.aurebesh-size,.aurebesh-columns,.aurebesh-pagesel{height:40px}
+.aurebesh-font,.aurebesh-size,.aurebesh-columns,.aurebesh-pagesel,.aurebesh-cellborder{height:40px}
 .aurebesh-table-pop{--aurebesh-cell:28px}
 }
 .aurebesh-color-reset{display:block;width:100%;margin-top:6px;padding:4px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:transparent;color:inherit;cursor:pointer;font:inherit;font-size:12px}
