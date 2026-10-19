@@ -371,7 +371,7 @@ On the element: `<aurebesh-editor modes>` (all three), `modes="markdown"` or `mo
 
 ### What a Markdown round trip keeps and loses
 
-Markdown to HTML to Markdown gives the same Markdown for what the editor writes itself (the tests check this). Written by hand, Markdown is normalised: `*a*` and `_a_` both come back as `*a*`, a setext heading (`Title` over `=====`) as `# Title`, `*` and `+` bullets as `-`, and a soft line break in a paragraph as a space.
+Markdown to HTML to Markdown gives the same Markdown for what the editor writes itself (the tests check this). Written by hand, Markdown is normalised: `*a*` and `_a_` both come back as `*a*`, a setext heading (`Title` over `=====`) as `# Title`, `*` and `+` bullets as `-`, and a soft line break in a paragraph as a space. A line break made with `Shift+Enter` is two spaces and a new line (`one  ⏎two`), or a backslash at the end of the line; in a heading and in a table cell, which have only one line, it is `<br>`, which is read back as a break too.
 
 | | Read from Markdown | Written to Markdown |
 |---|---|---|
@@ -443,6 +443,7 @@ To add a language to your own application without changing the package, pass its
 | `Mod+Shift+X` | Strikethrough |
 | `Mod+Shift+7` / `Mod+Shift+8` / `Mod+Shift+9` | Numbered / bullet / task list |
 | `Mod+Enter` | Check or uncheck the task with the caret |
+| `Shift+Enter` | A line break inside the block (`<br>`), where `Enter` starts a new one; the same in every browser, in a list item, a heading, a quote, a callout and a table cell (in a code block it is a new line) |
 | `Mod+Alt+1` / `2` / `3` | Heading 1 / 2 / 3 |
 | `Mod+Alt+C` | Code block |
 | `Ctrl/Cmd+click` on a link | Open the link in a new tab (a plain click only puts the caret in it) |
@@ -579,6 +580,18 @@ Newspaper-style columns for one or more blocks: select the paragraphs, pick 2–
 With only a caret, the block around it is used. Choose "One column" to remove it. The result is a `<div style="column-count: 2; column-gap: 2em">` around the blocks,
 so it renders in columns wherever you show the HTML (your own sanitizer on the server must allow `column-count` and `column-gap` on a `div`; `sanitize()` does).
 Column blocks can't be nested. Making or removing columns is not a step in the browser's undo history (the editor changes the document directly).
+
+## Network access
+
+The editor sends nothing by itself: no telemetry, no analytics, no requests to load fonts or scripts. A tool such as Socket reports `fetch` in the package; these are the only three places, and each one is started by something you set up or by the person typing:
+
+| What | When |
+| --- | --- |
+| `endpointAdapter` | The browser uploads a picture or video to the URL **you** give it, when someone inserts a file (or a pasted picture is copied to your storage). |
+| `presignedAdapter` | The browser sends the file with a `PUT` to the upload URL that **your** `getUploadUrl` returns. |
+| Pasted pictures | With `pasteImages: 'upload'` (the default): a picture that is pasted as a link (from Word, Google Docs or a web page) is downloaded, without cookies and without a referrer, to hand it to the media adapter. Without an adapter of your own that is the built-in one, which embeds the picture as base64. If the host does not allow it, the picture stays a link. With `pasteImages: 'link'` or `'remove'` nothing is downloaded. |
+
+What else loads comes from the content: an `<img>` or `<video>` shows its source when it is in the text, and a YouTube (`youtube-nocookie.com`) or Vimeo (`dnt=1`) video is an `<iframe>` that loads when it is inserted. Nothing else is fetched, and `new Aurebesh(el)` on its own makes no request.
 
 ## Security: sanitize on the server too
 
