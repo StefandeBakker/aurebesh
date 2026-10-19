@@ -117,6 +117,7 @@ export const LABELS_DE: Labels = {
   tableRowDel: 'Zeile löschen',
   tableColDel: 'Spalte löschen',
   tableDel: 'Tabelle löschen',
+  task: 'Aufgabenliste',
   callout: 'Hinweisbox',
   'ui.callout.none': 'Keine Hinweisbox',
   'ui.slash': 'Einfügen',

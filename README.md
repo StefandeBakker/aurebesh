@@ -137,7 +137,7 @@ The toolbar is made of **blocks**. In the `toolbar` option `|` starts a new bloc
 font size clear / bold italic underline strike highlight color | ul ol / alignLeft alignCenter alignRight | h1 h2 quote / code codeblock | link image video / table hr | columns
 ```
 
-That is five blocks: the font (typeface, size and clear formatting on top, character styles, highlight and colour below), the paragraph (lists, then alignment), the styles (headings and quote on top, then the two kinds of code, inline and block), what you can insert (link, picture and video, then table and line) and the layout (columns). Leave out every `/` and each block is a single row that wraps like before; a toolbar without any `|` is one block.
+That is five blocks: the font (typeface, size and clear formatting on top, character styles, highlight and colour below), the paragraph (lists, then alignment), the styles (headings and quote on top, then the two kinds of code, inline and block), what you can insert (link, picture and video, then table and line) and the layout (columns). Leave out every `/` and each block is a single row that wraps like before (a block with a name, `#Name`, that has more than three buttons goes to the next line after every three); a toolbar without any `|` is one block.
 
 **Icons.** Buttons whose symbol was not obvious (undo and redo, clear formatting, lists, alignment, quote, the two kinds of code, link, picture, video, table, line, text direction) show a line drawing; the letters of bold, italic, underline and strikethrough and the headings stay as they are. The two colour buttons are a letter A (text colour) and a marker pen (highlight), each with a bar underneath that shows the colour chosen last (black and yellow to begin with, and again after "Automatic" or "No highlight") and a small arrow for the palette that opens. The drawings are inline SVG in the colour of the text, so they follow your theme and the pressed state, and the editor needs no icon font or image files. A button keeps its name for screen readers and as its tooltip (the `labels` option translates it).
 
@@ -227,6 +227,26 @@ A row is plain HTML, a grid of columns, and nothing of the editor is in it:
 The sanitizer allows this and no more: a `div` with `data-layout` `row` or `col`; on a row `display: grid`, `grid-template-columns` of up to six columns in `fr` or `%`, `gap` in px and `align-items`; on a column padding, a background and `min-width: 0`; on a link that has `data-button` the few styles of a button. Anything else is removed, so a grid cannot be used for more than a layout. CSS grid is not supported by e-mail clients: for HTML e-mail use a table instead (see Tables). In Markdown and text the columns are the content one after the other. The editor shows the columns with a dashed outline; the HTML you get has none of it, so give `[data-layout="row"]` and the columns the look and the responsive behaviour you want in your own CSS (for example one column on a narrow screen, with `grid-template-columns` set to `1fr` in a media query with `!important`).
 
 Reordering blocks by dragging them inside the text, and a panel with the properties of the block that is selected, are not there yet.
+
+## Task lists
+
+The `task` item (in the default toolbar, next to the lists) turns the line with the caret into a list with a box before every item; in a bullet list or a numbered list it turns that list into one, and in a task list it makes it an ordinary list again. Also from the slash menu (`/task`) and with `Mod+Shift+9`.
+
+- **Check** an item with a click on its box (the caret stays where it was), or with `Mod+Enter` when the caret is in it. A read-only editor cannot be checked.
+- **Enter** makes a new item that is not checked, also after a checked one; Enter on an empty item leaves the list.
+- **Nested**: `Tab` makes the item part of a list inside the item before it, which is a task list too, and `Shift+Tab` takes it back. The checked state goes along.
+- **Paste**: the checkboxes of a task list pasted from GitHub and the like become task items.
+
+The HTML has no input in it, only two attributes:
+
+```html
+<ul data-task="">
+  <li data-checked="true">Write the docs</li>
+  <li>Release<ul data-task=""><li>Tag</li></ul></li>
+</ul>
+```
+
+The box is drawn with CSS, which the editor has. On a page that only shows the HTML, put `taskListCss()` in a `<style>` (it is exported), and colour it with `--aurebesh-task-color`, `--aurebesh-task-border` and `--aurebesh-task-radius`. The sanitizer allows `data-task` on a `ul` and `data-checked="true"` on an item of one, and nothing else. In Markdown it is `- [ ] todo` and `- [x] done`, in and out, nested as well; in a list where only some items have a box, all of them get one. In text it is the content. Two limits: checking an item is a direct DOM edit, so the browser's undo does not cover it (typing and splitting are), and the state is not read out by a screen reader, because the box is not an element: use `Mod+Enter` and write the state in the text when it matters.
 
 ## Callouts
 
@@ -421,7 +441,8 @@ To add a language to your own application without changing the package, pass its
 | `Mod+K` | Link (opens the link box, prefilled when the caret is in a link) |
 | `Mod+E` | Inline code (again to remove) |
 | `Mod+Shift+X` | Strikethrough |
-| `Mod+Shift+7` / `Mod+Shift+8` | Numbered / bullet list |
+| `Mod+Shift+7` / `Mod+Shift+8` / `Mod+Shift+9` | Numbered / bullet / task list |
+| `Mod+Enter` | Check or uncheck the task with the caret |
 | `Mod+Alt+1` / `2` / `3` | Heading 1 / 2 / 3 |
 | `Mod+Alt+C` | Code block |
 | `Ctrl/Cmd+click` on a link | Open the link in a new tab (a plain click only puts the caret in it) |

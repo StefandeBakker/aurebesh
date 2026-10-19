@@ -518,15 +518,20 @@ function parseList(lines: string[], start: number, refs: Refs, out: string[]): n
     }
   }
   const tag = ordered ? 'ol' : 'ul';
+  // an item that starts with [ ] or [x] is a task: the list is a task list
+  const boxes = items.map((item) => (ordered ? null : /^\[([ xX])\](?:[ \t]+|$)/.exec(item.lines[0])));
+  const task = boxes.some(Boolean);
   const html = items
-    .map((item) => {
+    .map((item, k) => {
+      const box = boxes[k];
+      if (box) item.lines[0] = item.lines[0].slice(box[0].length);
       const inner = parseBlocks(item.lines, refs);
       // tight: the text of an item is not in a paragraph, like the editor writes it
       const text = !loose && !item.loose ? inner.replace(/^<p>([\s\S]*?)<\/p>/, '$1') : inner;
-      return `<li>${text}</li>`;
+      return `<li${box && box[1] !== ' ' ? ' data-checked="true"' : ''}>${text}</li>`;
     })
     .join('');
-  out.push(`<${tag}>${html}</${tag}>`);
+  out.push(`<${tag}${task ? ' data-task=""' : ''}>${html}</${tag}>`);
   return i;
 }
 

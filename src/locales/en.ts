@@ -121,6 +121,7 @@ export const LABELS_EN: Labels = {
   tableRowDel: 'Delete row',
   tableColDel: 'Delete column',
   tableDel: 'Delete table',
+  task: 'Task list',
   callout: 'Callout',
   'ui.callout.none': 'No callout',
   'ui.slash': 'Insert',

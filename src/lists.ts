@@ -15,6 +15,7 @@ export function handleListKey(e: KeyboardEvent): boolean {
   const li = currentItem();
   if (!li) return false;
   e.preventDefault();
+  const checked = li.getAttribute('data-checked'); // the browser makes a new item of a task when it moves it a level out
   if (e.shiftKey) {
     // Only nested items can move out one level; a top-level item stays in its list.
     const outer = li.parentElement?.parentElement;
@@ -24,5 +25,7 @@ export function handleListKey(e: KeyboardEvent): boolean {
     // The first item has nothing to nest under.
     document.execCommand('indent');
   }
+  const now = currentItem();
+  if (checked !== null && now && !now.hasAttribute('data-checked') && now.parentElement?.matches('ul[data-task]')) now.setAttribute('data-checked', checked);
   return true;
 }
