@@ -8,6 +8,7 @@ export type { PageFormat, PagePreset, PageSpec, ResolvedPage } from './page';
 export { toMarkdown, toText } from './export';
 export { fromMarkdown } from './from-markdown';
 export { DEFAULT_CALLOUTS, calloutCss } from './callouts';
+export { taskListCss } from './tasks';
 export type { CalloutDef } from './callouts';
 export type { OutputFormat } from './export';
 export { plainText, countText } from './stats';

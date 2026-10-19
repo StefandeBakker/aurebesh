@@ -10,6 +10,20 @@ const build = (o: object) => {
 };
 
 describe('named blocks in the toolbar', () => {
+  it('puts a named block with more than three buttons on rows of three, unless it has rows of its own', () => {
+    const rows = (toolbar: string[]) => {
+      const el = document.createElement('div');
+      document.body.appendChild(el);
+      new Aurebesh(el, { toolbar });
+      const out = Array.from(el.querySelectorAll('.aurebesh-group')).map((g) => Array.from(g.querySelectorAll('.aurebesh-row')).map((r) => r.querySelectorAll('button').length));
+      el.remove();
+      return out;
+    };
+    expect(rows(['#Lists', 'ul', 'ol', 'task', 'quote', 'hr', '|', '#Text', 'bold', 'italic', 'underline'])).toEqual([[3, 2], [3]]);
+    expect(rows(['#Lists', 'ul', 'ol', 'task', 'quote', '/', 'hr'])).toEqual([[4, 1]]);
+    expect(rows(['ul', 'ol', 'task', 'quote'])).toEqual([[4]]);
+  });
+
   it('shows the name of a block (#Name) above its buttons and gives the editor the larger ribbon look', () => {
     const el = build({ toolbar: ['#History', 'undo', 'redo', '|', '#Text', 'bold'] });
     expect(el.querySelector('.aurebesh')!.classList.contains('aurebesh-ribbon')).toBe(true);
