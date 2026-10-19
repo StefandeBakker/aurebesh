@@ -68,6 +68,11 @@ export const ICONS: Record<string, Shape[]> = {
     ['rect', { x: 3.5, y: 19.3, width: 17, height: 3, rx: 0.8, class: 'aurebesh-icon-swatch' }],
   ],
   cellBorder: [['rect', { x: 4, y: 3.5, width: 16, height: 13, rx: 1.5, 'stroke-width': 2.6 }], ['rect', { x: 3.5, y: 19.3, width: 17, height: 3, rx: 0.8, class: 'aurebesh-icon-swatch' }]],
+  // a row or a column, copied (two of them) and pasted (on a clipboard)
+  rowCopy: [['rect', { x: 3, y: 4, width: 14, height: 6, rx: 1.2 }], ['rect', { x: 7, y: 13, width: 14, height: 6, rx: 1.2 }]],
+  colCopy: [['rect', { x: 4, y: 3, width: 6, height: 14, rx: 1.2 }], ['rect', { x: 13, y: 7, width: 6, height: 14, rx: 1.2 }]],
+  rowPaste: [['rect', { x: 4, y: 5, width: 16, height: 16, rx: 2 }], ['path', { d: 'M9 3.5h6v3H9zM8 13.5h8' }]],
+  colPaste: [['rect', { x: 4, y: 5, width: 16, height: 16, rx: 2 }], ['path', { d: 'M9 3.5h6v3H9zM12 10v7' }]],
   cellAlignTop: [['rect', { x: 4, y: 4, width: 16, height: 16, rx: 1.5 }], ['path', { d: 'M8 8h8' }]],
   cellAlignMiddle: [['rect', { x: 4, y: 4, width: 16, height: 16, rx: 1.5 }], ['path', { d: 'M8 12h8' }]],
   cellAlignBottom: [['rect', { x: 4, y: 4, width: 16, height: 16, rx: 1.5 }], ['path', { d: 'M8 16h8' }]],
