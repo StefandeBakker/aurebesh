@@ -151,8 +151,10 @@ describe('colors', () => {
   it('renders color and highlight pickers with 40 swatches each', () => {
     const el = document.createElement('div');
     new Aurebesh(el);
-    expect(el.querySelectorAll('.aurebesh-color-grid').length).toBe(2);
-    expect(el.querySelectorAll('.aurebesh-color-grid button').length).toBe(80);
+    const text = '.aurebesh-toolbar:not(.aurebesh-table-tools) .aurebesh-color-grid'; // the table tools have two more, for the cells
+    expect(el.querySelectorAll(text).length).toBe(2);
+    expect(el.querySelectorAll(text + ' button').length).toBe(80);
+    expect(el.querySelectorAll('.aurebesh-table-tools .aurebesh-color-grid').length).toBe(2);
   });
 });
 
