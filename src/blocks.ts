@@ -147,7 +147,7 @@ export function selectSpot(content: HTMLElement, spot: Spot): void {
  * Replaces a run of sibling blocks by HTML, as one step for undo. The run must start and end with something that is not a div: when a
  * browser puts a div in a range that ends beside another div it merges the two, which takes a layout apart (a paragraph does not do that).
  */
-function replaceRun(content: HTMLElement, first: Element, last: Element, html: string): void {
+export function replaceRun(content: HTMLElement, first: Element, last: Element, html: string): void {
   const doc = content.ownerDocument;
   const range = doc.createRange();
   range.setStartBefore(first);
@@ -159,8 +159,8 @@ function replaceRun(content: HTMLElement, first: Element, last: Element, html: s
   doc.execCommand('insertHTML', false, html);
 }
 
-const outer = (els: Element[]): string => els.map((e) => e.outerHTML).join('');
-const isDiv = (el: Element | undefined): boolean => el?.tagName === 'DIV';
+export const outer = (els: Element[]): string => els.map((e) => e.outerHTML).join('');
+export const isDiv = (el: Element | undefined): boolean => el?.tagName === 'DIV';
 
 /**
  * Puts the HTML of a block at a spot, as one step for undo, and puts the caret in it (the text of a heading or a paragraph is selected,
@@ -277,6 +277,24 @@ export function rowTemplate(row: Element): string {
 
 export function rowGap(row: Element): number {
   return parseInt((row as HTMLElement).style.getPropertyValue('gap'), 10) || 0;
+}
+
+/**
+ * Puts HTML in the place of a run of sibling blocks, as one step for undo, by replacing the nearest blocks that are not divs on both
+ * sides with themselves around the new HTML (see replaceRun). False when there are none, and nothing was changed.
+ */
+export function replaceSiblings(content: HTMLElement, first: Element, last: Element, html: string): boolean {
+  const kids = Array.from(first.parentElement?.children ?? []);
+  const lo = kids.indexOf(first);
+  const hi = kids.indexOf(last);
+  if (lo < 0 || hi < lo) return false;
+  let a = lo - 1;
+  while (a >= 0 && isDiv(kids[a])) a--;
+  let b = hi + 1;
+  while (b < kids.length && isDiv(kids[b])) b++;
+  if (a < 0 || b >= kids.length) return false;
+  replaceRun(content, kids[a], kids[b], outer(kids.slice(a, lo)) + html + outer(kids.slice(hi + 1, b + 1)));
+  return true;
 }
 
 /** Puts new HTML in the place of an element (or nothing, with ''): as one step for undo when there are blocks that are not divs on both sides. */
