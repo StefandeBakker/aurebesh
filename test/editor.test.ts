@@ -202,7 +202,7 @@ describe('the default toolbar', () => {
   it('follows the Home tab of Word: blocks of two rows (the font, the paragraph, the styles, what can be inserted, the layout)', () => {
     expect(blocks(DEFAULT_TOOLBAR)).toEqual([
       [['font', 'size', 'clear'], ['bold', 'italic', 'underline', 'strike', 'highlight', 'color']],
-      [['ul', 'ol'], ['alignLeft', 'alignCenter', 'alignRight']],
+      [['ul', 'ol', 'task'], ['alignLeft', 'alignCenter', 'alignRight']],
       [['h1', 'h2', 'quote'], ['code', 'codeblock']], // the headings and the quote; the two kinds of code
       [['link', 'image', 'video'], ['table', 'hr']],
       [['columns']],

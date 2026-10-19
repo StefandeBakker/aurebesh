@@ -3,6 +3,7 @@ import { currentColumns, setColumns } from './columns';
 import { currentDirection, setDirection } from './direction';
 import { currentLink, isInlineCode, setLink, toggleInlineCode } from './inline';
 import { canIndent, indent } from './indent';
+import { isTaskList, toggleTaskList } from './tasks';
 import { insertImage, insertVideo, insertVideoFile, setImageAlign, setImageAlt, setImageWidth } from './media';
 import { addColumn, addRow, canMerge, canMoveCurrent, canSplit, cellProperty, copyColumns, copyRows, deleteColumn, deleteRow, deleteTable, hasCaption, hasCopied, insertTable, mergeCells, moveCurrent, pasteColumns, pasteRows, setCellBorder, setCellProperty, splitCell, toggleCaption, toggleCellProperty, toggleHeaderRow } from './table';
 
@@ -81,6 +82,7 @@ export const COMMANDS: Record<string, CommandDef> = {
   quote: { name: 'quote', icon: 'quote', label: '❝', title: 'Quote', run: toggleBlock('blockquote'), isActive: isBlock('blockquote') },
   codeblock: { name: 'codeblock', icon: 'codeblock', label: '{ }', title: 'Code block', run: toggleBlock('pre'), isActive: isBlock('pre') },
   hr: { name: 'hr', icon: 'hr', label: '―', title: 'Horizontal line', run: () => exec('insertHorizontalRule') },
+  task: { name: 'task', icon: 'task', label: '☑', title: 'Task list', run: () => toggleTaskList(), isActive: () => isTaskList() },
   ul: { name: 'ul', icon: 'ul', label: '• List', title: 'Bullet list', run: () => exec('insertUnorderedList'), isActive: () => state('insertUnorderedList') },
   ol: { name: 'ol', icon: 'ol', label: '1. List', title: 'Numbered list', run: () => exec('insertOrderedList'), isActive: () => state('insertOrderedList') },
   alignLeft: align('alignLeft', '≡', 'Align left', 'justifyLeft'),
@@ -213,7 +215,7 @@ export const COMMANDS: Record<string, CommandDef> = {
  */
 export const DEFAULT_TOOLBAR = [
   'font', 'size', 'clear', '/', 'bold', 'italic', 'underline', 'strike', 'highlight', 'color', '|',
-  'ul', 'ol', '/', 'alignLeft', 'alignCenter', 'alignRight', '|',
+  'ul', 'ol', 'task', '/', 'alignLeft', 'alignCenter', 'alignRight', '|',
   'h1', 'h2', 'quote', '/', 'code', 'codeblock', '|',
   'link', 'image', 'video', '/', 'table', 'hr', '|',
   'columns',

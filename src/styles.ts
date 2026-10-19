@@ -1,4 +1,5 @@
 import { DEFAULT_CALLOUTS, calloutCss } from './callouts';
+import { taskListCss } from './tasks';
 
 export const CSS = `
 .aurebesh{border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:6px;background:var(--aurebesh-bg,#fff);color:var(--aurebesh-color,#111);font-family:inherit}
@@ -220,4 +221,5 @@ export const CSS = `
 .aurebesh-content pre{direction:ltr;text-align:left}
 .aurebesh-content pre[dir=rtl]{direction:rtl;text-align:right}
 .aurebesh-content :is(ul,ol)[dir=rtl]{padding-inline-start:40px}
-` + calloutCss(DEFAULT_CALLOUTS);
+` + calloutCss(DEFAULT_CALLOUTS) + taskListCss() + `.aurebesh-content ul[data-task]>li::before{cursor:pointer}
+`;

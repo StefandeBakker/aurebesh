@@ -117,6 +117,7 @@ export const LABELS_FR: Labels = {
   tableRowDel: 'Supprimer la ligne',
   tableColDel: 'Supprimer la colonne',
   tableDel: 'Supprimer le tableau',
+  task: 'Liste de tâches',
   callout: 'Encadré',
   'ui.callout.none': 'Aucun encadré',
   'ui.slash': 'Insérer',

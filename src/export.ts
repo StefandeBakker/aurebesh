@@ -125,10 +125,14 @@ function list(el: Element, ordered: boolean, indent: string): string {
       const pad = ' '.repeat(marker.length);
       const parts: string[] = [];
       let text = '';
+      let startsWithText = false;
       li.childNodes.forEach((node) => {
         const tag = node.nodeType === Node.ELEMENT_NODE ? (node as Element).tagName.toLowerCase() : '';
         if (tag === 'ul' || tag === 'ol') {
-          if (text.trim()) parts.push(text.trim());
+          if (text.trim()) {
+            if (!parts.length) startsWithText = true;
+            parts.push(text.trim());
+          }
           text = '';
           parts.push(list(node as Element, tag === 'ol', ''));
         } else if (BLOCKS.has(tag)) {
@@ -139,7 +143,15 @@ function list(el: Element, ordered: boolean, indent: string): string {
           text += inline(node);
         }
       });
-      if (text.trim()) parts.push(text.trim());
+      if (text.trim()) {
+        if (!parts.length) startsWithText = true;
+        parts.push(text.trim());
+      }
+      // an item of a task list starts with its box; an item that is only a list inside gets the box on a line of its own
+      const box = el.hasAttribute('data-task') ? (li.getAttribute('data-checked') === 'true' ? '[x]' : '[ ]') : '';
+      if (box && parts.length && !startsWithText) parts.unshift(box);
+      else if (box) parts[0] = `${box} ${parts[0]}`;
+      else if (!parts.length) parts.push('');
       const [first = '', ...rest] = parts.join('\n').split('\n');
       return indent + marker + first + rest.map((line) => (line ? `\n${indent}${pad}${line}` : '\n')).join('');
     })

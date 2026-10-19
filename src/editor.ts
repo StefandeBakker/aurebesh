@@ -26,6 +26,7 @@ import { attachTableHandles } from './table-handles';
 import { CALLOUT_ID, DEFAULT_CALLOUTS, calloutCss, currentCallout, handleCalloutKey, normalizeCallouts, setCallout } from './callouts';
 import type { CalloutDef } from './callouts';
 import { attachSlashMenu } from './slash';
+import { afterListInput, boxAt, handleTaskKey, toggleChecked } from './tasks';
 import type { SlashItem } from './slash';
 import { BLOCK_MIME, CONTENT, LAYOUTS, blockHtml, currentRow, deleteRow, handleLayoutKey, insertBlock, normalizeLayouts, rowGap, rowTemplate, selectSpot, setRow, spotAt, spotAtCaret, spotLine } from './blocks';
 import type { Spot } from './blocks';
@@ -375,13 +376,33 @@ export class Aurebesh {
     this.syncEmpty();
     if (options.mode) this.modeSwitch?.set(options.mode);
 
-    this.listen(this.content, 'input', () => {
+    this.listen(this.content, 'input', (e) => {
+      afterListInput((e as InputEvent).inputType ?? '');
       // Deleting an embed leaves its empty wrapper behind.
       this.content.querySelectorAll(':scope > div:empty').forEach((d) => d.remove());
+      // a list that the browser made inside a paragraph (the list button on a paragraph) takes the place of it
+      this.content.querySelectorAll(':scope > p > :is(ul, ol)').forEach((list) => {
+        const p = list.parentElement!;
+        if (p.children.length !== 1 || Array.from(p.childNodes).some((n) => n !== list && n.textContent!.trim())) return;
+        // moving it must not move the caret
+        const sel = this.container.ownerDocument.getSelection();
+        const keep = sel?.rangeCount && sel.anchorNode ? [sel.anchorNode, sel.anchorOffset, sel.focusNode!, sel.focusOffset] as const : null;
+        p.replaceWith(list);
+        if (keep) sel!.setBaseAndExtent(keep[0], keep[1], keep[2], keep[3]);
+      });
       normalizeLayouts(this.content);
       normalizeCallouts(this.content);
       this.syncEmpty();
       this.plugins.forEach((p) => p.inst.input?.());
+      this.emitChange();
+    });
+    // the box of a task: a click checks or unchecks it, and leaves the caret where it was
+    this.listen(this.content, 'mousedown', (e) => {
+      if (!this.content.isContentEditable) return;
+      const li = boxAt(e as MouseEvent);
+      if (!li) return;
+      e.preventDefault();
+      toggleChecked(li);
       this.emitChange();
     });
     this.listen(this.content, 'focus', () => this.emit('focus', undefined));
@@ -757,6 +778,10 @@ export class Aurebesh {
     }
 
     if (handleCellArrow(e)) return; // moving the caret, not changing the text
+    if (handleTaskKey(e) !== null) {
+      this.emitChange();
+      return;
+    }
     if (handleLayoutKey(e, this.content)) return; // Backspace at the start of a column would take the layout apart
     if (handleCalloutKey(e, this.content)) {
       this.syncEmpty();
@@ -956,8 +981,13 @@ export class Aurebesh {
       if (el) group[group.length - 1].push(el);
     }
     for (const rows of groups) {
-      const filled = rows.filter((row) => row.length);
+      let filled = rows.filter((row) => row.length);
       if (!filled.length) continue;
+      // a named block with more than three buttons and no rows of its own (no `/`) goes to the next line after every three
+      if (labels.has(rows) && filled.length === 1 && filled[0].length > 3) {
+        const all = filled[0];
+        filled = Array.from({ length: Math.ceil(all.length / 3) }, (_, i) => all.slice(i * 3, i * 3 + 3));
+      }
       const block = doc.createElement('div');
       block.className = 'aurebesh-group';
       block.setAttribute('role', 'group');
@@ -1320,7 +1350,7 @@ export class Aurebesh {
       keywords: 'callout alert admonition',
       run: () => this.applyCallout(def.id),
     }));
-    for (const name of ['h1', 'h2', 'h3', 'ul', 'ol', 'quote', 'codeblock', 'hr']) {
+    for (const name of ['h1', 'h2', 'h3', 'ul', 'ol', 'task', 'quote', 'codeblock', 'hr']) {
       items.push({ id: name, label: this.title(this.commands[name]), run: () => this.exec(name) });
     }
     if (this.panelIds.includes('blocks')) {
