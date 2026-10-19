@@ -129,7 +129,20 @@ export const CSS = `
 .aurebesh-media-form button{padding:5px 8px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:transparent;color:inherit;cursor:pointer;font:inherit;font-size:13px}
 .aurebesh-status{padding:5px 10px;border-top:1px solid var(--aurebesh-border,#d0d5dd);background:var(--aurebesh-toolbar-bg,#f8f9fb);font-size:12px}
 .aurebesh-status[hidden]{display:none}
-.aurebesh-count{padding:4px 10px;border-top:1px solid var(--aurebesh-border,#d0d5dd);font-size:12px;color:#667085;text-align:end}
+/* the footer: the numbers on the left, the switch between the views on the right */
+.aurebesh-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--aurebesh-border,#d0d5dd);background:var(--aurebesh-toolbar-bg,#f8f9fb)}
+.aurebesh-footer:not(:has(>:not([hidden]))){display:none}
+.aurebesh-count{padding:6px 12px;font-size:12px;color:var(--aurebesh-label,#667085);text-align:start}
+.aurebesh-modes{display:flex;gap:2px;margin-inline-start:auto;padding:4px 8px}
+.aurebesh-mode{padding:3px 10px;border:0;border-radius:6px;background:transparent;color:var(--aurebesh-label,#667085);cursor:pointer;font:inherit;font-size:12px}
+.aurebesh-mode:hover{background:var(--aurebesh-hover,rgba(0,0,0,.06))}
+.aurebesh-mode[aria-checked="true"]{background:var(--aurebesh-active-bg,#e0e9ff);color:var(--aurebesh-active-color,#1d4ed8);font-weight:600}
+.aurebesh-mode:focus-visible{outline:2px solid var(--aurebesh-accent,#2563eb);outline-offset:1px}
+/* the HTML and Markdown views: the text as text, with the toolbar out of use */
+.aurebesh-source{display:block;width:100%;box-sizing:border-box;min-height:var(--aurebesh-min-height,150px);max-height:var(--aurebesh-max-height,none);margin:0;padding-block:var(--aurebesh-pad-y,10px);padding-inline:max(var(--aurebesh-pad-x,12px),calc((100% - var(--aurebesh-text-width,100%)) / 2));border:0;outline:0;overflow:auto;resize:none;background:transparent;color:inherit;font:13px/1.6 ui-monospace,'Cascadia Code','Source Code Pro',Menlo,Consolas,'DejaVu Sans Mono',monospace;tab-size:2}
+.aurebesh-source[hidden]{display:none}
+.aurebesh-source-mode .aurebesh-toolbar,.aurebesh-source-mode .aurebesh-quickbar{opacity:.5}
+.aurebesh:not([data-page]) .aurebesh-body>.aurebesh-stage>.aurebesh-source{flex:1 1 auto}
 .aurebesh-count[hidden]{display:none}
 .aurebesh-count.over{color:#b42318;font-weight:600}
 .aurebesh-status.error{color:#b42318;background:#fef3f2}

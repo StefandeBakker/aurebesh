@@ -31,6 +31,9 @@ import type { TextStats } from './stats';
 import { PAGE_NAMES, countPages, printDocument, resolvePage, toSpec } from './page';
 import type { PageFormat, PagePreset, PageSpec, ResolvedPage } from './page';
 import { toMarkdown } from './export';
+import { markdownToHtml, textToHtml } from './from-markdown';
+import { ModeSwitch, parseModes } from './modes';
+import type { ViewMode } from './modes';
 import type { OutputFormat } from './export';
 import { MARKER, preparePaste } from './paste';
 import type { PasteImagePolicy, PendingImage } from './paste';
@@ -65,6 +68,19 @@ export interface Layout {
 }
 
 export interface AurebeshOptions {
+  /**
+   * The format of `value`, of what `getValue()` and `setValue()` use without a format, and of the `change` event: 'html' (default),
+   * 'markdown' (a Markdown-first editor: you give it Markdown and get Markdown back) or the name of a format that a plugin adds.
+   * `getHTML()` and `getMarkdown()` stay what they say.
+   */
+  valueFormat?: OutputFormat;
+  /**
+   * A switch in the footer between the editor and the source of its content: `true` for the editor, the HTML and the Markdown, or a list
+   * such as `['editor', 'markdown']`. The HTML and the Markdown are shown as text that can be edited.
+   */
+  modes?: boolean | ViewMode[];
+  /** The view to start in (needs `modes`). Default: the editor. */
+  mode?: ViewMode;
   /** Plugins: modes and tools that are not part of the editor itself (see `AurebeshPlugin`). */
   plugins?: AurebeshPlugin[];
   /** The initial layout (see `Layout`); the 'layout' toolbar item opens a panel to change it. */
@@ -112,6 +128,8 @@ export interface AurebeshEvents {
   count: TextStats;
   /** The page format changed (through `setPage` or the toolbar). null is responsive. */
   page: ResolvedPage | null;
+  /** The view changed (through `setMode` or the switch in the footer). */
+  mode: ViewMode;
   /** A setting of the layout panel changed (through `setLayout` or the panel). */
   layout: Layout;
   /** The panel of the sidebar that is open changed: its id, or null when the sidebar closed. */
@@ -164,6 +182,9 @@ export class Aurebesh {
   private layoutInputs: { textWidth?: HTMLInputElement; padding?: HTMLInputElement; lineHeight?: HTMLSelectElement } = {};
   private layout: Layout = { textWidth: null, padding: null, lineHeight: null };
   private labels: Labels;
+  private valueFormat: OutputFormat = 'html';
+  private modeSwitch: ModeSwitch | null = null;
+  private readOnlyState = false;
   private colors: string[];
   private adapter: MediaAdapter | null;
   private allowUrl: boolean;
@@ -186,6 +207,7 @@ export class Aurebesh {
   constructor(private container: HTMLElement, options: AurebeshOptions = {}) {
     const doc = container.ownerDocument;
     const plugins = options.plugins ?? [];
+    this.valueFormat = options.valueFormat ?? 'html';
     this.labels = { ...DEFAULT_LABELS, ...Object.assign({}, ...plugins.map((p) => p.labels)), ...options.labels } as Labels;
     this.commands = { ...COMMANDS };
     for (const p of plugins) {
@@ -275,21 +297,47 @@ export class Aurebesh {
     this.counterEl = doc.createElement('div');
     this.counterEl.className = 'aurebesh-count';
     this.counterEl.hidden = true;
-    this.root.appendChild(this.counterEl);
+    // the footer: the numbers on the left, the switch between the views on the right
+    const footer = doc.createElement('div');
+    footer.className = 'aurebesh-footer';
+    footer.appendChild(this.counterEl);
+    const modes = parseModes(options.modes);
+    if (modes.length) {
+      this.modeSwitch = new ModeSwitch(
+        {
+          doc,
+          stage: this.stage,
+          content: this.content,
+          read: (mode) => (mode === 'html' ? this.getHTML() : this.getMarkdown()),
+          write: (mode, text) => (mode === 'html' ? this.setHTML(text) : this.setMarkdown(text)),
+          changed: () => this.emitChange(),
+          modeChanged: (mode) => this.emit('mode', mode),
+          lossy: () => this.clean(markdownToHtml(this.getMarkdown())) !== this.getHTML(),
+          warn: (message) => this.showStatus(message),
+          isReadOnly: () => this.readOnlyState,
+          t: (key) => this.t(key),
+          setToolsEnabled: (enabled) => this.root.querySelectorAll('.aurebesh-toolbar, .aurebesh-quickbar').forEach((bar) => ((bar as HTMLElement).inert = !enabled)),
+        },
+        modes,
+      );
+      footer.appendChild(this.modeSwitch.el);
+    }
+    this.root.appendChild(footer);
     this.maxLength = options.maxLength && options.maxLength > 0 ? Math.floor(options.maxLength) : null;
     this.counterEl.hidden = !options.counter;
 
     this.setPlaceholder(options.placeholder ?? '');
     this.setReadOnly(options.readOnly ?? false);
-    if (options.value) this.content.innerHTML = this.clean(options.value);
+    if (options.value) this.content.innerHTML = this.clean(this.toHtml(options.value, this.valueFormat));
     this.syncEmpty();
+    if (options.mode) this.modeSwitch?.set(options.mode);
 
     this.listen(this.content, 'input', () => {
       // Deleting an embed leaves its empty wrapper behind.
       this.content.querySelectorAll(':scope > div:empty').forEach((d) => d.remove());
       this.syncEmpty();
       this.plugins.forEach((p) => p.inst.input?.());
-      this.emit('change', this.getHTML());
+      this.emitChange();
     });
     this.listen(this.content, 'focus', () => this.emit('focus', undefined));
     this.listen(this.content, 'blur', () => this.emit('blur', undefined));
@@ -327,7 +375,7 @@ export class Aurebesh {
         this.content,
         () => this.content.isContentEditable,
         () => {
-          this.emit('change', this.getHTML());
+          this.emitChange();
           this.updateToolbar();
         },
       ),
@@ -552,6 +600,7 @@ export class Aurebesh {
    * editing commands, and an empty string for an empty editor. This is what you should store.
    */
   getHTML(): string {
+    this.modeSwitch?.flush(); // what was typed in the HTML or Markdown view counts
     return this.isEmpty() ? '' : this.clean(this.content.innerHTML);
   }
 
@@ -560,8 +609,8 @@ export class Aurebesh {
     return this.isEmpty() ? '' : toMarkdown(this.getHTML());
   }
 
-  /** The content in the given format: 'html' (default), 'markdown' or 'text'. */
-  getValue(format: OutputFormat = 'html'): string {
+  /** The content in the given format: 'html', 'markdown' or 'text' (default: the `valueFormat` option, 'html' unless set). */
+  getValue(format: OutputFormat = this.valueFormat): string {
     for (const p of this.plugins) {
       const out = p.inst.output?.[format];
       if (out) return out();
@@ -571,14 +620,37 @@ export class Aurebesh {
     return this.getHTML();
   }
 
-  /** Sets the content from a value: 'html' (default), or a format that a plugin reads (its `load`, the other side of its `output`). */
-  setValue(value: string, format: OutputFormat = 'html'): void {
-    if (format === 'html') return this.setHTML(value);
+  /**
+   * Sets the content from Markdown (GitHub flavour). It is read as in `toMarkdown`'s other direction and sanitized like any HTML, so
+   * Markdown that holds HTML cannot bring anything unsafe in. Like `setHTML` it does not send `change`.
+   */
+  setMarkdown(markdown: string): void {
+    this.setHTML(markdownToHtml(markdown));
+  }
+
+  /**
+   * Sets the content from a value: 'html', 'markdown', 'text' (blocks of lines become paragraphs, nothing is read as markup), or a
+   * format that a plugin reads (its `load`, the other side of its `output`). Default: the `valueFormat` option.
+   */
+  setValue(value: string, format: OutputFormat = this.valueFormat): void {
+    this.setHTML(this.toHtml(value, format));
+  }
+
+  /** HTML for a value of a format. */
+  private toHtml(value: string, format: OutputFormat): string {
     for (const p of this.plugins) {
       const load = p.inst.load?.[format];
-      if (load) return this.setHTML(load(value));
+      if (load) return load(value);
     }
+    if (format === 'html') return value;
+    if (format === 'markdown') return markdownToHtml(value);
+    if (format === 'text') return textToHtml(value);
     throw new Error(`Aurebesh: no plugin reads the format "${format}"`);
+  }
+
+  /** What `change` sends: the content in the `valueFormat`. */
+  private emitChange(): void {
+    this.emit('change', this.getValue(this.valueFormat));
   }
 
   private onKeyDown(e: KeyboardEvent): void {
@@ -609,7 +681,7 @@ export class Aurebesh {
       }
     }
 
-    if (handleListKey(e) || handleTab(e) || handleCodeKey(e)) this.emit('change', this.getHTML());
+    if (handleListKey(e) || handleTab(e) || handleCodeKey(e)) this.emitChange();
   }
 
   setHTML(html: string): void {
@@ -635,6 +707,7 @@ export class Aurebesh {
   }
 
   setReadOnly(readOnly: boolean): void {
+    this.readOnlyState = readOnly;
     this.content.contentEditable = readOnly ? 'false' : 'true';
     this.content.setAttribute('aria-readonly', String(readOnly));
     this.buttons.forEach((list) => list.forEach((b) => (b.disabled = readOnly)));
@@ -644,7 +717,17 @@ export class Aurebesh {
     this.columnsSelects.forEach((s) => (s.disabled = readOnly));
     this.layoutTiles.forEach((t) => (t.disabled = readOnly));
     if (this.attached) this.plugins.forEach((p) => p.inst.readOnlyChanged?.());
+    this.modeSwitch?.sync();
     this.updateToolbar();
+  }
+
+  /** The view: 'editor', 'html' or 'markdown' (the last two need the `modes` option). */
+  getMode(): ViewMode {
+    return this.modeSwitch?.mode ?? 'editor';
+  }
+
+  setMode(mode: ViewMode): void {
+    this.modeSwitch?.set(mode);
   }
 
   setPlaceholder(text: string): void {
@@ -664,7 +747,7 @@ export class Aurebesh {
     cmd.run(arg, extra);
     this.tidyStyles();
     this.syncEmpty();
-    this.emit('change', this.getHTML());
+    this.emitChange();
     this.updateToolbar();
   }
 
@@ -970,7 +1053,7 @@ export class Aurebesh {
       if (this.lastImage) {
         if (alt.value) this.lastImage.setAttribute('alt', alt.value);
         else this.lastImage.removeAttribute('alt');
-        this.emit('change', this.getHTML());
+        this.emitChange();
       }
     });
     this.imageAltInput = alt;
@@ -986,7 +1069,7 @@ export class Aurebesh {
       doc.execCommand('delete');
       this.lastImage = null;
       tools.hidden = true;
-      this.emit('change', this.getHTML());
+      this.emitChange();
     });
     this.imageTools = tools;
     this.root.appendChild(tools);
@@ -1104,7 +1187,7 @@ export class Aurebesh {
       titleOf: (command) => this.labels[command] ?? this.commands[command]?.title ?? command,
       changed: () => {
         this.syncEmpty();
-        this.emit('change', this.getHTML());
+        this.emitChange();
         this.updateToolbar();
       },
       emit: (name, detail) => this.emitAny(name, detail),
@@ -1508,7 +1591,7 @@ export class Aurebesh {
     this.caretOutOfIsland();
     this.tidyStyles();
     this.syncEmpty();
-    this.emit('change', this.getHTML());
+    this.emitChange();
     this.updateToolbar();
     return true;
   }
@@ -2104,7 +2187,7 @@ export class Aurebesh {
       if (--this.pendingUploads === 0) this.hideStatus();
       this.syncEmpty();
       this.snapFloatsToGutter(); // the images are in: the text may have flowed differently
-      this.emit('change', this.getHTML());
+      this.emitChange();
     }
     const problems = [
       dropped && this.t('ui.imagesDropped', { count: String(dropped) }),
