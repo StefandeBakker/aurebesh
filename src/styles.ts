@@ -1,3 +1,5 @@
+import { DEFAULT_CALLOUTS, calloutCss } from './callouts';
+
 export const CSS = `
 .aurebesh{border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:6px;background:var(--aurebesh-bg,#fff);color:var(--aurebesh-color,#111);font-family:inherit}
 .aurebesh-toolbar{display:flex;flex-wrap:wrap;gap:4px 6px;padding:4px;border-bottom:1px solid var(--aurebesh-border,#d0d5dd);background:var(--aurebesh-toolbar-bg,#f8f9fb)}
@@ -94,6 +96,15 @@ export const CSS = `
 .aurebesh-content th{background:var(--aurebesh-toolbar-bg,#f8f9fb);font-weight:600;text-align:start}
 .aurebesh-content.aurebesh-col-resize,.aurebesh-content.aurebesh-col-resize *{cursor:col-resize}
 .aurebesh-cmd-sidebar[aria-expanded="true"]{background:var(--aurebesh-active-bg,#e0e9ff)!important;color:var(--aurebesh-active-color,#1d4ed8)!important}
+/* callouts in the text: the picker, and the slash menu */
+.aurebesh-callout-option{display:flex;align-items:center;gap:8px;width:100%;padding:6px 10px;border:0;border-radius:4px;background:transparent;color:inherit;cursor:pointer;font:inherit;font-size:13px;text-align:start}
+.aurebesh-callout-option:hover,.aurebesh-callout-option[aria-pressed="true"]{background:var(--aurebesh-hover,rgba(0,0,0,.06))}
+.aurebesh-callout-dot{flex:none;width:12px;height:12px;border-radius:3px;background:var(--c,#999)}
+.aurebesh-callout-list{display:flex;flex-direction:column;min-width:170px}
+.aurebesh-slash{position:fixed;z-index:2147483000;min-width:200px;max-height:260px;overflow:auto;padding:4px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:8px;background:var(--aurebesh-bg,#fff);color:var(--aurebesh-color,#111);box-shadow:0 8px 24px rgba(0,0,0,.18);font:13px system-ui,sans-serif}
+.aurebesh-slash[hidden]{display:none}
+.aurebesh-slash-item{padding:6px 10px;border-radius:5px;cursor:pointer}
+.aurebesh-slash-item[aria-selected="true"]{background:var(--aurebesh-active-bg,#e0e9ff);color:var(--aurebesh-active-color,#1d4ed8)}
 /* the building blocks: the panel, the rows and columns in the text, and the line that shows where a block goes */
 .aurebesh-panel-blocks{display:flex;flex-direction:column;gap:12px}
 .aurebesh-blocks-title{margin:4px 0 0;color:var(--aurebesh-label,#667085);font-size:12px;font-weight:600;letter-spacing:.02em;text-transform:uppercase}
@@ -209,4 +220,4 @@ export const CSS = `
 .aurebesh-content pre{direction:ltr;text-align:left}
 .aurebesh-content pre[dir=rtl]{direction:rtl;text-align:right}
 .aurebesh-content :is(ul,ol)[dir=rtl]{padding-inline-start:40px}
-`;
+` + calloutCss(DEFAULT_CALLOUTS);

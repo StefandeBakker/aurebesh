@@ -110,6 +110,8 @@ export const COMMANDS: Record<string, CommandDef> = {
   },
   indent: { name: 'indent', icon: 'indent', label: '→', title: 'Indent', run: () => indent(1), isEnabled: () => canIndent(1) },
   outdent: { name: 'outdent', icon: 'outdent', label: '←', title: 'Outdent', run: () => indent(-1), isEnabled: () => canIndent(-1) },
+  /** A picker of the callout types that puts the blocks of the selection in one, or takes it away; built by the editor. */
+  callout: { name: 'callout', icon: 'callout', label: '!', title: 'Callout', run: () => {} },
   /** Shows and hides the sidebar, with all the panels that there are (layout, blocks, and those of plugins); handled by the editor. */
   sidebar: { name: 'sidebar', icon: 'sidebar', label: '▤', title: 'Sidebar', run: () => {} },
   /** Opens and closes the panel with the building blocks; handled by the editor. */
