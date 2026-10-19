@@ -21,6 +21,8 @@ export const AurebeshEditor = defineComponent({
     modelValue: { type: String, default: undefined },
     options: { type: Object as PropType<AurebeshOptions>, default: undefined },
     placeholder: { type: String, default: undefined },
+    /** The language of the texts of the editor: 'nl', 'de', 'fr', 'es', 'en'. Default: the `lang` of the page, or the language of the browser. */
+    language: { type: String, default: undefined },
     /** Page format: 'a4', 'a5', 'ticket-80', ..., or a width such as '600px' / '80mm' (a number is px). */
     page: { type: [String, Number] as PropType<string | number>, default: undefined },
     pageOrientation: { type: String as PropType<'portrait' | 'landscape'>, default: undefined },
@@ -49,6 +51,7 @@ export const AurebeshEditor = defineComponent({
         options: props.options,
         name: props.name,
         placeholder: props.placeholder,
+        language: props.language,
         page: props.page === undefined ? undefined : String(props.page),
         'page-orientation': props.pageOrientation,
         'page-margin': props.pageMargin,

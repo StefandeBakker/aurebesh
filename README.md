@@ -311,17 +311,42 @@ Markdown cannot express what the editor can, so an editor with colours or column
 
 ## Texts and languages
 
-Every tooltip and popover text can be changed. Dutch is included:
+The texts of the editor (tooltips, popovers, the footer, messages) come in these languages: **English** (`en`, the default and the reference), **Nederlands** (`nl`), **Deutsch** (`de`), **Français** (`fr`) and **Español** (`es`).
+
+**Which language it uses**, in this order:
+
+1. the `language` option (or the `language` attribute, or the `language` prop of the React, Vue and Angular wrappers): `'nl'`, `'de-AT'`... A tag is matched on its first part; a language that is not built in gives English.
+2. the `lang` of the element or of the page (the nearest `lang`, `<html lang="nl">` for example). The page says what its language is, so the editor follows it.
+3. the languages of the browser, in the order the user has them (`navigator.languages`); the first one that is built in.
+4. English.
 
 ```ts
-import { Aurebesh, LABELS_NL } from 'aurebesh';
-
-new Aurebesh(el, { labels: LABELS_NL });
-new Aurebesh(el, { labels: { bold: 'Fett', 'ui.insert': 'Einfügen' } }); // override just some
+new Aurebesh(el);                              // follows the page or the browser
+new Aurebesh(el, { language: 'de' });          // pinned
+new Aurebesh(el, { labels: { bold: 'Extra fett' } });   // override just some texts, in any language
+import { LABELS_NL, LANGUAGES, resolveLanguage } from 'aurebesh';
+new Aurebesh(el, { labels: LABELS_NL });       // a whole language, as before
 ```
 
-Keys without a prefix are toolbar button names; `ui.*` are texts in popovers and the status line (see `DEFAULT_LABELS` for the full list).
-Error messages for bad links or files stay English.
+```html
+<aurebesh-editor language="fr"></aurebesh-editor>   <!-- or lang="fr", or nothing: the browser -->
+<AurebeshEditor language="nl" />                       <!-- React; Vue: :language="..."; Angular: language="..." -->
+```
+
+On the element, changing `language` builds the editor again and keeps the text. `editor.getLanguage()` tells what was chosen. Single labels (`labels`) always win over the language; keys without a prefix are toolbar button names, `ui.*` and the other keys with a dot are texts in popovers and the status line. Error messages for bad links or files stay English.
+
+### Adding a language
+
+Translations are one small file each, and a pull request with one is welcome.
+
+1. Copy `src/locales/en.ts` to `src/locales/<code>.ts` (the code is the ISO 639-1 one: `it`, `pt`, `pl`...) and rename the constant to `LABELS_<CODE>`.
+2. Translate the **values** only. Leave the keys as they are, keep the `{name}`, `{count}` and `{max}` placeholders, and keep every key: if a text can stay the same (`'page.a4': 'A4'`) leave it in. `ui.words.one`/`other` and `ui.characters.one`/`other` are the singular and the plural; the editor uses the singular for exactly one.
+3. In `src/labels.ts` import it, export it, and add it to `LANGUAGES` (`xx: LABELS_XX`); add it to the export list in `src/index.ts`.
+4. In `test/i18n.test.ts` add it to the list in `describe.each` (`['it', LABELS_IT]`) and to the list of languages in the first test.
+5. `npm test`: the test checks that your file has a text for every key of the English reference, no key that English does not have, no empty text, and the same placeholders. It also fails when a new button or text is added to the editor without an English text, so the reference stays complete.
+6. Add the language to the list above.
+
+To add a language to your own application without changing the package, pass its texts as `labels` (a complete set of keys, as in `LABELS_EN`), or register it for every editor: `LANGUAGES.it = LABELS_IT` before an editor is made, after which `language: 'it'` and the browser detection find it.
 
 ## Keyboard
 

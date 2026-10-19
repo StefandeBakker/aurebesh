@@ -1,197 +1,50 @@
 /**
- * All text the editor itself shows. Override any of them with the `labels` option,
- * e.g. `new Aurebesh(el, { labels: LABELS_NL })` or `{ labels: { bold: 'Vet' } }`.
+ * All text the editor itself shows, per language. The editor picks the language from the `language` option, or from the `lang` of the
+ * page (or of the element), or from the language of the browser; English is the fallback. Override single texts with the `labels`
+ * option, e.g. `{ labels: { bold: 'Fett' } }`, or pin a whole language with `{ labels: LABELS_NL }`.
  *
- * Keys without a prefix are toolbar button names (they set the tooltip and screen-reader label),
- * `ui.*` are texts inside popovers and the status line. `{name}` is filled in where shown.
+ * Keys without a prefix are toolbar button names (they set the tooltip and the screen-reader label), `ui.*` and the other keys with a
+ * dot are texts in popovers, the footer and the status line. `{name}`, `{count}` and `{max}` are filled in where shown.
  * Error messages thrown for bad links or files stay English.
+ *
+ * Adding a language: see "Texts and languages" in the README.
  */
+import { LABELS_DE } from './locales/de';
+import { LABELS_EN } from './locales/en';
+import { LABELS_ES } from './locales/es';
+import { LABELS_FR } from './locales/fr';
+import { LABELS_NL } from './locales/nl';
+
 export type Labels = Record<string, string>;
 
-export const DEFAULT_LABELS: Labels = {
-  'ui.font': 'Font',
-  'ui.size': 'Size',
-  'size.small': 'Small',
-  'size.normal': 'Normal',
-  'size.large': 'Large',
-  'size.larger': 'Larger',
-  'size.huge': 'Huge',
-  'ui.insert': 'Insert',
-  'ui.apply': 'Apply',
-  'ui.removeLink': 'Remove link',
-  'ui.linkAddress': 'Link address (https://…)',
-  'ui.imageLink': 'https://… image link',
-  'ui.videoLink': 'YouTube, Vimeo or .mp4/.webm link',
-  'ui.altText': 'Description (alt text)',
-  'ui.uploadImage': 'Upload image…',
-  'ui.uploadVideo': 'Upload video…',
-  'ui.uploading': 'Uploading {name}…',
-  'ui.automatic': 'Automatic',
-  'ui.noHighlight': 'No highlight',
-  'ui.custom': 'Custom',
-  'ui.table': 'Table',
-  'ui.removeImage': 'Remove image',
-  'ui.fullWidth': 'Full width',
-  'ui.editor': 'Rich text editor',
-  'ui.words.one': 'word',
-  'ui.words.other': 'words',
-  'ui.characters.one': 'character',
-  'ui.characters.other': 'characters',
-  'ui.limitReached': 'The maximum of {max} characters has been reached.',
-  'ui.openLink': 'Open link',
-  'ui.editLink': 'Edit',
-  'ui.linkTools': 'Link',
-  'ui.page': 'Page',
-  'page.responsive': 'Responsive',
-  'page.a3': 'A3',
-  'page.a4': 'A4',
-  'page.a5': 'A5',
-  'page.a6': 'A6',
-  'page.letter': 'Letter',
-  'page.legal': 'Legal',
-  'page.ticket-80': 'Ticket 80 mm',
-  'page.ticket-58': 'Ticket 58 mm',
-  'page.custom': 'Custom',
-  'ui.columns': 'Columns',
-  'ui.mode.label': 'View',
-  'ui.mode.editor': 'Editor',
-  'ui.mode.html': 'HTML',
-  'ui.mode.markdown': 'Markdown',
-  'ui.mode.html.field': 'HTML of the text',
-  'ui.mode.markdown.field': 'Markdown of the text',
-  'ui.mode.lossy': 'Markdown cannot hold everything in this text (colours, columns...). Going back to the editor may change it.',
-  'ui.layout': 'Layout',
-  'ui.close': 'Close',
-  'ui.layoutWidth': 'Width',
-  'ui.textWidth': 'Maximum text width',
-  'ui.padding': 'Padding',
-  'ui.lineHeight': 'Line spacing',
-  'ui.layoutNote': 'These settings are for the view of the text. They are not part of the HTML.',
-  'columns.1': 'One column',
-  'columns.2': 'Two columns',
-  'columns.3': 'Three columns',
-  'columns.4': 'Four columns',
-  'ui.importingImage': 'Importing image…',
-  'ui.importingImages': 'Importing {count} image(s)…',
-  'ui.imagesLinked': '{count} pasted image(s) could not be copied to your storage and are linked to their source instead.',
-  'ui.imagesFailed': '{count} pasted image(s) could not be imported.',
-  'ui.imagesDropped': '{count} image(s) in the pasted content could not be brought along.',
-  'ui.toolbar': 'Formatting',
-  'ui.quickbar': 'Quick access',
-  'ui.tableTools': 'Table tools',
-  'ui.imageTools': 'Image tools',
-};
+export { LABELS_DE, LABELS_EN, LABELS_ES, LABELS_FR, LABELS_NL };
 
-export const LABELS_NL: Labels = {
-  ...DEFAULT_LABELS,
-  'ui.font': 'Lettertype',
-  'ui.size': 'Grootte',
-  'size.small': 'Klein',
-  'size.normal': 'Normaal',
-  'size.large': 'Groot',
-  'size.larger': 'Groter',
-  'size.huge': 'Enorm',
-  'ui.insert': 'Invoegen',
-  'ui.apply': 'Toepassen',
-  'ui.removeLink': 'Link verwijderen',
-  'ui.linkAddress': 'Linkadres (https://…)',
-  'ui.imageLink': 'https://… link naar afbeelding',
-  'ui.videoLink': 'YouTube-, Vimeo- of .mp4/.webm-link',
-  'ui.altText': 'Beschrijving (alt-tekst)',
-  'ui.uploadImage': 'Afbeelding uploaden…',
-  'ui.uploadVideo': 'Video uploaden…',
-  'ui.uploading': '{name} wordt geüpload…',
-  'ui.automatic': 'Automatisch',
-  'ui.noHighlight': 'Geen markering',
-  'ui.custom': 'Eigen kleur',
-  'ui.table': 'Tabel',
-  'ui.removeImage': 'Afbeelding verwijderen',
-  'ui.fullWidth': 'Volledige breedte',
-  'ui.editor': 'Teksteditor',
-  'ui.words.one': 'woord',
-  'ui.words.other': 'woorden',
-  'ui.characters.one': 'teken',
-  'ui.characters.other': 'tekens',
-  'ui.limitReached': 'Het maximum van {max} tekens is bereikt.',
-  'ui.openLink': 'Link openen',
-  'ui.editLink': 'Bewerken',
-  'ui.linkTools': 'Link',
-  'ui.page': 'Pagina',
-  'page.responsive': 'Responsief',
-  'page.custom': 'Aangepast',
-  page: 'Paginaformaat',
-  orientation: 'Liggend',
-  'ui.columns': 'Kolommen',
-  'ui.mode.label': 'Weergave',
-  'ui.mode.editor': 'Editor',
-  'ui.mode.html': 'HTML',
-  'ui.mode.markdown': 'Markdown',
-  'ui.mode.html.field': 'HTML van de tekst',
-  'ui.mode.markdown.field': 'Markdown van de tekst',
-  'ui.mode.lossy': 'Markdown kan niet alles in deze tekst bewaren (kleuren, kolommen...). Teruggaan naar de editor kan de tekst veranderen.',
-  'ui.layout': 'Layout',
-  'ui.close': 'Sluiten',
-  'ui.layoutWidth': 'Breedte',
-  'ui.textWidth': 'Maximale tekstbreedte',
-  'ui.padding': 'Binnenruimte',
-  'ui.lineHeight': 'Regelafstand',
-  'ui.layoutNote': 'Deze instellingen gelden voor de weergave van de tekst. Ze zitten niet in de HTML.',
-  'columns.1': 'Eén kolom',
-  'columns.2': 'Twee kolommen',
-  'columns.3': 'Drie kolommen',
-  'columns.4': 'Vier kolommen',
-  'ui.importingImage': 'Afbeelding importeren…',
-  'ui.importingImages': '{count} afbeelding(en) importeren…',
-  'ui.imagesLinked': '{count} geplakte afbeelding(en) konden niet naar je opslag worden gekopieerd en blijven een link naar de bron.',
-  'ui.imagesFailed': '{count} geplakte afbeelding(en) konden niet worden geïmporteerd.',
-  'ui.imagesDropped': '{count} afbeelding(en) uit de geplakte inhoud konden niet worden meegenomen.',
-  'ui.toolbar': 'Opmaak',
-  'ui.quickbar': 'Snelle toegang',
-  'ui.tableTools': 'Tabelgereedschap',
-  'ui.imageTools': 'Afbeeldingsgereedschap',
-  bold: 'Vet',
-  italic: 'Cursief',
-  underline: 'Onderstrepen',
-  strike: 'Doorhalen',
-  code: 'Code in tekst',
-  sup: 'Superscript',
-  sub: 'Subscript',
-  h1: 'Kop 1',
-  h2: 'Kop 2',
-  h3: 'Kop 3',
-  quote: 'Citaat',
-  codeblock: 'Codeblok',
-  hr: 'Horizontale lijn',
-  ul: 'Lijst met opsommingstekens',
-  ol: 'Genummerde lijst',
-  alignLeft: 'Links uitlijnen',
-  alignCenter: 'Centreren',
-  alignRight: 'Rechts uitlijnen',
-  alignJustify: 'Uitvullen',
-  indent: 'Inspringen',
-  outdent: 'Uitspringen',
-  fullscreen: 'Volledig scherm',
-  layout: 'Layout',
-  ltr: 'Links naar rechts',
-  rtl: 'Rechts naar links',
-  link: 'Link invoegen',
-  font: 'Lettertype',
-  size: 'Grootte',
-  columns: 'Kolommen',
-  color: 'Tekstkleur',
-  highlight: 'Markeerkleur',
-  image: 'Afbeelding',
-  video: 'Video',
-  table: 'Tabel',
-  tableHeader: 'Koprij aan/uit',
-  tableRowAdd: 'Rij eronder invoegen',
-  tableColAdd: 'Kolom rechts invoegen',
-  tableMerge: 'Cellen samenvoegen',
-  tableSplit: 'Cel splitsen',
-  tableRowDel: 'Rij verwijderen',
-  tableColDel: 'Kolom verwijderen',
-  tableDel: 'Tabel verwijderen',
-  clear: 'Opmaak wissen',
-  undo: 'Ongedaan maken',
-  redo: 'Opnieuw',
-};
+/** English: what is used where a language has no text (and the reference for translations). */
+export const DEFAULT_LABELS: Labels = LABELS_EN;
+
+/** The languages that are built in, by their code. Add one with `LANGUAGES.xx = LABELS_XX` before an editor is made, or use `labels`. */
+export const LANGUAGES: Record<string, Labels> = { en: LABELS_EN, nl: LABELS_NL, de: LABELS_DE, fr: LABELS_FR, es: LABELS_ES };
+
+/** The built-in language for a language tag such as `nl`, `nl-BE` or `de_AT`; null when there is none. */
+export function matchLanguage(tag: string | null | undefined): string | null {
+  const primary = (tag ?? '').trim().toLowerCase().split(/[-_]/)[0];
+  return primary && primary in LANGUAGES ? primary : null;
+}
+
+/**
+ * The language to use. An explicit code (`'nl'`) wins, also when it is written as a tag (`'nl-BE'`). Without one (or with `'auto'`) it is
+ * the `lang` of the element or the page (the nearest one), and without that the languages of the browser, in the order the user has
+ * them. What is not built in falls back to English.
+ */
+export function resolveLanguage(explicit: string | null | undefined, container?: Element | null): string {
+  const asked = (explicit ?? '').trim();
+  if (asked && asked.toLowerCase() !== 'auto') return matchLanguage(asked) ?? 'en';
+  const page = container?.closest?.('[lang]')?.getAttribute('lang')?.trim();
+  if (page) return matchLanguage(page) ?? 'en'; // the page says what its language is: the editor follows it
+  const nav = typeof navigator === 'undefined' ? null : navigator;
+  for (const tag of [...(nav?.languages ?? []), nav?.language]) {
+    const found = matchLanguage(tag);
+    if (found) return found;
+  }
+  return 'en';
+}

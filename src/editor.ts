@@ -16,7 +16,7 @@ import type { CommandDef } from './commands';
 import { currentPre, handleCodeKey, insertCode } from './codeblock';
 import { clearHighlights, highlightCode } from './highlight';
 import { canOpenLink, currentLink, normalizeLink, openLink } from './inline';
-import { DEFAULT_LABELS } from './labels';
+import { DEFAULT_LABELS, LANGUAGES, resolveLanguage } from './labels';
 import type { Labels } from './labels';
 import { selectedImage } from './media';
 import { currentCell, handleTab, trackCellDrag } from './table';
@@ -91,7 +91,12 @@ export interface AurebeshOptions {
   maxLength?: number;
   /** Show a line under the text with the number of words and characters (and the limit, if there is one). */
   counter?: boolean;
-  /** Override the editor's own texts (tooltips, popovers). See `DEFAULT_LABELS` / `LABELS_NL`. */
+  /**
+   * The language of the texts of the editor: a code such as 'nl', 'de', 'fr', 'es' or 'en' (also a tag like 'nl-BE'). Default 'auto': the
+   * `lang` of the element or the page, and without one the language of the browser; English when that is not built in.
+   */
+  language?: string;
+  /** Override single texts of the editor (tooltips, popovers) or all of a language. See `LANGUAGES` and `DEFAULT_LABELS`. */
   labels?: Partial<Labels>;
   /** Image and video settings: where uploads are stored and whether links are allowed. */
   media?: MediaOptions;
@@ -183,6 +188,7 @@ export class Aurebesh {
   private layout: Layout = { textWidth: null, padding: null, lineHeight: null };
   private labels: Labels;
   private valueFormat: OutputFormat = 'html';
+  private language = 'en';
   private modeSwitch: ModeSwitch | null = null;
   private readOnlyState = false;
   private colors: string[];
@@ -208,7 +214,8 @@ export class Aurebesh {
     const doc = container.ownerDocument;
     const plugins = options.plugins ?? [];
     this.valueFormat = options.valueFormat ?? 'html';
-    this.labels = { ...DEFAULT_LABELS, ...Object.assign({}, ...plugins.map((p) => p.labels)), ...options.labels } as Labels;
+    this.language = resolveLanguage(options.language, container);
+    this.labels = { ...DEFAULT_LABELS, ...LANGUAGES[this.language], ...Object.assign({}, ...plugins.map((p) => p.labels)), ...options.labels } as Labels;
     this.commands = { ...COMMANDS };
     for (const p of plugins) {
       Object.assign(this.commands, p.commands);
@@ -719,6 +726,11 @@ export class Aurebesh {
     if (this.attached) this.plugins.forEach((p) => p.inst.readOnlyChanged?.());
     this.modeSwitch?.sync();
     this.updateToolbar();
+  }
+
+  /** The language of the texts of the editor, as it was worked out: 'en', 'nl', 'de', 'fr' or 'es'. */
+  getLanguage(): string {
+    return this.language;
   }
 
   /** The view: 'editor', 'html' or 'markdown' (the last two need the `modes` option). */

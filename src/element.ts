@@ -29,7 +29,7 @@ const BaseElement: typeof HTMLElement = typeof HTMLElement === 'undefined' ? (cl
  * - Works inside a <form>: with a `name` its HTML is submitted, `required` is validated, reset restores the initial content.
  */
 export class AurebeshElement extends BaseElement {
-  static observedAttributes = ['placeholder', 'readonly', 'required', 'maxlength', 'counter', 'format', 'page', 'page-orientation', 'page-margin'];
+  static observedAttributes = ['language', 'placeholder', 'readonly', 'required', 'maxlength', 'counter', 'format', 'page', 'page-orientation', 'page-margin'];
   static formAssociated = true;
 
   private editor: Aurebesh | null = null;
@@ -66,6 +66,7 @@ export class AurebeshElement extends BaseElement {
 
   attributeChangedCallback(name: string, _old: string | null, value: string | null): void {
     if (!this.editor) return;
+    if (name === 'language') this.rebuild(); // the texts are made when the editor is built
     if (name === 'placeholder') this.editor.setPlaceholder(value ?? '');
     if (name === 'readonly') this.editor.setReadOnly(value !== null);
     if (name === 'required' || name === 'format') this.syncForm();
@@ -158,6 +159,7 @@ export class AurebeshElement extends BaseElement {
       // `modes` alone shows the switch with all three views; `modes="markdown"` only the editor and the Markdown
       modes: this.hasAttribute('modes') ? parseModes(this.getAttribute('modes')) : undefined,
       mode: (this.getAttribute('mode') as ViewMode | null) ?? undefined,
+      language: this.getAttribute('language') ?? undefined,
       quickbar: this.hasAttribute('quickbar') ? (this.getAttribute('quickbar') ?? '').split(',').map((s) => s.trim()).filter(Boolean) : undefined,
       ...this.extraOptions,
     });
@@ -210,6 +212,11 @@ export class AurebeshElement extends BaseElement {
     const next = options ?? {};
     if (isSame(this.extraOptions, next)) return;
     this.extraOptions = next;
+    this.rebuild();
+  }
+
+  /** Builds the editor again with the content it has. */
+  private rebuild(): void {
     if (!this.editor) return;
     const html = this.editor.getHTML();
     this.editor.destroy();
