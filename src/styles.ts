@@ -23,6 +23,10 @@ export const HEADLESS_CSS = `
 .aurebesh-footer:not(:has(>:not([hidden]))){display:none}
 .aurebesh-modes{display:flex;margin-inline-start:auto}
 .aurebesh-find[hidden],.aurebesh-find-row[hidden]{display:none}
+.aurebesh-blockhandle{position:absolute;z-index:5;cursor:grab}
+.aurebesh-blockhandle[hidden],.aurebesh-blockmenu[hidden]{display:none}
+.aurebesh-blockhandle .aurebesh-icon{width:16px;height:16px;fill:currentColor;stroke:none}
+.aurebesh-blockmenu{position:absolute;z-index:40;display:flex;flex-direction:column;overflow:auto}
 .aurebesh-find{display:flex;flex-direction:column}
 .aurebesh-find-row{display:flex;align-items:center}
 .aurebesh-table-picker{position:relative;display:inline-block}
@@ -269,6 +273,20 @@ export const CSS = `
 .aurebesh-codelang{max-width:120px}
 .aurebesh-code-tools{align-items:center;gap:8px}
 .aurebesh-tools-label{margin-inline-end:8px;color:var(--aurebesh-label,#667085);font-size:12px;white-space:nowrap}
+/* the handle of a block, its menu, and the block that is being moved: the handle has a margin of its own beside the text, so that it does not cover the first letters */
+.aurebesh-has-handles:not([data-page]) .aurebesh-content{padding-inline-start:max(var(--aurebesh-pad-x,12px),calc((100% - var(--aurebesh-text-width,100%)) / 2),var(--aurebesh-handle-gutter,28px))}
+.aurebesh-blockhandle{position:absolute;z-index:5;display:flex;align-items:center;justify-content:center;width:22px;height:24px;padding:0;border:0;border-radius:4px;background:transparent;color:var(--aurebesh-label,#667085);cursor:grab;opacity:.7}
+.aurebesh-blockhandle:hover,.aurebesh-blockhandle[aria-expanded="true"]{background:var(--aurebesh-hover,rgba(0,0,0,.08));opacity:1}
+.aurebesh-blockhandle:active{cursor:grabbing}
+.aurebesh-blockhandle[hidden],.aurebesh-blockmenu[hidden]{display:none}
+.aurebesh-blockhandle .aurebesh-icon{width:16px;height:16px;fill:currentColor;stroke:none}
+.aurebesh-blockmenu{position:absolute;z-index:40;display:flex;flex-direction:column;min-width:180px;max-height:min(380px,80vh);overflow:auto;padding:4px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:8px;background:var(--aurebesh-bg,#fff);color:var(--aurebesh-color,#111);box-shadow:0 8px 24px rgba(0,0,0,.18);font-size:13px}
+.aurebesh-blockmenu-item{padding:6px 10px;border:0;border-radius:5px;background:transparent;color:inherit;cursor:pointer;font:inherit;text-align:start}
+.aurebesh-blockmenu-item:hover:not(:disabled),.aurebesh-blockmenu-item:focus-visible{background:var(--aurebesh-hover,rgba(0,0,0,.08));outline:0}
+.aurebesh-blockmenu-item:disabled{opacity:.4;cursor:default}
+.aurebesh-blockmenu-item[aria-checked="true"]{background:var(--aurebesh-active-bg,#e0e9ff);color:var(--aurebesh-active-color,#1d4ed8);font-weight:600}
+.aurebesh-blockmenu-title{margin-top:6px;padding:6px 10px 2px;border-top:1px solid var(--aurebesh-border,#d0d5dd);color:var(--aurebesh-label,#667085);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.aurebesh-moving{opacity:.4}
 /* find and replace: the bar, and the matches in the text */
 .aurebesh-find{display:flex;flex-direction:column;gap:6px;padding:6px 8px;border-bottom:1px solid var(--aurebesh-border,#d0d5dd);background:var(--aurebesh-toolbar-bg,#f8f9fb);font-size:13px}
 .aurebesh-find[hidden],.aurebesh-find-row[hidden]{display:none}

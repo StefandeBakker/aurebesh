@@ -298,7 +298,7 @@ export function replaceSiblings(content: HTMLElement, first: Element, last: Elem
 }
 
 /** Puts new HTML in the place of an element (or nothing, with ''): as one step for undo when there are blocks that are not divs on both sides. */
-function replaceElement(content: HTMLElement, old: Element, html: string): void {
+export function replaceElement(content: HTMLElement, old: Element, html: string): void {
   const kids = Array.from(old.parentElement?.children ?? []);
   const at = kids.indexOf(old);
   let lo = at - 1;
@@ -312,8 +312,8 @@ function replaceElement(content: HTMLElement, old: Element, html: string): void 
   // a row at the edge of a column has nothing to hold on to: changed as it is, without a step for undo
   const tpl = content.ownerDocument.createElement('template');
   tpl.innerHTML = html;
-  const node = tpl.content.firstElementChild;
-  if (node) old.replaceWith(node);
+  // all of what the HTML has (a list that becomes several paragraphs is several blocks)
+  if (tpl.content.childNodes.length) old.replaceWith(...Array.from(tpl.content.childNodes));
   else old.remove();
 }
 

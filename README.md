@@ -124,6 +124,7 @@ import 'aurebesh/element'; // registers <aurebesh-editor>
 | `readOnly` | Disable editing |
 | `toolbar` | Items, e.g. `['bold','italic','|','link']`; `[]` hides it |
 | `headless` | No look of its own: the page styles everything (see *Your own look*) |
+| `blockHandles` | The grip beside a block to move it and its menu (default on; `false` leaves it out) |
 | `fonts` | Font list for the font picker (default: 15 system font stacks, nothing to download) |
 | `colors` | Swatches for text/highlight colour (default: 40) |
 | `maxLength` | Maximum number of characters, see "Counter and limit" |
@@ -162,6 +163,18 @@ The colours of this look are variables too: `--aurebesh-icon`, `--aurebesh-label
 
 Theme via CSS variables: `--aurebesh-border`, `--aurebesh-bg`, `--aurebesh-color`, `--aurebesh-accent`, `--aurebesh-toolbar-bg`, `--aurebesh-code-bg`, `--aurebesh-min-height`, `--aurebesh-max-height` (a fixed maximum height of the text area: the text then scrolls inside the editor while the toolbar stays in view; without it the editor grows with the text and the toolbar scrolls along with the page), and `--aurebesh-hl-keyword|string|comment|number|function|type|tag` for code colours.
 
+## The handle of a block: move, copy, delete, turn into
+
+When the pointer is over a block, a grip (six dots) shows in the margin beside it. A block is a paragraph, a heading, a list (as a whole), a quote, a code block, a table, a callout, a picture, or a row of columns; the blocks in a column have handles of their own, and so does the row.
+
+- **Drag** the grip to move the block: a line shows where it will go (in the text, or in a column), and a drop onto the block itself does nothing. A column that is left empty gets a paragraph to type in.
+- **Click** the grip for a menu: *Duplicate*, *Move up*, *Move down*, *Delete*, and *Turn into* (paragraph, heading 1 to 3, bullet list, numbered list, task list, quote, code block, callout). The text and the formatting in it stay: a list becomes a paragraph for each item, a list into another kind of list keeps its nesting, and a table or a row can be moved and deleted but not turned into something else. The menu is a `role="menu"` that works with the arrow keys, Home, End, Enter and Escape.
+- **Keyboard**: `Alt+Shift+Up` and `Alt+Shift+Down` move the block with the caret, and `Alt+Shift+M` opens its menu.
+
+The grip is for a mouse: it is not shown on a screen that has no hover (a phone), in the HTML and Markdown views, or in a read-only editor. Everything it does is also in the keyboard and the menu. `blockHandles: false` leaves it out. The grip stands in a margin of its own beside the text (28 px, `--aurebesh-handle-gutter`; in a page format it is beside the sheet), so that it does not cover the first letters, a task box or a table's grips; a headless editor has no margin of its own, so there the page makes room for it. A table with the caret in it has grips of its own on its edge, so its handle is left out then (the menu is still there with `Alt+Shift+M`).
+
+A browser has no undo for blocks that are moved, and puts blocks that are inserted as HTML together with the ones beside them, so the editor does these changes itself and keeps them in a history of its own. `Ctrl+Z` and `Ctrl+Y` (and the buttons, and the menu of the browser) take them back and do them again, **in the order of what was done**: typing after a move is undone first, then the move. Replace all (see below) is in that history too. What was done before a move by the browser's own undo stack stays undoable as long as the text is as it was, but undo after a move and several changes of the text in other blocks can take the browser's own history with it: a change made by the handle is the one to undo right after you made it.
+
 ## Find and replace
 
 `Mod+F` opens a bar under the toolbar (`Mod+H` opens it with the row to replace with), and so does the magnifying glass in the strip above the toolbar (the `find` item). The selected text is the text to find.
@@ -171,7 +184,7 @@ Theme via CSS variables: `--aurebesh-border`, `--aurebesh-bg`, `--aurebesh-color
 - **Replace** replaces the current match and goes to the next; `Enter` in the field to replace with does it too. **Replace all** replaces every match, over paragraphs, list items, table cells, code and formatting. A match goes over formatting ("hello world" when *hello* is bold), but not over blocks or line breaks. A replacement has the formatting of where the match started, and what is typed is never read as HTML.
 - `Escape` closes the bar and leaves the current match selected in the text.
 
-Replace goes in the undo history of the browser, so `Ctrl+Z` takes one back. **Replace all** does not (it changes many places at once): the bar shows an **Undo** button next to it that puts the text back, for as long as the text has not been changed in the meantime. The markings need the CSS Custom Highlight API (see Browser support); without it the bar still finds, counts and replaces, and the current match is the selection when you close the bar.
+Replace goes in the undo history of the browser, so `Ctrl+Z` takes one back. **Replace all** changes many places at once, so the editor keeps it in its own history (see *The handle of a block*): `Ctrl+Z` takes all of it back, and the bar also shows an **Undo** button next to it that puts the text back for as long as the text has not been changed in the meantime. The markings need the CSS Custom Highlight API (see Browser support); without it the bar still finds, counts and replaces, and the current match is the selection when you close the bar.
 
 ```js
 new Aurebesh(el, { find: false });   // leave Mod+F and Mod+H to the browser
@@ -214,6 +227,7 @@ Two limits: **it goes for the whole page** (the styles are global by class name,
 | `.aurebesh-status` | a message (`.error` for an error), a live region |
 | `.aurebesh-tip`, `.aurebesh-slash`, `.aurebesh-slash-item` | the tooltip, and the slash menu with its options (`aria-selected`) |
 | `.aurebesh-link-tools`, `.aurebesh-image-tools`, `.aurebesh-table-tools`, `.aurebesh-code-tools` | the rows that show for a link, an image, a table or a code block |
+| `.aurebesh-blockhandle`, `.aurebesh-blockmenu`, `.aurebesh-blockmenu-item`, `.aurebesh-moving` | the grip beside a block, its menu and its items, and the block that is being dragged |
 | `.aurebesh-find`, `.aurebesh-find-input`, `.aurebesh-find-count` | the bar to find and replace, its fields and the count (`::highlight(aurebesh-find)` and `-find-current` mark the matches) |
 | `[data-callout]`, `ul[data-task]`, `pre[data-language]`, `[data-layout]` | callouts, task lists, code blocks and the rows and columns of a layout, in the text |
 
@@ -317,7 +331,7 @@ A row is plain HTML, a grid of columns, and nothing of the editor is in it:
 
 The sanitizer allows this and no more: a `div` with `data-layout` `row` or `col`; on a row `display: grid`, `grid-template-columns` of up to six columns in `fr` or `%`, `gap` in px and `align-items`; on a column padding, a background and `min-width: 0`; on a link that has `data-button` the few styles of a button. Anything else is removed, so a grid cannot be used for more than a layout. CSS grid is not supported by e-mail clients: for HTML e-mail use a table instead (see Tables). In Markdown and text the columns are the content one after the other. The editor shows the columns with a dashed outline; the HTML you get has none of it, so give `[data-layout="row"]` and the columns the look and the responsive behaviour you want in your own CSS (for example one column on a narrow screen, with `grid-template-columns` set to `1fr` in a media query with `!important`).
 
-Reordering blocks by dragging them inside the text, and a panel with the properties of the block that is selected, are not there yet.
+Blocks in the text are moved with their handle (see *The handle of a block*). A panel with the properties of the block that is selected is not there yet.
 
 ## Code blocks and their language
 
@@ -611,6 +625,8 @@ To add a language to your own application without changing the package, pass its
 | `Mod+K` | Link (opens the link box, prefilled when the caret is in a link) |
 | `Mod+E` | Inline code (again to remove) |
 | `Mod+F` / `Mod+H` | Find / find and replace |
+| `Alt+Shift+Up` / `Alt+Shift+Down` | Move the block with the caret up / down |
+| `Alt+Shift+M` | The menu of the block with the caret |
 | `Mod+Shift+X` | Strikethrough |
 | `Mod+\` | Clear all formatting |
 | `Mod+.` / `Mod+,` | Superscript / subscript |
