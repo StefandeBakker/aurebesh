@@ -181,8 +181,7 @@ test.describe('moving rows and columns by their grips', () => {
   test('a row cannot go past a cell that is merged over several rows: it stays, and says why', async ({ page }) => {
     await open(page, MERGED);
     await cell(page, 'b1').click();
-    await expect(page.locator('.aurebesh-handle-row-grip').nth(0)).toBeVisible();
-    await page.waitForTimeout(250); // the grips are put in their places a moment after the click
+    await expect(page.locator('.aurebesh-handle-row-grip').nth(0)).toBeVisible(); // the grips show a moment after the click
     const grip = await centre(page.locator('.aurebesh-handle-row-grip').nth(0));
     const target = await centre(cell(page, 'b3'));
     await drag(page, grip, { x: grip.x, y: target.y + 5 });

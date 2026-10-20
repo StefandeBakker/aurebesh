@@ -30,6 +30,9 @@ import { attachSlashMenu } from './slash';
 import { handleSoftBreak } from './softbreak';
 import { FindBar } from './find';
 import { BlockHandle } from './blockhandle';
+import { toDocx } from './docx';
+import type { DocxPage } from './docx';
+import { download, safeFilename } from './download';
 import { BlockHistory } from './history';
 import type { BlockKind } from './blockops';
 import { WEIGHTS, currentWeight } from './weight';
@@ -91,6 +94,8 @@ export interface Layout {
 export interface AurebeshOptions {
   /** A handle beside the block under the pointer: drag it to move the block, click it for a menu (duplicate, move, delete, turn into). Default: on (not on a touch screen); false leaves it out. */
   blockHandles?: boolean;
+  /** The name of the files that are exported (without the extension), and the title of the document in them. Default: 'document'. */
+  exportName?: string;
   /** Find and replace: `Mod+F` and `Mod+H` open the bar, and the `find` item in the toolbar. Default: on; false leaves those keys to the browser. */
   find?: boolean;
   /**
@@ -220,6 +225,8 @@ export class Aurebesh {
   private codeTools: HTMLElement | null = null;
   private findBar: FindBar | null = null;
   private blockHandle: BlockHandle | null = null;
+  private exportName = 'document';
+  private exportItems: HTMLButtonElement[] = [];
   private blockHistory!: BlockHistory;
   private findKeys = true;
   private columnsSelects: HTMLSelectElement[] = [];
@@ -271,6 +278,7 @@ export class Aurebesh {
     const plugins = options.plugins ?? [];
     this.valueFormat = options.valueFormat ?? 'html';
     this.findKeys = options.find !== false;
+    this.exportName = safeFilename(options.exportName);
     if (options.sizes) this.sizes = options.sizes.filter((n) => Number.isFinite(n) && n >= 8 && n <= 200);
     if (options.callouts) {
       this.calloutTypes = options.callouts.filter((t) => CALLOUT_ID.test(t.id));
@@ -618,13 +626,13 @@ export class Aurebesh {
     return countPages(this.page, this.content.offsetHeight);
   }
 
-  private printHTML(heightPx?: number): string {
+  private printHTML(heightPx?: number, title?: string): string {
     const doc = this.container.ownerDocument;
     const style = doc.defaultView!.getComputedStyle(this.content);
     const clean = (v: string) => v.replace(/[<>{};]/g, '');
     const font = `font-family:${clean(style.fontFamily)};font-size:${clean(style.fontSize)};line-height:${clean(style.lineHeight)}`;
     const h = heightPx ?? (this.page && !this.page.height ? this.content.offsetHeight : undefined);
-    return printDocument(this.page, this.getHTML(), CSS, font, h);
+    return printDocument(this.page, this.getHTML(), CSS, font, h, title ?? this.exportName);
   }
 
   /**
@@ -632,17 +640,17 @@ export class Aurebesh {
    * turning into a PDF on a server (Puppeteer, Playwright: `page.pdf({ preferCSSPageSize: true })`). Code colours are not
    * included. For continuous paper (a ticket) the length is taken from the editor's own content.
    */
-  getPrintHTML(): string {
-    return this.printHTML();
+  getPrintHTML(title?: string): string {
+    return this.printHTML(undefined, title);
   }
 
   /** Opens the print dialog for the content on the current paper (choose "Save as PDF" there for a PDF). */
-  print(): Promise<void> {
+  print(title?: string): Promise<void> {
     const doc = this.container.ownerDocument;
     const frame = doc.createElement('iframe');
     frame.setAttribute('aria-hidden', 'true');
     frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
-    frame.srcdoc = this.printHTML();
+    frame.srcdoc = this.printHTML(undefined, title);
     return new Promise((resolve) => {
       const done = () => {
         frame.remove();
@@ -1039,6 +1047,120 @@ export class Aurebesh {
     } else document.execCommand('redo');
   }
 
+  /** The page of the editor as the page of a Word document (in millimetres), or null for a responsive editor. */
+  private docxPage(): Partial<DocxPage> | null {
+    const mm = (css: string | null | undefined): number | undefined => {
+      const m = /^([\d.]+)(mm|cm|in|px|pt)$/.exec((css ?? '').trim());
+      if (!m) return undefined;
+      const n = parseFloat(m[1]);
+      return m[2] === 'mm' ? n : m[2] === 'cm' ? n * 10 : m[2] === 'in' ? n * 25.4 : m[2] === 'pt' ? (n * 25.4) / 72 : (n * 25.4) / 96;
+    };
+    if (!this.page) return null;
+    return { width: mm(this.page.width), height: mm(this.page.height), margin: mm(this.page.margin) };
+  }
+
+  /** The content as a Word document (.docx). Pictures that are not in the HTML itself are fetched, which needs the host to allow it. */
+  toDocx(options: { title?: string; images?: boolean } = {}): Promise<Blob> {
+    const style = this.container.ownerDocument.defaultView?.getComputedStyle(this.content);
+    const family = style?.fontFamily?.split(',')[0]?.replace(/["']/g, '').trim();
+    const generic = !family || /^(?:system-ui|ui-.*|-apple-system|sans-serif|serif|monospace|inherit)$/i.test(family);
+    const size = style ? Math.round(parseFloat(style.fontSize) * 0.75 * 2) / 2 : 0;
+    return toDocx(this.getHTML(), {
+      title: options.title ?? this.exportName,
+      page: this.docxPage(),
+      font: generic ? undefined : family,
+      fontSize: size > 6 && size < 40 ? size : undefined,
+      images: options.images,
+    });
+  }
+
+  /** The formats that `export()` has: the built-in ones and what the plugins write. */
+  exportFormats(): string[] {
+    const own = ['pdf', 'docx', 'html', 'markdown', 'text'];
+    const more = this.plugins.flatMap((p) => [...Object.keys(p.inst.export ?? {}), ...Object.keys(p.inst.output ?? {})]);
+    return [...own, ...more.filter((f, i) => !own.includes(f) && more.indexOf(f) === i)];
+  }
+
+  /**
+   * Saves the content as a file: `'docx'` (Word), `'html'` (a page that looks as the editor does, with the page format as its paper),
+   * `'markdown'`, `'text'`, or a format that a plugin writes. `'pdf'` opens the print dialog on the content on its paper, where
+   * `Save as PDF` makes the file (the browser has no other way to make a PDF without a library). `filename` is without the extension.
+   */
+  async export(format: OutputFormat, options: { filename?: string; title?: string } = {}): Promise<void> {
+    const doc = this.container.ownerDocument;
+    const name = safeFilename(options.filename ?? this.exportName);
+    const title = options.title ?? name;
+    try {
+      this.modeSwitch?.flush();
+      // a plugin that writes the format makes the file itself
+      const made = this.plugins.map((p) => p.inst.export?.[format]).find(Boolean);
+      if (made) {
+        const file = await made();
+        download(doc, file, `${name}.${format}`, 'text/plain;charset=utf-8');
+        return;
+      }
+      if (format === 'pdf') return await this.print(title);
+      if (format === 'docx') {
+        download(doc, await this.toDocx({ title }), `${name}.docx`, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      } else if (format === 'html') download(doc, this.getPrintHTML(title), `${name}.html`, 'text/html;charset=utf-8');
+      else if (format === 'markdown') download(doc, this.getMarkdown(), `${name}.md`, 'text/markdown;charset=utf-8');
+      else if (format === 'text') download(doc, this.isEmpty() ? '' : this.getText(), `${name}.txt`, 'text/plain;charset=utf-8');
+      else if (this.exportFormats().includes(format)) download(doc, this.getValue(format), `${name}.${format}`, 'text/plain;charset=utf-8');
+      else throw new Error(`Aurebesh: no export format "${format}"`);
+    } catch (err) {
+      this.fail(err);
+    }
+  }
+
+  /** The button with the list of the formats that the content can be saved as. */
+  private buildExportMenu(cmd: CommandDef): HTMLElement {
+    const doc = this.container.ownerDocument;
+    const wrap = doc.createElement('span');
+    wrap.className = 'aurebesh-table-picker';
+    const toggle = this.makeButton(cmd, (e) => {
+      pop.hidden = !pop.hidden;
+      if (!pop.hidden && e.detail === 0) (pop.querySelector('button') as HTMLElement | null)?.focus();
+    });
+    toggle.setAttribute('aria-haspopup', 'menu');
+    const pop = doc.createElement('div');
+    pop.className = 'aurebesh-table-pop aurebesh-export-pop';
+    pop.hidden = true;
+    pop.setAttribute('role', 'menu');
+    pop.setAttribute('aria-label', this.title(cmd));
+    const label = (format: string) => (['pdf', 'docx', 'html', 'markdown', 'text'].includes(format) && !this.plugins.some((p) => p.inst.export?.[format]) ? this.t(`ui.export.${format}`) : format);
+    for (const format of this.exportFormats()) {
+      const b = doc.createElement('button');
+      b.type = 'button';
+      b.className = 'aurebesh-export-item';
+      b.setAttribute('role', 'menuitem');
+      b.dataset.format = format;
+      b.textContent = label(format);
+      b.addEventListener('mousedown', (e) => e.preventDefault());
+      b.addEventListener('click', async () => {
+        pop.hidden = true;
+        b.setAttribute('aria-busy', 'true');
+        try {
+          await this.export(format);
+        } finally {
+          b.removeAttribute('aria-busy');
+        }
+      });
+      pop.appendChild(b);
+      this.exportItems.push(b);
+    }
+    pop.addEventListener('keydown', (e) => {
+      const items = Array.from(pop.querySelectorAll('button'));
+      const at = items.indexOf(doc.activeElement as HTMLButtonElement);
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        items[(at + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus();
+      }
+    });
+    this.closeOnOutside(wrap, pop, toggle);
+    wrap.append(toggle, pop);
+    return wrap;
+  }
+
   /** The name of a kind of block, in the menu of the handle. */
   private blockLabel(kind: BlockKind): string {
     const names: Record<BlockKind, string> = { p: this.t('ui.block.paragraph'), h1: 'h1', h2: 'h2', h3: 'h3', ul: 'ul', ol: 'ol', task: 'task', quote: 'quote', code: 'codeblock', callout: 'callout' };
@@ -1051,6 +1173,10 @@ export class Aurebesh {
   }
 
   exec(name: string, arg?: string, extra?: string): void {
+    if (name === 'export') {
+      if (arg) void this.export(arg);
+      return;
+    }
     if (name === 'undo' || name === 'redo') {
       if (name === 'undo') this.undo();
       else this.redo();
@@ -1159,6 +1285,7 @@ export class Aurebesh {
     if (item === 'font') return this.buildFontSelect();
     if (item === 'size') return this.buildSizeSelect();
     if (item === 'weight') return this.buildWeightSelect();
+    if (item === 'export') return this.buildExportMenu(cmd);
     if (item === 'codeLanguage') return this.buildCodeLanguageSelect();
     if (item === 'columns') return this.buildColumnsSelect();
     if (item === 'orientation') return this.buildOrientationButton();
@@ -2812,7 +2939,7 @@ export class Aurebesh {
       this.fontSelects.forEach((select) => (select.value = match ? match.family : ''));
     }
     this.buttons.forEach((list, name) => {
-      if (name === 'sidebar' || name === 'callout' || name === 'strikeStyle' || name === 'underlineStyle' || name === 'clearStyle') return; // aria-expanded says it, and the callout picker sets its own state
+      if (name === 'sidebar' || name === 'callout' || name === 'export' || name === 'strikeStyle' || name === 'underlineStyle' || name === 'clearStyle') return; // aria-expanded says it, and the callout picker sets its own state
       const active = name === 'fullscreen' ? this.fullscreen : inside && (this.commands[name].isActive?.() ?? false);
       const enabled = this.commands[name].isEnabled;
       for (const btn of list) {

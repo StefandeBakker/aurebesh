@@ -123,7 +123,7 @@ const mm = (px: number) => Math.ceil((px * 25.4) / 96) + 1;
  * turning into a PDF. `css` is the editor's own stylesheet so the content looks the same; `font` carries the editor's text
  * style over. A page without a height gets one from `heightPx` (the browser cannot do "as long as the content" itself).
  */
-export function printDocument(page: ResolvedPage | null, html: string, css: string, font: string, heightPx?: number): string {
+export function printDocument(page: ResolvedPage | null, html: string, css: string, font: string, heightPx?: number, title = 'Document'): string {
   let pageRule: string;
   let contentPadding = '0';
   if (!page) {
@@ -137,7 +137,7 @@ export function printDocument(page: ResolvedPage | null, html: string, css: stri
   }
   const width = page && !page.height ? `${page.width}` : 'auto';
   return (
-    '<!doctype html><html><head><meta charset="utf-8"><title>Document</title><style>' +
+    `<!doctype html><html><head><meta charset="utf-8"><title>${title.replace(/[<>&"]/g, '')}</title><style>` +
     css +
     pageRule +
     `html,body{margin:0;background:#fff;color:#111;${font}}` +

@@ -80,6 +80,12 @@ export class BlockHandle {
       if (!['Shift', 'Alt', 'Control', 'Meta'].includes(e.key)) this.hide();
     });
     on(host.content, 'scroll', () => this.hide());
+    // a click in the text: the handle goes until the pointer moves again; and a table that gets the caret has grips of its own along its edge
+    on(host.content, 'mousedown', () => this.hide());
+    on(doc, 'selectionchange', () => {
+      const sel = doc.getSelection();
+      if (this.block?.matches('table') && sel?.anchorNode && this.block.contains(sel.anchorNode)) this.hide();
+    });
     // where the handle is is where the block was: when the text or its layout changes, the handle goes until the pointer moves again
     const win = doc.defaultView;
     if (win?.MutationObserver) {

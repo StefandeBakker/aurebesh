@@ -273,6 +273,10 @@ export const CSS = `
 .aurebesh-codelang{max-width:120px}
 .aurebesh-code-tools{align-items:center;gap:8px}
 .aurebesh-tools-label{margin-inline-end:8px;color:var(--aurebesh-label,#667085);font-size:12px;white-space:nowrap}
+.aurebesh-export-pop{display:flex;flex-direction:column;gap:2px;min-width:170px}
+.aurebesh-export-item{padding:6px 10px;border:0;border-radius:4px;background:transparent;color:inherit;cursor:pointer;font:inherit;font-size:13px;text-align:start;white-space:nowrap}
+.aurebesh-export-item:hover,.aurebesh-export-item:focus-visible{background:var(--aurebesh-hover,rgba(0,0,0,.06))}
+.aurebesh-export-item[aria-busy="true"]{opacity:.6;cursor:progress}
 /* the handle of a block, its menu, and the block that is being moved: the handle has a margin of its own beside the text, so that it does not cover the first letters */
 .aurebesh-has-handles:not([data-page]) .aurebesh-content{padding-inline-start:max(var(--aurebesh-pad-x,12px),calc((100% - var(--aurebesh-text-width,100%)) / 2),var(--aurebesh-handle-gutter,28px))}
 .aurebesh-blockhandle{position:absolute;z-index:5;display:flex;align-items:center;justify-content:center;width:22px;height:24px;padding:0;border:0;border-radius:4px;background:transparent;color:var(--aurebesh-label,#667085);cursor:grab;opacity:.7}

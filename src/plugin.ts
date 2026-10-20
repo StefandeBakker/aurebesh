@@ -107,6 +107,11 @@ export interface PluginInstance {
   destroy?(): void;
   /** Extra output formats: `editor.getValue('name')`, and the `format` of the element. */
   output?: Record<string, () => string>;
+  /**
+   * Formats to save as a file (the `export` item and `editor.export('name')`): a function that gives the file, as a `Blob` (any kind of file)
+   * or as text, also late (a promise). The name is the extension. A name that the editor has (such as `pdf`) is made by the plugin instead.
+   */
+  export?: Record<string, () => Blob | string | Promise<Blob | string>>;
   /** The other side of `output`: reads a value of that format and returns HTML, for `editor.setValue(value, 'name')`. */
   load?: Record<string, (value: string) => string>;
   /** What `editor.plugin(name)` returns. */
