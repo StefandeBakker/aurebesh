@@ -40,6 +40,8 @@ export const ICONS: Record<string, Shape[]> = {
   // a letter U with a dashed line under it
   underlineStyle: [['path', { d: 'M7.5 4v6.5a4.5 4.5 0 0 0 9 0V4' }], ['path', { d: 'M5 20h3M10.5 20h3M16 20h3' }]],
   strikeStyle: [['path', { d: 'M16.5 6.5c-.6-1.4-2.3-2-4.5-2-2.6 0-4.3 1.1-4.3 2.9 0 1 .5 1.7 1.4 2.2M7.5 17.5c.7 1.3 2.3 2 4.6 2 2.6 0 4.4-1.2 4.4-3 0-.9-.4-1.5-1.1-2' }], ['path', { d: 'M4 10.5h16M4 13.5h16' }]],
+  // six dots: what a block is picked up by
+  grip: [['circle', { cx: 9, cy: 6, r: 1.4 }], ['circle', { cx: 15, cy: 6, r: 1.4 }], ['circle', { cx: 9, cy: 12, r: 1.4 }], ['circle', { cx: 15, cy: 12, r: 1.4 }], ['circle', { cx: 9, cy: 18, r: 1.4 }], ['circle', { cx: 15, cy: 18, r: 1.4 }]],
   // a magnifying glass
   find: [['circle', { cx: 10.5, cy: 10.5, r: 6 }], ['path', { d: 'M15 15l5.5 5.5' }]],
   // a box with a check, and a line of text

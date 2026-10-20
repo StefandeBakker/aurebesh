@@ -158,6 +158,8 @@ export interface FindHost {
   canEdit(): boolean;
   /** The text was changed by the bar. */
   changed(): void;
+  /** Does a change of the DOM that the editor keeps in its own history, so that undo takes it back. */
+  run(change: () => void): void;
   /** Puts back the HTML of the text (the undo of replace all). */
   restore(html: string): void;
 }
@@ -436,14 +438,16 @@ export class FindBar {
     this.flush();
     if (!this.ranges.length || !this.host.canEdit()) return;
     const before = this.host.content.innerHTML;
-    const count = replaceRanges(this.host.content, this.ranges, this.replaceInput.value);
+    const ranges = this.ranges;
+    let count = 0;
+    this.host.run(() => (count = replaceRanges(this.host.content, ranges, this.replaceInput.value)));
     const after = this.host.content.innerHTML;
-    this.host.changed();
     this.search(false);
     this.undoState = { before, after };
     this.undoBtn.hidden = false;
     this.count.textContent = this.host.t('ui.find.replaced', { count: String(count) });
     this.count.classList.remove('is-none');
+    this.find.focus(); // the button that was pressed is disabled now (nothing left to replace)
   }
 
   private undoReplace(): void {

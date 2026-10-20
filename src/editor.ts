@@ -29,6 +29,9 @@ import type { CalloutDef } from './callouts';
 import { attachSlashMenu } from './slash';
 import { handleSoftBreak } from './softbreak';
 import { FindBar } from './find';
+import { BlockHandle } from './blockhandle';
+import { BlockHistory } from './history';
+import type { BlockKind } from './blockops';
 import { WEIGHTS, currentWeight } from './weight';
 import { DEFAULT_SIZES, applyPendingSize, currentSize } from './fontsize';
 import { decorationLook } from './decoration';
@@ -86,6 +89,8 @@ export interface Layout {
 }
 
 export interface AurebeshOptions {
+  /** A handle beside the block under the pointer: drag it to move the block, click it for a menu (duplicate, move, delete, turn into). Default: on (not on a touch screen); false leaves it out. */
+  blockHandles?: boolean;
   /** Find and replace: `Mod+F` and `Mod+H` open the bar, and the `find` item in the toolbar. Default: on; false leaves those keys to the browser. */
   find?: boolean;
   /**
@@ -214,6 +219,8 @@ export class Aurebesh {
   private codeLanguageSelects: HTMLSelectElement[] = [];
   private codeTools: HTMLElement | null = null;
   private findBar: FindBar | null = null;
+  private blockHandle: BlockHandle | null = null;
+  private blockHistory!: BlockHistory;
   private findKeys = true;
   private columnsSelects: HTMLSelectElement[] = [];
   private cellBorderSelects: HTMLSelectElement[] = [];
@@ -343,6 +350,7 @@ export class Aurebesh {
     this.content.setAttribute('aria-multiline', 'true');
     this.content.setAttribute('aria-label', this.t('ui.editor'));
     // The stage is the "desk" the sheet lies on when a page format is set; without one it is invisible.
+    this.blockHistory = new BlockHistory(this.content);
     this.stage = doc.createElement('div');
     this.stage.className = 'aurebesh-stage';
     this.stage.appendChild(this.content);
@@ -406,6 +414,19 @@ export class Aurebesh {
       );
       footer.appendChild(this.modeSwitch.el);
     }
+    if (options.blockHandles !== false) {
+      this.root.classList.add('aurebesh-has-handles');
+      this.blockHandle = new BlockHandle({
+        content: this.content,
+        stage: this.stage,
+        t: (key) => this.t(key),
+        label: (kind) => this.blockLabel(kind),
+        active: () => this.content.isContentEditable && (!this.modeSwitch || this.modeSwitch.mode === 'editor') && !!doc.defaultView?.matchMedia?.('(hover: hover)').matches,
+        run: (change) => this.runChange(change),
+        line: (spot) => this.showBlockLine(spot),
+        calloutType: () => this.calloutTypes[0]?.id ?? 'note',
+      });
+    }
     this.root.appendChild(footer);
     this.maxLength = options.maxLength && options.maxLength > 0 ? Math.floor(options.maxLength) : null;
     this.counterEl.hidden = !options.counter;
@@ -432,6 +453,7 @@ export class Aurebesh {
       });
       normalizeLayouts(this.content);
       normalizeCallouts(this.content);
+      if (!(e as InputEvent).inputType?.startsWith('history')) this.blockHistory.edited();
       applyPendingSize();
       this.findBar?.refresh();
       this.syncEmpty();
@@ -721,6 +743,17 @@ export class Aurebesh {
 
   /** Stops typing, dropping and replacing text at the limit; what is pasted is cut off in onPaste. Deleting is always allowed. */
   private onBeforeInput(e: InputEvent): void {
+    // the undo and redo of the browser (its keys and its menu): a change that the editor made itself goes first, when it is its turn
+    if (e.inputType === 'historyUndo' && this.blockHistory.canUndo()) {
+      e.preventDefault();
+      this.undo();
+      return;
+    }
+    if (e.inputType === 'historyRedo' && this.blockHistory.canRedo()) {
+      e.preventDefault();
+      this.redo();
+      return;
+    }
     // While an input method composes text it can't be cancelled; the over-long state is flagged and the form rejects it.
     if (this.maxLength === null || e.isComposing || !e.inputType.startsWith('insert') || e.inputType === 'insertFromPaste') return;
     const incoming = e.data ?? e.dataTransfer?.getData('text/plain') ?? '';
@@ -796,6 +829,21 @@ export class Aurebesh {
     if (e.isComposing || e.keyCode === 229) return;
     if (this.plugins.some((p) => p.inst.keydown?.(e))) return;
 
+    if (this.blockHandle?.handleKey(e)) {
+      this.syncEmpty();
+      this.emitChange();
+      return;
+    }
+    // Mod+Z and Mod+Shift+Z / Mod+Y: a change that the editor made itself, when it is its turn
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.isComposing && ['KeyZ', 'KeyY'].includes(e.code)) {
+      const redo = e.code === 'KeyY' || e.shiftKey;
+      if (redo ? this.blockHistory.canRedo() : this.blockHistory.canUndo()) {
+        e.preventDefault();
+        if (redo) this.redo();
+        else this.undo();
+        return;
+      }
+    }
     const shortcut = shortcutFor(e);
     if (shortcut && (shortcut === 'find' || shortcut === 'findReplace') && !this.findKeys) return; // the browser's own find
     if (shortcut) {
@@ -846,6 +894,7 @@ export class Aurebesh {
   }
 
   setHTML(html: string): void {
+    this.blockHistory.clear(); // what was done before is of another text
     this.content.innerHTML = this.clean(html);
     this.syncEmpty();
     this.scheduleHighlight();
@@ -943,6 +992,7 @@ export class Aurebesh {
         before: () => this.root.querySelector('.aurebesh-body'),
         t: (key, vars) => this.t(key, vars),
         canEdit: () => this.content.isContentEditable,
+        run: (change) => this.runChange(change),
         changed: () => {
           this.syncEmpty();
           this.emitChange();
@@ -957,12 +1007,56 @@ export class Aurebesh {
     this.findBar.open(options);
   }
 
+  /**
+   * Does a change of the DOM that a browser has no undo for (moving blocks, replace all), and keeps it in the history of the editor: undo
+   * and redo (the keys, the buttons, the menu of the browser) take it back and do it again when the text is as the change left it.
+   */
+  private runChange(change: () => void): void {
+    if (!this.content.isContentEditable) return;
+    if (this.blockHistory.run(change)) {
+      this.syncEmpty();
+      this.emitChange();
+      this.updateToolbar();
+    }
+  }
+
+  /** Undo: a change that the editor made itself when it is the turn of that, else the undo of the browser. */
+  undo(): void {
+    this.content.focus();
+    if (this.blockHistory.undo()) {
+      this.syncEmpty();
+      this.emitChange();
+      this.updateToolbar();
+    } else document.execCommand('undo');
+  }
+
+  redo(): void {
+    this.content.focus();
+    if (this.blockHistory.redo()) {
+      this.syncEmpty();
+      this.emitChange();
+      this.updateToolbar();
+    } else document.execCommand('redo');
+  }
+
+  /** The name of a kind of block, in the menu of the handle. */
+  private blockLabel(kind: BlockKind): string {
+    const names: Record<BlockKind, string> = { p: this.t('ui.block.paragraph'), h1: 'h1', h2: 'h2', h3: 'h3', ul: 'ul', ol: 'ol', task: 'task', quote: 'quote', code: 'codeblock', callout: 'callout' };
+    return kind === 'p' ? names.p : this.title(this.commands[names[kind]]);
+  }
+
   /** Closes the bar to find and replace. */
   closeFind(): void {
     this.findBar?.close();
   }
 
   exec(name: string, arg?: string, extra?: string): void {
+    if (name === 'undo' || name === 'redo') {
+      if (name === 'undo') this.undo();
+      else this.redo();
+      this.updateToolbar();
+      return;
+    }
     if (name === 'findReplace' || name === 'find') {
       this.openFind({ replace: name === 'findReplace' || arg === 'replace' });
       return;
@@ -1003,6 +1097,7 @@ export class Aurebesh {
     clearTimeout(this.highlightTimer);
     clearHighlights(this.content);
     this.findBar?.destroy();
+    this.blockHandle?.destroy();
     this.cleanup.forEach((fn) => fn());
     this.cleanup = [];
     this.listeners.clear();
