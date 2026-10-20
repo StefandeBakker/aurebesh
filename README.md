@@ -123,6 +123,7 @@ import 'aurebesh/element'; // registers <aurebesh-editor>
 | `placeholder` | Placeholder text |
 | `readOnly` | Disable editing |
 | `toolbar` | Items, e.g. `['bold','italic','|','link']`; `[]` hides it |
+| `headless` | No look of its own: the page styles everything (see *Your own look*) |
 | `fonts` | Font list for the font picker (default: 15 system font stacks, nothing to download) |
 | `colors` | Swatches for text/highlight colour (default: 40) |
 | `maxLength` | Maximum number of characters, see "Counter and limit" |
@@ -160,6 +161,76 @@ The colours of this look are variables too: `--aurebesh-icon`, `--aurebesh-label
 **Layout panel.** The `layout` item is a button that opens a panel beside the text (and closes it again): the page width (the same choice as the `page` item), the maximum width of the text, the space around it and the line spacing. The last three are only about how the text is shown: they are variables on the editor (`--aurebesh-text-width`, `--aurebesh-pad-x`, `--aurebesh-pad-y`, `--aurebesh-line`) and are not part of the HTML. Set them from code with `layout: { textWidth: 800, padding: 48, lineHeight: 1.7 }` (option) or `editor.setLayout({ padding: 24 })`, read them with `getLayout()`, and listen to the `layout` event (the element fires a `layout` event with the settings as `detail`). `null` is the default of the editor. On a page format the width and the space belong to the sheet, so those two fields are off.
 
 Theme via CSS variables: `--aurebesh-border`, `--aurebesh-bg`, `--aurebesh-color`, `--aurebesh-accent`, `--aurebesh-toolbar-bg`, `--aurebesh-code-bg`, `--aurebesh-min-height`, `--aurebesh-max-height` (a fixed maximum height of the text area: the text then scrolls inside the editor while the toolbar stays in view; without it the editor grows with the text and the toolbar scrolls along with the page), and `--aurebesh-hl-keyword|string|comment|number|function|type|tag` for code colours.
+
+## Your own look: headless
+
+By default the editor brings a look: colours, borders, spacing, icons. For a page with its own design, **headless** takes that away and keeps only what the editor needs to work.
+
+```js
+new Aurebesh(el, { headless: true });
+```
+
+```html
+<aurebesh-editor headless toolbar="bold,italic,|,link"></aurebesh-editor>
+```
+
+What is left is `HEADLESS_CSS`, about fifty short rules and nothing of a look: what is hidden (`[hidden]`), what floats above the text (the dropdowns, the tooltip, the slash menu, the handles to move rows and columns of a table, the line that shows where a block goes), what is a row or a grid (the toolbar and its blocks, the sidebar, the colour grid), a size for the icons, the placeholder, and the CSS variables for the height and the page format. There are no colours, borders, radii, fonts or shadows in it. The markup, the class names and the attributes are the same as in the editor with its look, so the page styles the same things (the root has the extra class `aurebesh-headless`).
+
+Two limits: **it goes for the whole page** (the styles are global by class name, so when one editor on a page has the built-in look, the others on it have it too), and **the colours of code, callouts and task boxes are yours to set**.
+
+**What there is to style**
+
+| Class or attribute | What it is |
+| --- | --- |
+| `.aurebesh` | the editor (the root) |
+| `.aurebesh-toolbar`, `.aurebesh-quickbar` | a toolbar; `.aurebesh-group` is a block of it (with `.aurebesh-group-label` for its name), `.aurebesh-row` a row of buttons |
+| `.aurebesh-cmd-<name>` | the button of a command (`.aurebesh-cmd-bold`); `aria-pressed="true"` when it is on, `disabled` when it cannot be used |
+| `.aurebesh-icon` | the icon (an `svg`) in a button; `currentColor` is the colour of the text |
+| `.aurebesh-font`, `-size`, `-weight`, `-columns`, `-codelang` | the boxes of the toolbar |
+| `.aurebesh-table-picker`, `.aurebesh-table-pop` | a button with a dropdown, and the dropdown (`hidden` while it is closed) |
+| `.aurebesh-color-grid`, `.aurebesh-table-grid` | the swatches, and the squares of the table size |
+| `.aurebesh-body`, `.aurebesh-stage`, `.aurebesh-content` | the area under the toolbar, what holds the text, and the text itself (`.is-empty` while there is none) |
+| `.aurebesh-panel`, `.aurebesh-panel-tab`, `.aurebesh-block` | the sidebar, its tabs and the building blocks in it |
+| `.aurebesh-footer`, `.aurebesh-count`, `.aurebesh-modes`, `.aurebesh-mode` | the footer, the counter and the switch between the views (`aria-checked`) |
+| `.aurebesh-status` | a message (`.error` for an error), a live region |
+| `.aurebesh-tip`, `.aurebesh-slash`, `.aurebesh-slash-item` | the tooltip, and the slash menu with its options (`aria-selected`) |
+| `.aurebesh-link-tools`, `.aurebesh-image-tools`, `.aurebesh-table-tools`, `.aurebesh-code-tools` | the rows that show for a link, an image, a table or a code block |
+| `[data-callout]`, `ul[data-task]`, `pre[data-language]`, `[data-layout]` | callouts, task lists, code blocks and the rows and columns of a layout, in the text |
+
+For the code colours there are `::highlight(aurebesh-comment)`, `-string`, `-number`, `-keyword`, `-function`, `-type` and `-tag`. To start from the colours of the editor, `DEFAULT_CSS` is the whole stylesheet as a string, and `calloutCss()` and `taskListCss()` are the parts for callouts and task boxes.
+
+**Your own toolbar.** `toolbar` already decides which buttons there are and in which order (see *Toolbar*), also `toolbar: []` for none. To draw the buttons yourself, use the commands of the editor: `exec(name, arg?, extra?)` does one, `isActive(name)` and `isEnabled(name)` say what a button should show, and the `state` event says when to look again (the selection moved, or the text changed). `listCommands()` lists the names.
+
+```js
+const editor = new Aurebesh(el, { headless: true, toolbar: [] });
+for (const button of document.querySelectorAll('[data-command]')) {
+  button.addEventListener('mousedown', (e) => e.preventDefault()); // keeps the selection in the text
+  button.addEventListener('click', () => editor.exec(button.dataset.command));
+}
+editor.on('state', () => {
+  for (const button of document.querySelectorAll('[data-command]')) {
+    button.setAttribute('aria-pressed', String(editor.isActive(button.dataset.command)));
+    button.disabled = !editor.isEnabled(button.dataset.command);
+  }
+});
+```
+
+**The commands and what they take**
+
+| `exec(...)` | |
+| --- | --- |
+| `'bold'`, `'italic'`, `'underline'`, `'strike'`, `'code'`, `'sup'`, `'sub'`, `'clear'` | toggle on the selection (`'clear'`: remove all formatting) |
+| `'h1'`, `'h2'`, `'h3'`, `'quote'`, `'codeblock'`, `'ul'`, `'ol'`, `'task'`, `'hr'`, `'indent'`, `'outdent'` | blocks and lists |
+| `'alignLeft'`, `'alignCenter'`, `'alignRight'`, `'alignJustify'`, `'ltr'`, `'rtl'` | alignment and direction |
+| `'color'`, `'highlight'` + a colour (`'#dc2626'`, `'inherit'`) | text colour, highlight |
+| `'size'` + points (`'14'`, `'default'`), `'weight'` + `'300'` to `'700'`, `'font'` + a font family | size, weight, typeface |
+| `'link'` + an address (`''` removes it) | a link on the selection |
+| `'image'`, `'video'` + an address (and an alt text) | insert media |
+| `'callout'`, `'codeLanguage'` + a type or a language (`'warning'`, `'python'`) | a callout, the language of the code block |
+| `'table'` + `'3x4'` and the `'table…'` commands (`'tableRowAdd'`, `'tableMerge'`...) | tables |
+| `'undo'`, `'redo'`, `'fullscreen'` | history, full screen |
+
+Everything else that the toolbar can do is in `editor.listCommands()`, and `editor.setHTML()`, `setMarkdown()`, `getHTML()` and the other methods are the same as ever.
 
 ## Sidebar and plugins
 
