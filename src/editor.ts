@@ -1,7 +1,7 @@
 import { gridNavigation, rovingToolbar } from './a11y';
 import { columnsOf, currentColumns } from './columns';
 import { handleListKey } from './lists';
-import { applyMarkdown } from './markdown';
+import { applyMarkdown, takeFenceLanguage } from './markdown';
 import { shortcutFor, shortcutLabel } from './shortcuts';
 import { DEFAULT_COLORS, SAFE_COLOR } from './colors';
 import { CELL_TOOLS, COMMANDS, DEFAULT_QUICKBAR, DEFAULT_TOOLBAR, TABLE_TOOLS } from './commands';
@@ -14,7 +14,8 @@ import type { SanitizeExtension } from './sanitize';
 import type { Shape } from './icons';
 import { iconElement } from './icons';
 import type { CommandDef } from './commands';
-import { currentPre, handleCodeKey, insertCode } from './codeblock';
+import { currentCodeLanguage, currentPre, handleCodeKey, insertCode, setCodeLanguage } from './codeblock';
+import { CODE_LANGUAGES, isKnownLanguage } from './languages';
 import { clearHighlights, highlightCode } from './highlight';
 import { canOpenLink, currentLink, normalizeLink, openLink } from './inline';
 import { DEFAULT_LABELS, LANGUAGES, resolveLanguage } from './labels';
@@ -199,6 +200,8 @@ export class Aurebesh {
   private sizeSelects: HTMLSelectElement[] = [];
   private sizes: number[] = DEFAULT_SIZES;
   private weightSelects: HTMLSelectElement[] = [];
+  private codeLanguageSelects: HTMLSelectElement[] = [];
+  private codeTools: HTMLElement | null = null;
   private columnsSelects: HTMLSelectElement[] = [];
   private cellBorderSelects: HTMLSelectElement[] = [];
   private sidebar: Sidebar | null = null;
@@ -788,6 +791,12 @@ export class Aurebesh {
       const command = applyMarkdown(e);
       if (command) {
         this.exec(command);
+        const language = takeFenceLanguage();
+        if (language && command === 'codeblock') {
+          setCodeLanguage(language);
+          this.scheduleHighlight();
+          this.emitChange();
+        }
         return;
       }
     }
@@ -840,6 +849,7 @@ export class Aurebesh {
     this.buttons.forEach((list) => list.forEach((b) => (b.disabled = readOnly)));
     this.fontSelects.forEach((s) => (s.disabled = readOnly));
     this.sizeSelects.forEach((s) => (s.disabled = readOnly));
+    this.codeLanguageSelects.forEach((s) => (s.disabled = readOnly || !currentPre()));
     this.weightSelects.forEach((s) => (s.disabled = readOnly));
     this.orientationButtons.forEach((b) => (b.disabled = readOnly || !this.page?.height));
     this.columnsSelects.forEach((s) => (s.disabled = readOnly));
@@ -962,6 +972,7 @@ export class Aurebesh {
     if (item === 'font') return this.buildFontSelect();
     if (item === 'size') return this.buildSizeSelect();
     if (item === 'weight') return this.buildWeightSelect();
+    if (item === 'codeLanguage') return this.buildCodeLanguageSelect();
     if (item === 'columns') return this.buildColumnsSelect();
     if (item === 'orientation') return this.buildOrientationButton();
     if (item === 'fullscreen') return this.makeButton(cmd, () => this.setFullscreen(!this.fullscreen));
@@ -1062,6 +1073,8 @@ export class Aurebesh {
 
     if (this.panelIds.includes('blocks')) this.buildRowTools();
     if (commands.includes('image')) this.buildImageTools();
+    // the language of a code block: a row of its own while the caret is in one, unless the toolbar has the box itself
+    if (commands.includes('codeblock') && !commands.includes('codeLanguage')) this.buildCodeTools();
     if (commands.includes('link')) this.buildLinkTools();
   }
 
@@ -2294,6 +2307,62 @@ export class Aurebesh {
   }
 
   /** Text size: the browser's steps small .. huge. Picks apply to the selection and the box returns to its title. */
+  /** The language of the code block that has the caret: Auto (the generic colours), Plain text and the languages with a grammar. */
+  private buildCodeLanguageSelect(): HTMLSelectElement {
+    const doc = this.container.ownerDocument;
+    const select = doc.createElement('select');
+    select.className = 'aurebesh-codelang';
+    select.title = this.title(this.commands.codeLanguage);
+    select.setAttribute('aria-label', this.title(this.commands.codeLanguage));
+    const auto = doc.createElement('option');
+    auto.value = '';
+    auto.textContent = this.t('ui.codeLanguage.auto');
+    select.appendChild(auto);
+    for (const lang of CODE_LANGUAGES) {
+      const opt = doc.createElement('option');
+      opt.value = lang.id;
+      opt.textContent = lang.id === 'text' ? this.t('ui.codeLanguage.text') : lang.name;
+      select.appendChild(opt);
+    }
+    select.disabled = true; // until the caret is in a code block
+    select.addEventListener('change', () => this.exec('codeLanguage', select.value || 'auto'));
+    this.codeLanguageSelects.push(select);
+    return select;
+  }
+
+  /** The row with the language of the code block, shown while the caret is in a code block. */
+  private buildCodeTools(): void {
+    const doc = this.container.ownerDocument;
+    const tools = doc.createElement('div');
+    tools.className = 'aurebesh-toolbar aurebesh-code-tools';
+    tools.setAttribute('role', 'toolbar');
+    tools.setAttribute('aria-label', this.title(this.commands.codeLanguage));
+    tools.hidden = true;
+    const name = doc.createElement('span');
+    name.className = 'aurebesh-tools-label';
+    name.setAttribute('aria-hidden', 'true');
+    name.textContent = this.title(this.commands.codeLanguage);
+    tools.append(name, this.buildCodeLanguageSelect());
+    this.codeTools = tools;
+    this.root.appendChild(tools);
+    rovingToolbar(tools, () => this.content.focus());
+  }
+
+  /** Shows the language of the code block with the caret in a box; a language that is not in the list is shown as it is. */
+  private showCodeLanguage(select: HTMLSelectElement, id: string | null, inCode: boolean): void {
+    select.disabled = !inCode || !this.content.isContentEditable;
+    select.querySelector('option[data-other]')?.remove();
+    const value = id ?? '';
+    if (value && !isKnownLanguage(value)) {
+      const other = select.ownerDocument.createElement('option');
+      other.value = value;
+      other.textContent = value;
+      other.setAttribute('data-other', '');
+      select.appendChild(other);
+    }
+    select.value = value;
+  }
+
   /** The weight of the selected text, from light to bold; it shows the weight of the text that has the caret. */
   private buildWeightSelect(): HTMLSelectElement {
     const doc = this.container.ownerDocument;
@@ -2534,6 +2603,11 @@ export class Aurebesh {
     if (inside) {
       const points = currentSize();
       this.sizeSelects.forEach((select) => this.showSize(select, points));
+    }
+    if (this.codeLanguageSelects.length) {
+      const code = inside ? currentPre() : null;
+      this.codeLanguageSelects.forEach((select) => this.showCodeLanguage(select, code ? currentCodeLanguage() : null, !!code));
+      if (this.codeTools) this.codeTools.hidden = !code && !this.codeTools.contains(this.container.ownerDocument.activeElement);
     }
     if (inside) {
       const weight = String(currentWeight() ?? '');

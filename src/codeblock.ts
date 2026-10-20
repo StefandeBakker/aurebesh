@@ -1,5 +1,7 @@
 /** Keyboard behaviour inside <pre> code blocks. Works on the current selection. */
 
+import { normalizeLanguage } from './languages';
+
 const ROOT = '.aurebesh-content';
 const INDENT = '  ';
 
@@ -8,6 +10,20 @@ export function currentPre(): HTMLPreElement | null {
   const el = node && (node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement);
   const pre = el?.closest('pre') as HTMLPreElement | null;
   return pre?.closest(ROOT) ? pre : null;
+}
+
+/** The language of the code block that has the caret: an id, or null for automatic (also when the caret is not in a code block). */
+export function currentCodeLanguage(): string | null {
+  return currentPre()?.getAttribute('data-language') || null;
+}
+
+/** Gives the code block that has the caret a language (an id such as `python`, or an alias such as `py`); '' or 'auto' makes it automatic again. */
+export function setCodeLanguage(name: string): void {
+  const pre = currentPre();
+  if (!pre) return;
+  const id = name === 'auto' ? null : normalizeLanguage(name);
+  if (id) pre.setAttribute('data-language', id);
+  else pre.removeAttribute('data-language');
 }
 
 /** The block's text with every <br> counted as a newline (browsers differ in which of the two they produce). */

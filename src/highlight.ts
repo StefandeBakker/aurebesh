@@ -7,6 +7,8 @@
  * Browsers without that API simply show no colours.
  */
 
+import { tokenizeLanguage } from './grammars';
+
 export type TokenType = 'comment' | 'string' | 'number' | 'keyword' | 'function' | 'type' | 'tag';
 export interface Token {
   type: TokenType;
@@ -42,7 +44,16 @@ const TOKEN = new RegExp(
   'g',
 );
 
-export function tokenize(code: string): Token[] {
+/**
+ * The tokens of code. With a language that has a grammar the code is read as that language, `text` has no colours, and anything else
+ * (no language, or one that has no grammar) is read by the generic tokenizer, which does reasonably for most languages.
+ */
+export function tokenize(code: string, language?: string | null): Token[] {
+  if (language === 'text') return [];
+  if (language) {
+    const own = tokenizeLanguage(code, language);
+    if (own) return own;
+  }
   const tokens: Token[] = [];
   TOKEN.lastIndex = 0;
   let m: RegExpExecArray | null;
@@ -113,7 +124,7 @@ function collect(pre: HTMLElement, out: Map<TokenType, Range[]>): void {
     return [segs[0].node, 0];
   };
 
-  for (const t of tokenize(text)) {
+  for (const t of tokenize(text, pre.getAttribute('data-language'))) {
     const range = pre.ownerDocument.createRange();
     const [sn, so] = locate(t.start, false);
     const [en, eo] = locate(t.end, true);

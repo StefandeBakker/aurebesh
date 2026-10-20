@@ -7,6 +7,7 @@
  * `markdownToHtml` gives HTML that still has to be sanitized (Markdown may contain any HTML); `fromMarkdown` does that too. Both need
  * no DOM until the sanitizer runs. Only `h1` to `h3` exist in the editor: `####` and deeper become `h3`.
  */
+import { normalizeLanguage } from './languages';
 import { sanitize } from './sanitize';
 
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -357,7 +358,7 @@ function parseBlocks(lines: string[], refs: Refs): string {
 
     const fence = FENCE.exec(line);
     if (fence) {
-      const [, indent, marks] = fence;
+      const [, indent, marks, info] = fence;
       const code: string[] = [];
       i++;
       while (i < lines.length) {
@@ -369,7 +370,9 @@ function parseBlocks(lines: string[], refs: Refs): string {
         code.push(lines[i].replace(new RegExp(`^ {0,${indent.length}}`), ''));
         i++;
       }
-      out.push(`<pre>${esc(code.join('\n'))}</pre>`);
+      // the word after the fence is the language
+      const language = normalizeLanguage(info);
+      out.push(`<pre${language ? ` data-language="${language}"` : ''}>${esc(code.join('\n'))}</pre>`);
       continue;
     }
 

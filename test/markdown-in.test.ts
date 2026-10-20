@@ -22,7 +22,7 @@ describe('Markdown to HTML: blocks', () => {
   });
 
   it('reads fenced and indented code blocks as they are, with nothing read as markup in them', () => {
-    expect(html('```js\nconst a = <b>1</b> * 2;\n```')).toBe('<pre>const a = &lt;b&gt;1&lt;/b&gt; * 2;</pre>');
+    expect(html('```js\nconst a = <b>1</b> * 2;\n```')).toBe('<pre data-language="javascript">const a = &lt;b&gt;1&lt;/b&gt; * 2;</pre>');
     expect(html('~~~\nx\n~~~')).toBe('<pre>x</pre>');
     expect(html('````\n```\ninner\n```\n````')).toBe('<pre>```\ninner\n```</pre>');
     expect(html('    indented\n    code')).toBe('<pre>indented\ncode</pre>');

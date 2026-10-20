@@ -87,7 +87,7 @@ export const CSS = `
 .aurebesh-content aside>:last-child{margin-bottom:0}
 .aurebesh-content div[style*="column-count"]{margin:.5em 0;padding:4px 0;outline:1px dashed var(--aurebesh-border,#d0d5dd);outline-offset:4px}
 .aurebesh-content div[style*="column-count"] :is(table,pre,blockquote,aside,img,video,iframe){break-inside:avoid}
-.aurebesh-font,.aurebesh-size,.aurebesh-weight,.aurebesh-columns,.aurebesh-pagesel,.aurebesh-cellborder{height:28px;max-width:130px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:var(--aurebesh-bg,#fff);color:inherit;font:inherit;font-size:13px}
+.aurebesh-font,.aurebesh-size,.aurebesh-weight,.aurebesh-codelang,.aurebesh-columns,.aurebesh-pagesel,.aurebesh-cellborder{height:28px;max-width:130px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:var(--aurebesh-bg,#fff);color:inherit;font:inherit;font-size:13px}
 .aurebesh-toolbar[hidden],.aurebesh-table-pop[hidden]{display:none}
 .aurebesh-table-tools{background:var(--aurebesh-table-tools-bg,#eef3ff)}
 .aurebesh-table-picker{position:relative;display:inline-block}
@@ -164,7 +164,7 @@ export const CSS = `
 .aurebesh-toolbar button:focus-visible,.aurebesh-toolbar select:focus-visible,.aurebesh-table-pop input:focus-visible,.aurebesh-table-pop button:focus-visible,.aurebesh-alt:focus-visible{outline:2px solid var(--aurebesh-accent,#2563eb);outline-offset:1px}
 @media (pointer:coarse){
 .aurebesh-toolbar button{min-width:40px;height:40px}
-.aurebesh-font,.aurebesh-size,.aurebesh-weight,.aurebesh-columns,.aurebesh-pagesel,.aurebesh-cellborder{height:40px}
+.aurebesh-font,.aurebesh-size,.aurebesh-weight,.aurebesh-codelang,.aurebesh-columns,.aurebesh-pagesel,.aurebesh-cellborder{height:40px}
 .aurebesh-table-pop{--aurebesh-cell:28px}
 }
 .aurebesh-color-reset{display:block;width:100%;margin-top:6px;padding:4px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:transparent;color:inherit;cursor:pointer;font:inherit;font-size:12px}
@@ -203,6 +203,12 @@ export const CSS = `
 .aurebesh-content sup,.aurebesh-content sub{font-size:.75em;line-height:0}
 .aurebesh-size{max-width:90px}
 .aurebesh-weight{max-width:110px}
+.aurebesh-codelang{max-width:120px}
+.aurebesh-code-tools{align-items:center;gap:8px}
+.aurebesh-tools-label{margin-inline-end:8px;color:var(--aurebesh-label,#667085);font-size:12px;white-space:nowrap}
+/* the language of a code block, in its corner */
+.aurebesh-content pre[data-language]{position:relative}
+.aurebesh-content pre[data-language]::before{content:attr(data-language);position:absolute;top:3px;inset-inline-end:8px;color:var(--aurebesh-label,#667085);font:600 10px system-ui,sans-serif;letter-spacing:.04em;text-transform:uppercase;pointer-events:none;user-select:none;-webkit-user-select:none}
 .aurebesh{position:relative}
 /* a popover on the link: see placeLinkTools */
 .aurebesh-link-tools{position:absolute;z-index:20;align-items:center;flex-wrap:nowrap;gap:2px;width:max-content;max-width:min(440px,calc(100% - 8px));box-sizing:border-box;padding:3px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:6px;box-shadow:0 4px 14px rgba(16,24,40,.16)}

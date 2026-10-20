@@ -13,6 +13,7 @@ const ALLOWED_ATTRS: Record<string, string[]> = {
   a: ['href', 'title', 'target', 'rel', 'data-button'],
   div: ['data-layout', 'data-callout'],
   ul: ['data-task'],
+  pre: ['data-language'],
   li: ['data-checked'],
   td: ['colspan', 'rowspan'],
   th: ['colspan', 'rowspan'],
@@ -214,6 +215,8 @@ function clean(parent: Node, ext: SanitizeExtension[]): void {
     // a task list has no value, and only an item of one can be checked
     if (tag === 'ul' && el.hasAttribute('data-task')) el.setAttribute('data-task', '');
     if (tag === 'li' && el.hasAttribute('data-checked') && (el.getAttribute('data-checked') !== 'true' || !(parent instanceof Element && parent.matches('ul[data-task]')))) el.removeAttribute('data-checked');
+    // a code block has a language that is a plain name
+    if (tag === 'pre' && el.hasAttribute('data-language') && !/^[a-z][a-z0-9-]{0,19}$/.test(el.getAttribute('data-language')!)) el.removeAttribute('data-language');
     // a callout has a type that is a plain name (it is written in CSS and in Markdown)
     if (tag === 'div' && el.hasAttribute('data-callout') && !/^[a-z][a-z0-9-]{0,19}$/.test(el.getAttribute('data-callout')!)) el.removeAttribute('data-callout');
     if (tag === 'a' && el.hasAttribute('data-button')) el.setAttribute('data-button', '');
