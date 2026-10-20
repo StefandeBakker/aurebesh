@@ -1,6 +1,66 @@
 import { DEFAULT_CALLOUTS, calloutCss } from './callouts';
 import { taskListCss } from './tasks';
 
+/**
+ * What the editor needs to work and nothing of its look: what is hidden, what floats above the text (the dropdowns, the tooltip, the
+ * slash menu, the handles of a table), and what is a row or a grid. It is what a `headless` editor has. Everything else (colours, sizes,
+ * borders, fonts, the icons of the callouts and the task boxes) is for the page to say.
+ */
+export const HEADLESS_CSS = `
+.aurebesh{position:relative}
+/* nothing of the look: only what the editor needs to work (what is hidden, what floats, what is a row or a grid) */
+.aurebesh-icon{display:block;width:1.2em;height:1.2em;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.aurebesh-toolbar[hidden],.aurebesh-table-pop[hidden],.aurebesh-panel[hidden],.aurebesh-panel-pane[hidden],.aurebesh-tip[hidden],.aurebesh-slash[hidden],.aurebesh-status[hidden],.aurebesh-count[hidden],.aurebesh-source[hidden]{display:none}
+.aurebesh-toolbar{display:flex;flex-wrap:wrap}
+.aurebesh-group{display:flex;flex-direction:column;min-width:0;max-width:100%}
+.aurebesh-row{display:flex;flex-wrap:wrap;align-items:center}
+.aurebesh-group-end{margin-inline-start:auto}
+.aurebesh-body{display:flex;align-items:stretch;max-height:var(--aurebesh-max-height,none)}
+.aurebesh-body>.aurebesh-stage{flex:1 1 auto;min-width:0;min-height:0}
+.aurebesh-stage{position:relative}
+.aurebesh-panel{box-sizing:border-box;flex:none;min-height:0;overflow:auto}
+.aurebesh-footer{display:flex;align-items:center;justify-content:space-between}
+.aurebesh-footer:not(:has(>:not([hidden]))){display:none}
+.aurebesh-modes{display:flex;margin-inline-start:auto}
+.aurebesh-table-picker{position:relative;display:inline-block}
+.aurebesh-table-pop{position:absolute;top:100%;inset-inline-start:0;z-index:10}
+.aurebesh-table-grid{display:grid;gap:2px}
+.aurebesh-color-grid{display:grid;grid-template-columns:repeat(10,var(--aurebesh-cell,18px));gap:2px}
+.aurebesh-table-grid button,.aurebesh-color-grid button{width:var(--aurebesh-cell,18px);height:var(--aurebesh-cell,18px);min-width:0;padding:0}
+.aurebesh-tip{position:absolute;z-index:30;pointer-events:none;white-space:nowrap}
+.aurebesh-slash{position:fixed;z-index:2147483000;max-height:260px;overflow:auto}
+.aurebesh-blockdrop{position:fixed;z-index:2147483000;height:3px;pointer-events:none;background:currentColor}
+.aurebesh-link-tools{position:absolute;z-index:20;flex-wrap:nowrap;width:max-content}
+.aurebesh-fullscreen{position:fixed!important;inset:0;z-index:2147483000;display:flex;flex-direction:column}
+.aurebesh-fullscreen .aurebesh-body{flex:1 1 auto;min-height:0;max-height:none}
+.aurebesh-fullscreen .aurebesh-stage{flex:1 1 auto;min-height:0;max-height:none!important;overflow:auto}
+.aurebesh-content{min-height:var(--aurebesh-min-height,150px);max-height:var(--aurebesh-max-height,none);overflow:auto;outline:0}
+.aurebesh-content.is-empty::before{content:attr(data-placeholder);position:absolute;pointer-events:none;opacity:.5}
+.aurebesh-content table{border-collapse:collapse;width:100%;table-layout:fixed}
+.aurebesh-content td,.aurebesh-content th{min-width:30px}
+.aurebesh-content img,.aurebesh-content video{max-width:100%;height:auto}
+.aurebesh-content iframe{display:block;width:100%;aspect-ratio:16/9;border:0;pointer-events:none}
+.aurebesh-content pre{overflow-x:auto;tab-size:2;direction:ltr;text-align:left}
+.aurebesh-content pre[dir=rtl]{direction:rtl;text-align:right}
+.aurebesh-content:not([dir]),.aurebesh-content :is(p,h1,h2,h3,blockquote,li,td,th):not([dir]){unicode-bidi:plaintext}
+.aurebesh-content div[style*="column-count"] :is(table,pre,blockquote,aside,img,video,iframe){break-inside:avoid}
+.aurebesh-content.aurebesh-col-resize,.aurebesh-content.aurebesh-col-resize *{cursor:col-resize}
+.aurebesh-content.aurebesh-col-resizing{user-select:none}
+.aurebesh-pending{display:inline-block;user-select:none}
+.aurebesh-pending::before{content:attr(data-label)}
+.aurebesh-source{display:block;width:100%;box-sizing:border-box;min-height:var(--aurebesh-min-height,150px);max-height:var(--aurebesh-max-height,none);overflow:auto;resize:none}
+.aurebesh-handles{position:absolute;z-index:4;overflow:hidden;pointer-events:none}
+.aurebesh-handle{position:absolute;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none}
+.aurebesh-handle-col{width:12px;margin-inline-start:-6px;cursor:col-resize}
+.aurebesh-handle-row{height:12px;margin-top:-6px;cursor:row-resize}
+.aurebesh-handle-col-grip{width:22px;height:12px;margin-left:-11px;cursor:grab}
+.aurebesh-handle-row-grip{width:12px;height:22px;margin-top:-11px;cursor:grab}
+.aurebesh-drop{position:absolute;pointer-events:none;background:currentColor}
+.aurebesh-cell-sel{position:absolute;box-sizing:border-box;pointer-events:none;border:2px solid currentColor}
+.aurebesh[data-page] .aurebesh-stage{max-height:var(--aurebesh-max-height,none);overflow:auto}
+.aurebesh[data-page] .aurebesh-content{box-sizing:border-box;max-height:none;width:var(--aurebesh-page-w);max-width:100%;min-height:var(--aurebesh-page-h,var(--aurebesh-min-height,150px));margin:0 auto;padding:var(--aurebesh-page-m);overflow:visible}
+`;
+
 export const CSS = `
 .aurebesh{border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:6px;background:var(--aurebesh-bg,#fff);color:var(--aurebesh-color,#111);font-family:inherit}
 .aurebesh-toolbar{display:flex;flex-wrap:wrap;gap:4px 6px;padding:4px;border-bottom:1px solid var(--aurebesh-border,#d0d5dd);background:var(--aurebesh-toolbar-bg,#f8f9fb)}

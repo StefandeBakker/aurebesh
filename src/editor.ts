@@ -55,7 +55,7 @@ import type { OutputFormat } from './export';
 import { MARKER, preparePaste } from './paste';
 import type { PasteImagePolicy, PendingImage } from './paste';
 import { sanitize } from './sanitize';
-import { CSS } from './styles';
+import { CSS, HEADLESS_CSS } from './styles';
 
 export interface MediaOptions {
   /**
@@ -85,6 +85,12 @@ export interface Layout {
 }
 
 export interface AurebeshOptions {
+  /**
+   * No look of its own: the editor does not bring its colours, borders, fonts and sizes, only the few rules it needs to work (see
+   * `HEADLESS_CSS`), so the page styles all of it. The markup, the class names (`aurebesh-*`) and the attributes stay the same.
+   * It goes for the whole page: where one editor has the built-in look, the other editors on that page have it too.
+   */
+  headless?: boolean;
   /** The callout types (see `CalloutDef`); default: note, tip, important, warning and caution. Their colours can also be set with CSS variables. */
   callouts?: CalloutDef[];
   /** The slash menu: typing `/` at the start of a line lists what to insert (callouts, headings, lists...). Default: on when the toolbar has the `callout` item. */
@@ -162,6 +168,8 @@ export interface AurebeshEvents {
   layout: Layout;
   /** The panel of the sidebar that is open changed: its id, or null when the sidebar closed. */
   panel: string | null;
+  /** What the toolbar shows changed: the selection moved, or the text did. Redraw your own buttons with `isActive()` and `isEnabled()`. */
+  state: undefined;
   focus: undefined;
   blur: undefined;
   /** An upload failed or a link was rejected. */
@@ -255,7 +263,8 @@ export class Aurebesh {
       this.calloutTypes = options.callouts.filter((t) => CALLOUT_ID.test(t.id));
       // the styles of the types the page gave: after the built-in ones, so that they win
       const sig = JSON.stringify(this.calloutTypes);
-      if (!Array.from(doc.head.querySelectorAll('style[data-aurebesh-callouts]')).some((s) => s.getAttribute('data-aurebesh-callouts') === sig)) {
+      // (a headless editor has no look of its own, and the page styles the callouts too: `calloutCss()` is there to start from)
+      if (!options.headless && !Array.from(doc.head.querySelectorAll('style[data-aurebesh-callouts]')).some((s) => s.getAttribute('data-aurebesh-callouts') === sig)) {
         const style = doc.createElement('style');
         style.setAttribute('data-aurebesh-callouts', sig);
         style.textContent = calloutCss(this.calloutTypes);
@@ -295,7 +304,15 @@ export class Aurebesh {
     this.plugins = plugins.map((def) => ({ def, inst: def.setup(this.pluginContext()) }));
     this.markdown = options.markdownShortcuts ?? this.plugins.find((p) => p.inst.markdownShortcuts !== undefined)?.inst.markdownShortcuts ?? true;
 
-    if (!doc.head.querySelector('style[data-aurebesh]')) {
+    if (options.headless) {
+      if (!doc.head.querySelector('style[data-aurebesh-headless]')) {
+        const style = doc.createElement('style');
+        style.setAttribute('data-aurebesh-headless', '');
+        style.textContent = HEADLESS_CSS;
+        doc.head.appendChild(style);
+      }
+      this.root.classList.add('aurebesh-headless');
+    } else if (!doc.head.querySelector('style[data-aurebesh]')) {
       const style = doc.createElement('style');
       style.setAttribute('data-aurebesh', '');
       style.textContent = CSS;
@@ -880,9 +897,38 @@ export class Aurebesh {
   }
 
   /** Run a toolbar command by name, e.g. editor.exec('bold'). */
+  /** The names of the commands: what `exec()` takes (also those of the plugins). */
+  listCommands(): string[] {
+    return Object.keys(this.commands);
+  }
+
+  /** Whether a command is on at the selection (bold in bold text, a list in a list). For your own buttons. */
+  isActive(name: string): boolean {
+    const cmd = this.commands[name];
+    if (!cmd) return false;
+    if (name === 'fullscreen') return this.fullscreen;
+    const sel = this.container.ownerDocument.getSelection();
+    const inside = !!sel && sel.rangeCount > 0 && this.content.contains(sel.anchorNode);
+    return inside && (cmd.isActive?.() ?? false);
+  }
+
+  /** Whether a command can be used at the selection (a table command outside a table cannot). False in a read-only editor. */
+  isEnabled(name: string): boolean {
+    const cmd = this.commands[name];
+    if (!cmd || !this.content.isContentEditable) return false;
+    if (!cmd.isEnabled) return true;
+    const sel = this.container.ownerDocument.getSelection();
+    return !!sel && sel.rangeCount > 0 && this.content.contains(sel.anchorNode) && cmd.isEnabled();
+  }
+
   exec(name: string, arg?: string, extra?: string): void {
     const cmd = this.commands[name];
     if (!cmd) throw new Error(`Aurebesh: unknown command "${name}"`);
+    // the callout button is a list built here: exec('callout', 'warning') does what a choice in it does, '' or 'none' takes the callout away
+    if (name === 'callout') {
+      this.applyCallout(arg && arg !== 'none' ? arg : null);
+      return;
+    }
     const hadFocus = this.content.ownerDocument.activeElement === this.content;
     this.content.focus();
     // Focusing from a popover input or the font select moves the caret to the start: put it back.
@@ -2633,6 +2679,7 @@ export class Aurebesh {
         if (enabled) btn.disabled = !this.content.isContentEditable || !(inside && enabled());
       }
     });
+    this.emit('state', undefined);
   }
 
   private syncEmpty(): void {

@@ -9,6 +9,7 @@ export { toMarkdown, toText } from './export';
 export { fromMarkdown } from './from-markdown';
 export { DEFAULT_CALLOUTS, calloutCss } from './callouts';
 export { taskListCss } from './tasks';
+export { CSS as DEFAULT_CSS, HEADLESS_CSS } from './styles';
 export { CODE_LANGUAGES, normalizeLanguage } from './languages';
 export type { CodeLanguage } from './languages';
 export type { CalloutDef } from './callouts';
