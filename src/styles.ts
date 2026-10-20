@@ -22,6 +22,9 @@ export const HEADLESS_CSS = `
 .aurebesh-footer{display:flex;align-items:center;justify-content:space-between}
 .aurebesh-footer:not(:has(>:not([hidden]))){display:none}
 .aurebesh-modes{display:flex;margin-inline-start:auto}
+.aurebesh-find[hidden],.aurebesh-find-row[hidden]{display:none}
+.aurebesh-find{display:flex;flex-direction:column}
+.aurebesh-find-row{display:flex;align-items:center}
 .aurebesh-table-picker{position:relative;display:inline-block}
 .aurebesh-table-pop{position:absolute;top:100%;inset-inline-start:0;z-index:10}
 .aurebesh-table-grid{display:grid;gap:2px}
@@ -266,6 +269,23 @@ export const CSS = `
 .aurebesh-codelang{max-width:120px}
 .aurebesh-code-tools{align-items:center;gap:8px}
 .aurebesh-tools-label{margin-inline-end:8px;color:var(--aurebesh-label,#667085);font-size:12px;white-space:nowrap}
+/* find and replace: the bar, and the matches in the text */
+.aurebesh-find{display:flex;flex-direction:column;gap:6px;padding:6px 8px;border-bottom:1px solid var(--aurebesh-border,#d0d5dd);background:var(--aurebesh-toolbar-bg,#f8f9fb);font-size:13px}
+.aurebesh-find[hidden],.aurebesh-find-row[hidden]{display:none}
+.aurebesh-find-row{display:flex;align-items:center;gap:6px}
+.aurebesh-find-replace-row{padding-inline-start:34px}
+.aurebesh-find-input{flex:0 1 240px;min-width:100px;height:28px;padding:0 8px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:var(--aurebesh-bg,#fff);color:inherit;font:inherit}
+.aurebesh-find-input:focus-visible{outline:2px solid var(--aurebesh-accent,#2563eb);outline-offset:1px}
+.aurebesh-find button{min-width:28px;height:28px;padding:0 8px;border:1px solid transparent;border-radius:4px;background:transparent;color:inherit;cursor:pointer;font:inherit;font-size:12px}
+.aurebesh-find button:hover:not(:disabled){background:var(--aurebesh-hover,rgba(0,0,0,.08))}
+.aurebesh-find button:disabled{opacity:.4;cursor:default}
+.aurebesh-find button[aria-pressed="true"]{background:var(--aurebesh-active-bg,#e0e9ff);color:var(--aurebesh-active-color,#1d4ed8);border-color:var(--aurebesh-active-color,#1d4ed8)}
+.aurebesh-find button:focus-visible{outline:2px solid var(--aurebesh-accent,#2563eb);outline-offset:1px}
+.aurebesh-find-replace-row button,.aurebesh-find-replace-row .aurebesh-find-input+button{border-color:var(--aurebesh-border,#d0d5dd)}
+.aurebesh-find-count{min-width:70px;color:var(--aurebesh-label,#667085);font-size:12px;white-space:nowrap}
+.aurebesh-find-count.is-none{color:#b42318}
+::highlight(aurebesh-find){background-color:rgba(250,204,21,.45)}
+::highlight(aurebesh-find-current){background-color:rgba(249,115,22,.65)}
 /* the language of a code block, in its corner */
 .aurebesh-content pre[data-language]{position:relative}
 .aurebesh-content pre[data-language]::before{content:attr(data-language);position:absolute;top:3px;inset-inline-end:8px;color:var(--aurebesh-label,#667085);font:600 10px system-ui,sans-serif;letter-spacing:.04em;text-transform:uppercase;pointer-events:none;user-select:none;-webkit-user-select:none}

@@ -28,6 +28,7 @@ import { CALLOUT_ID, DEFAULT_CALLOUTS, calloutCss, currentCallout, handleCallout
 import type { CalloutDef } from './callouts';
 import { attachSlashMenu } from './slash';
 import { handleSoftBreak } from './softbreak';
+import { FindBar } from './find';
 import { WEIGHTS, currentWeight } from './weight';
 import { DEFAULT_SIZES, applyPendingSize, currentSize } from './fontsize';
 import { decorationLook } from './decoration';
@@ -85,6 +86,8 @@ export interface Layout {
 }
 
 export interface AurebeshOptions {
+  /** Find and replace: `Mod+F` and `Mod+H` open the bar, and the `find` item in the toolbar. Default: on; false leaves those keys to the browser. */
+  find?: boolean;
   /**
    * No look of its own: the editor does not bring its colours, borders, fonts and sizes, only the few rules it needs to work (see
    * `HEADLESS_CSS`), so the page styles all of it. The markup, the class names (`aurebesh-*`) and the attributes stay the same.
@@ -210,6 +213,8 @@ export class Aurebesh {
   private weightSelects: HTMLSelectElement[] = [];
   private codeLanguageSelects: HTMLSelectElement[] = [];
   private codeTools: HTMLElement | null = null;
+  private findBar: FindBar | null = null;
+  private findKeys = true;
   private columnsSelects: HTMLSelectElement[] = [];
   private cellBorderSelects: HTMLSelectElement[] = [];
   private sidebar: Sidebar | null = null;
@@ -258,6 +263,7 @@ export class Aurebesh {
     const doc = container.ownerDocument;
     const plugins = options.plugins ?? [];
     this.valueFormat = options.valueFormat ?? 'html';
+    this.findKeys = options.find !== false;
     if (options.sizes) this.sizes = options.sizes.filter((n) => Number.isFinite(n) && n >= 8 && n <= 200);
     if (options.callouts) {
       this.calloutTypes = options.callouts.filter((t) => CALLOUT_ID.test(t.id));
@@ -427,6 +433,7 @@ export class Aurebesh {
       normalizeLayouts(this.content);
       normalizeCallouts(this.content);
       applyPendingSize();
+      this.findBar?.refresh();
       this.syncEmpty();
       this.plugins.forEach((p) => p.inst.input?.());
       this.emitChange();
@@ -790,6 +797,7 @@ export class Aurebesh {
     if (this.plugins.some((p) => p.inst.keydown?.(e))) return;
 
     const shortcut = shortcutFor(e);
+    if (shortcut && (shortcut === 'find' || shortcut === 'findReplace') && !this.findKeys) return; // the browser's own find
     if (shortcut) {
       if (shortcut === 'link') {
         const link = this.buttons.get('link')?.[0];
@@ -866,6 +874,7 @@ export class Aurebesh {
     this.buttons.forEach((list) => list.forEach((b) => (b.disabled = readOnly)));
     this.fontSelects.forEach((s) => (s.disabled = readOnly));
     this.sizeSelects.forEach((s) => (s.disabled = readOnly));
+    this.findBar?.refresh();
     this.codeLanguageSelects.forEach((s) => (s.disabled = readOnly || !currentPre()));
     this.weightSelects.forEach((s) => (s.disabled = readOnly));
     this.orientationButtons.forEach((b) => (b.disabled = readOnly || !this.page?.height));
@@ -921,7 +930,43 @@ export class Aurebesh {
     return !!sel && sel.rangeCount > 0 && this.content.contains(sel.anchorNode) && cmd.isEnabled();
   }
 
+  /**
+   * Shows the bar to find and replace, with the selected text (or `query`) as the text to find. `replace` shows the row to replace
+   * with. Not in the HTML and Markdown views, where there is no text of the editor to search.
+   */
+  openFind(options: { query?: string; replace?: boolean } = {}): void {
+    if (this.modeSwitch && this.modeSwitch.mode !== 'editor') return;
+    if (!this.findBar) {
+      this.findBar = new FindBar({
+        content: this.content,
+        root: this.root,
+        before: () => this.root.querySelector('.aurebesh-body'),
+        t: (key, vars) => this.t(key, vars),
+        canEdit: () => this.content.isContentEditable,
+        changed: () => {
+          this.syncEmpty();
+          this.emitChange();
+        },
+        restore: (html) => {
+          this.content.innerHTML = html;
+          this.syncEmpty();
+          this.emitChange();
+        },
+      });
+    }
+    this.findBar.open(options);
+  }
+
+  /** Closes the bar to find and replace. */
+  closeFind(): void {
+    this.findBar?.close();
+  }
+
   exec(name: string, arg?: string, extra?: string): void {
+    if (name === 'findReplace' || name === 'find') {
+      this.openFind({ replace: name === 'findReplace' || arg === 'replace' });
+      return;
+    }
     const cmd = this.commands[name];
     if (!cmd) throw new Error(`Aurebesh: unknown command "${name}"`);
     // the callout button is a list built here: exec('callout', 'warning') does what a choice in it does, '' or 'none' takes the callout away
@@ -957,6 +1002,7 @@ export class Aurebesh {
     this.plugins.forEach((p) => p.inst.destroy?.());
     clearTimeout(this.highlightTimer);
     clearHighlights(this.content);
+    this.findBar?.destroy();
     this.cleanup.forEach((fn) => fn());
     this.cleanup = [];
     this.listeners.clear();

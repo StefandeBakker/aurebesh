@@ -3,6 +3,7 @@
  * `Mod` is Ctrl on Windows/Linux and Cmd on macOS.
  *
  *   Mod+K            link (opens the link box)      Mod+E            inline code
+ *   Mod+F            find and replace               Mod+H            find and replace, with the row to replace with
  *   Mod+Shift+X      strikethrough                  Mod+Shift+7 / 8  numbered / bullet list
  *   Mod+Alt+1 / 2 / 3  heading 1 / 2 / 3           Mod+Alt+C        code block
  *   Mod+\              clear all formatting
@@ -18,6 +19,8 @@ export function shortcutFor(e: KeyboardEvent): string | null {
   if (!e.altKey && !e.shiftKey) {
     if (e.code === 'KeyK') return 'link';
     if (e.code === 'KeyE') return 'code';
+    if (e.code === 'KeyF') return 'find';
+    if (e.code === 'KeyH') return 'findReplace';
     if (e.code === 'Backslash') return 'clear';
     if (e.code === 'Period') return 'sup';
     if (e.code === 'Comma') return 'sub';
@@ -57,6 +60,7 @@ const KEYS: Record<string, string> = {
   ul: 'Mod+Shift+8',
   task: 'Mod+Shift+9',
   clear: 'Mod+\\',
+  find: 'Mod+F',
   sup: 'Mod+.',
   sub: 'Mod+,',
 };
