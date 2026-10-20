@@ -124,6 +124,7 @@ import 'aurebesh/element'; // registers <aurebesh-editor>
 | `readOnly` | Disable editing |
 | `toolbar` | Items, e.g. `['bold','italic','|','link']`; `[]` hides it |
 | `headless` | No look of its own: the page styles everything (see *Your own look*) |
+| `exportName` | The name of exported files, without the extension, and the title in them (default `document`) |
 | `blockHandles` | The grip beside a block to move it and its menu (default on; `false` leaves it out) |
 | `fonts` | Font list for the font picker (default: 15 system font stacks, nothing to download) |
 | `colors` | Swatches for text/highlight colour (default: 40) |
@@ -228,6 +229,7 @@ Two limits: **it goes for the whole page** (the styles are global by class name,
 | `.aurebesh-tip`, `.aurebesh-slash`, `.aurebesh-slash-item` | the tooltip, and the slash menu with its options (`aria-selected`) |
 | `.aurebesh-link-tools`, `.aurebesh-image-tools`, `.aurebesh-table-tools`, `.aurebesh-code-tools` | the rows that show for a link, an image, a table or a code block |
 | `.aurebesh-blockhandle`, `.aurebesh-blockmenu`, `.aurebesh-blockmenu-item`, `.aurebesh-moving` | the grip beside a block, its menu and its items, and the block that is being dragged |
+| `.aurebesh-export-pop`, `.aurebesh-export-item` | the list of the export button and its items (`data-format`) |
 | `.aurebesh-find`, `.aurebesh-find-input`, `.aurebesh-find-count` | the bar to find and replace, its fields and the count (`::highlight(aurebesh-find)` and `-find-current` mark the matches) |
 | `[data-callout]`, `ul[data-task]`, `pre[data-language]`, `[data-layout]` | callouts, task lists, code blocks and the rows and columns of a layout, in the text |
 
@@ -262,6 +264,7 @@ editor.on('state', () => {
 | `'image'`, `'video'` + an address (and an alt text) | insert media |
 | `'callout'`, `'codeLanguage'` + a type or a language (`'warning'`, `'python'`) | a callout, the language of the code block |
 | `'table'` + `'3x4'` and the `'table…'` commands (`'tableRowAdd'`, `'tableMerge'`...) | tables |
+| `'export'` + `'docx'`, `'pdf'`, `'html'`, `'markdown'`, `'text'` | save a file (see *Export*) |
 | `'undo'`, `'redo'`, `'fullscreen'`, `'find'` (`'find', 'replace'` with the row to replace with) | history, full screen, the bar to find and replace |
 
 Everything else that the toolbar can do is in `editor.listCommands()`, and `editor.setHTML()`, `setMarkdown()`, `getHTML()` and the other methods are the same as ever.
@@ -513,6 +516,37 @@ editor.setPage('600px');                            // a width: 600, '600px', '8
 - **Copy and paste rows and columns**: *Copy row* / *Copy column* copy the rows or columns the selection reaches; *Paste row below* / *Paste column right* put them in the table around the caret, also in another table of the page (a copied row of three cells in a table of two columns loses the third; a shorter one is filled up). Each paste is one step for undo. A merged cell is pasted as one plain cell, and where a merged cell reaches into the new row or column it grows, as when adding one. What was copied is also put on the clipboard as a table and as tab-separated text, for a spreadsheet or another document (where the browser allows it).
 - **Caption**: the *Table caption* button adds a `<caption>` above the table with the caret in it, and takes it away again (also from inside the caption). Enter or Tab in the caption goes on to the first cell, so it stays one line.
 - The sanitizer keeps `colspan`/`rowspan` (plain numbers) and `<col>` widths in percent; a `<colgroup>` without usable widths (Word writes one) is removed. Markdown cannot merge cells: the text goes in the first position a merged cell covers, the rest stays empty.
+
+## Export: PDF, Word, HTML, Markdown and text
+
+The `export` item (a button with a list; in the demo it is under *Geschiedenis*) saves the content as a file, and `editor.export(format, { filename?, title? })` does the same from code (`editor.exec('export', 'docx')` too):
+
+| Format | What it makes |
+| --- | --- |
+| `'docx'` | A **Word document** (`.docx`), made in the browser without a library (see below) |
+| `'pdf'` | Opens the **print dialog** on the content, on its paper (the page format, margins, orientation); *Save as PDF* there makes the file |
+| `'html'` | A standalone page (`.html`) that looks as the editor does, with the page format as its paper |
+| `'markdown'`, `'text'` | `.md` and `.txt` |
+| a format of a plugin | `.<name>`, made by the plugin (see below); it is in the list too |
+
+`exportName` (an option) is the name of the files without the extension, and the title of the document in them; the default is `document`. A name that a file system would refuse (`/ : * ? " < > |`) is cleaned. `editor.exportFormats()` lists the formats, `editor.toDocx({ title?, images? })` gives the Word document as a `Blob` (to send somewhere, not to save), and `toDocx(html, options)` and `download()` are exported for code that has no editor (they need a DOM: a browser, or jsdom on a server).
+
+**Why PDF goes through the print dialog.** A browser has no way to write a PDF of a page except through its own print function, which is also the only one that is exact: it draws the content as the page does (all scripts, fonts and emoji, vector text that can be searched and selected, the page format as the paper) and adds nothing to your bundle. A PDF writer in the page would have to lay the text out again, with one font per file and no right-to-left, and would not look like the editor. If you need a PDF file made without the dialog, make it on a server from `getPrintHTML()` (Puppeteer or Playwright: `page.pdf({ preferCSSPageSize: true })`), or plug a library in as an export format of a plugin. A plugin's `export` gives a `Blob` (or a text, also late), and a name that the editor has (`pdf`) is then made by the plugin instead of the print dialog:
+
+```js
+definePlugin({
+  name: 'pdf-file',
+  setup: (ctx) => ({
+    export: { pdf: async () => await myPdfLibrary.fromHtml(ctx.editor.getPrintHTML()) }, // a Blob
+  }),
+});
+```
+
+The same goes for any other format (`rtf`, `odt`, `epub`...): `export: { odt: () => blobOfTheFile }` makes *odt* a choice in the list, saved as `document.odt`.
+
+**What the Word document keeps.** Headings (heading 1 to 3 styles), paragraphs and their alignment and direction, bold, italic, underline (and its kind and colour: solid, dashed, dotted, double, wavy), strikethrough (double too), superscript, subscript, text colour, highlight, size, font, inline code, links, bullet lists, numbered lists (each starts again, and keeps its start number), task lists (with their boxes), nested lists, quotes, code blocks, rules, callouts (with their type written out, since the colour alone does not say it), tables (merged cells, column widths, cell borders and shading, the header row, the caption), rows of columns (as a table without borders, with their widths), and pictures (with their description). The page format of the editor is the page of the document (A4 with a margin of 25.4 mm without one), and the font and size of the text are the editor's. The text goes in a ZIP of XML (`.docx`) that is checked in the tests for well-formed XML, the order of the elements that Word wants, and the numbers that refer to each other; it has not been opened in every version of Word, so if one says that a file is unreadable, send us the file.
+
+What it leaves out: columns of text (the `columns` item), the language of a code block, the colours of code, a letter spacing, and the style of a border other than single. A picture goes in as PNG, JPEG, GIF or BMP; other kinds (SVG, WebP) are drawn to PNG through the browser first. **A picture that is not in the HTML itself** (it has an address) is fetched when the document is made; if its host does not allow that (CORS), it is a line with its description instead, and `toDocx({ images: false })` leaves all of them out (see *Network access*). In a read-only editor, in the HTML and Markdown views, and for an empty text, export works as well.
 
 ## HTML, Markdown and text: in and out
 
@@ -778,6 +812,7 @@ The editor sends nothing by itself: no telemetry, no analytics, no requests to l
 | --- | --- |
 | `endpointAdapter` | The browser uploads a picture or video to the URL **you** give it, when someone inserts a file (or a pasted picture is copied to your storage). |
 | `presignedAdapter` | The browser sends the file with a `PUT` to the upload URL that **your** `getUploadUrl` returns. |
+| Pictures in a Word export | `toDocx()` (the *Word* item of the export list) fetches a picture that is in the text as an address, without cookies and without a referrer, to put it in the file; one that is in the HTML itself (a `data:` address) is not fetched. It happens when someone exports, and `images: false` (or a function that gives the bytes) turns it off. |
 | Pasted pictures | With `pasteImages: 'upload'` (the default): a picture that is pasted as a link (from Word, Google Docs or a web page) is downloaded, without cookies and without a referrer, to hand it to the media adapter. Without an adapter of your own that is the built-in one, which embeds the picture as base64. If the host does not allow it, the picture stays a link. With `pasteImages: 'link'` or `'remove'` nothing is downloaded. |
 
 What else loads comes from the content: an `<img>` or `<video>` shows its source when it is in the text, and a YouTube (`youtube-nocookie.com`) or Vimeo (`dnt=1`) video is an `<iframe>` that loads when it is inserted. Nothing else is fetched, and `new Aurebesh(el)` on its own makes no request.
