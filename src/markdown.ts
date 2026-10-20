@@ -16,7 +16,7 @@ const ON_SPACE: Array<[RegExp, string]> = [
   [/^>$/, 'quote'],
 ];
 const ON_ENTER: Array<[RegExp, string]> = [
-  [/^```$/, 'codeblock'],
+  [/^```[A-Za-z][\w+#.-]{0,19}$|^```$/, 'codeblock'], // ```python + Enter: a code block in that language
   [/^(?:---|___|\*\*\*)$/, 'hr'],
 ];
 
@@ -61,5 +61,14 @@ export function applyMarkdown(e: KeyboardEvent): string | null {
   sel.removeAllRanges();
   sel.addRange(range);
   document.execCommand('delete');
+  fenceLanguage = command === 'codeblock' ? before.slice(3) : '';
   return command;
+}
+
+/** The language that was typed after the three backticks of the last code block shortcut (once). */
+let fenceLanguage = '';
+export function takeFenceLanguage(): string {
+  const language = fenceLanguage;
+  fenceLanguage = '';
+  return language;
 }

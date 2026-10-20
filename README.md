@@ -228,6 +228,25 @@ The sanitizer allows this and no more: a `div` with `data-layout` `row` or `col`
 
 Reordering blocks by dragging them inside the text, and a panel with the properties of the block that is selected, are not there yet.
 
+## Code blocks and their language
+
+The `codeblock` item makes a code block (`<pre>`; also `` ``` `` + Enter). While the caret is in a code block a row appears under the toolbar with a box to give the block a **programming language**; it shows the language of the block that has the caret. Put `codeLanguage` in `toolbar` to have the box in the toolbar itself instead (it is greyed out while the caret is not in a code block). The choices are:
+
+- **Auto** (the default): the generic colours, which do reasonably for most languages (comments, strings, numbers, keywords, functions, types and tags). Nothing is saved.
+- **Plain text**: no colours.
+- **JavaScript, TypeScript, JSON, HTML, XML, CSS, Python, Java, C#, C, C++, Go, Rust, PHP, Ruby, SQL, Bash and YAML**: the language reads its own comments, strings and keywords (SQL in any case; the keys of JSON, YAML and CSS; the variables of shell and PHP; the attributes of HTML), so `#` is a comment in Python and `//` is not.
+
+The language is a name on the block, a plain name of up to 20 letters, digits and hyphens, and the sanitizer keeps nothing else of it:
+
+```html
+<pre data-language="python">def hello(name):
+    return "Hello " + name</pre>
+```
+
+In the editor the language stands in the corner of the block. You can also type it: `` ```py `` + Enter makes a Python block. In Markdown it is the word after the fence (`` ```python ``), and it is read from it, also in its short names (`js`, `ts`, `py`, `sh`, `yml`, `c#`, `c++`...); a language that is not in the list (such as `mermaid`) is kept as it is, with the generic colours. The colours need the CSS Custom Highlight API (see Browser support); the language is kept without it. Choosing a language is a change of the block itself, so the browser's undo does not take it back.
+
+The `CODE_LANGUAGES` list and `normalizeLanguage()` are exported, for a page that wants the same names.
+
 ## Task lists
 
 The `task` item (in the default toolbar, next to the lists) turns the line with the caret into a list with a box before every item; in a bullet list or a numbered list it turns that list into one, and in a task list it makes it an ordinary list again. Also from the slash menu (`/task`) and with `Mod+Shift+9`.
@@ -441,7 +460,7 @@ Markdown to HTML to Markdown gives the same Markdown for what the editor writes 
 | Lists | bullet and numbered, nested, tight and loose, lazy continuation | the same; the start number of a numbered list is not kept |
 | Blocks | quotes (nested), fenced and indented code, horizontal lines, tables with their alignment (`:---`, `:---:`, `---:`) | the same |
 | HTML | read and then sanitized: what the editor knows stays (`<u>`, `<sub>`, `<sup>`, `<br>`, tables...), the rest is removed | `<u>`, `<sub>` and `<sup>` stay inline HTML |
-| **Lost** | the language after a code fence (` ```js `), task list boxes (`- [ ]` stays text), footnotes, `h4` to `h6` as such, raw HTML the sanitizer does not allow | colours, fonts and sizes, text alignment, indent, columns and page, merged table cells (the text stays in the first cell), cell backgrounds, borders and vertical alignment, and table captions (the horizontal alignment of a column is kept, from its header cell); a video becomes a link |
+| **Lost** | footnotes, `h4` to `h6` as such, raw HTML the sanitizer does not allow | colours, fonts and sizes, text alignment, indent, columns and page, merged table cells (the text stays in the first cell), cell backgrounds, borders and vertical alignment, and table captions (the horizontal alignment of a column is kept, from its header cell); a video becomes a link |
 
 Markdown cannot express what the editor can, so an editor with colours or columns is better stored as HTML; Markdown is for content that is Markdown by nature (documentation, notes, READMEs).
 

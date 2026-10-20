@@ -25,10 +25,10 @@ function escapeText(text: string): string {
     .replace(/^(\s*\d+)([.)])(?=\s)/gm, '$1\\$2');
 }
 
-function fence(code: string): string {
+function fence(code: string, language = ''): string {
   const longest = Math.max(2, ...(code.match(/`+/g) ?? []).map((m) => m.length));
   const ticks = '`'.repeat(longest + 1);
-  return `${ticks}\n${code.replace(/\n$/, '')}\n${ticks}`;
+  return `${ticks}${language}\n${code.replace(/\n$/, '')}\n${ticks}`;
 }
 
 function inlineCode(code: string): string {
@@ -201,7 +201,7 @@ function block(el: Element, indent = ''): string {
     case 'hr':
       return '---';
     case 'pre':
-      return fence(el.textContent ?? '');
+      return fence(el.textContent ?? '', el.getAttribute('data-language') ?? ''); // the language stands after the fence
     case 'ul':
     case 'ol':
       return list(el, tag === 'ol', indent);
