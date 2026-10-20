@@ -162,6 +162,25 @@ The colours of this look are variables too: `--aurebesh-icon`, `--aurebesh-label
 
 Theme via CSS variables: `--aurebesh-border`, `--aurebesh-bg`, `--aurebesh-color`, `--aurebesh-accent`, `--aurebesh-toolbar-bg`, `--aurebesh-code-bg`, `--aurebesh-min-height`, `--aurebesh-max-height` (a fixed maximum height of the text area: the text then scrolls inside the editor while the toolbar stays in view; without it the editor grows with the text and the toolbar scrolls along with the page), and `--aurebesh-hl-keyword|string|comment|number|function|type|tag` for code colours.
 
+## Find and replace
+
+`Mod+F` opens a bar under the toolbar (`Mod+H` opens it with the row to replace with), and so does the magnifying glass in the strip above the toolbar (the `find` item). The selected text is the text to find.
+
+- **Find**: every match is marked in the text, with the current one in another colour, and the bar says *3 of 12*. `Enter` goes to the next match and `Shift+Enter` to the one before (round the end). The text is searched as you type, and again when the text changes.
+- **Options**: *Match case* (`Aa`) and *Whole word* (`ab`). What is typed is text, never a pattern, so `a.b` and `(x)` find just that.
+- **Replace** replaces the current match and goes to the next; `Enter` in the field to replace with does it too. **Replace all** replaces every match, over paragraphs, list items, table cells, code and formatting. A match goes over formatting ("hello world" when *hello* is bold), but not over blocks or line breaks. A replacement has the formatting of where the match started, and what is typed is never read as HTML.
+- `Escape` closes the bar and leaves the current match selected in the text.
+
+Replace goes in the undo history of the browser, so `Ctrl+Z` takes one back. **Replace all** does not (it changes many places at once): the bar shows an **Undo** button next to it that puts the text back, for as long as the text has not been changed in the meantime. The markings need the CSS Custom Highlight API (see Browser support); without it the bar still finds, counts and replaces, and the current match is the selection when you close the bar.
+
+```js
+new Aurebesh(el, { find: false });   // leave Mod+F and Mod+H to the browser
+editor.openFind({ query: 'cat', replace: true });   // from code
+editor.closeFind();
+```
+
+The bar is not there in the HTML and Markdown views, and in a read-only editor the row to replace with is not (find works). The colours are `::highlight(aurebesh-find)` and `::highlight(aurebesh-find-current)`, and the bar is `.aurebesh-find` (see headless below).
+
 ## Your own look: headless
 
 By default the editor brings a look: colours, borders, spacing, icons. For a page with its own design, **headless** takes that away and keeps only what the editor needs to work.
@@ -195,6 +214,7 @@ Two limits: **it goes for the whole page** (the styles are global by class name,
 | `.aurebesh-status` | a message (`.error` for an error), a live region |
 | `.aurebesh-tip`, `.aurebesh-slash`, `.aurebesh-slash-item` | the tooltip, and the slash menu with its options (`aria-selected`) |
 | `.aurebesh-link-tools`, `.aurebesh-image-tools`, `.aurebesh-table-tools`, `.aurebesh-code-tools` | the rows that show for a link, an image, a table or a code block |
+| `.aurebesh-find`, `.aurebesh-find-input`, `.aurebesh-find-count` | the bar to find and replace, its fields and the count (`::highlight(aurebesh-find)` and `-find-current` mark the matches) |
 | `[data-callout]`, `ul[data-task]`, `pre[data-language]`, `[data-layout]` | callouts, task lists, code blocks and the rows and columns of a layout, in the text |
 
 For the code colours there are `::highlight(aurebesh-comment)`, `-string`, `-number`, `-keyword`, `-function`, `-type` and `-tag`. To start from the colours of the editor, `DEFAULT_CSS` is the whole stylesheet as a string, and `calloutCss()` and `taskListCss()` are the parts for callouts and task boxes.
@@ -228,7 +248,7 @@ editor.on('state', () => {
 | `'image'`, `'video'` + an address (and an alt text) | insert media |
 | `'callout'`, `'codeLanguage'` + a type or a language (`'warning'`, `'python'`) | a callout, the language of the code block |
 | `'table'` + `'3x4'` and the `'table…'` commands (`'tableRowAdd'`, `'tableMerge'`...) | tables |
-| `'undo'`, `'redo'`, `'fullscreen'` | history, full screen |
+| `'undo'`, `'redo'`, `'fullscreen'`, `'find'` (`'find', 'replace'` with the row to replace with) | history, full screen, the bar to find and replace |
 
 Everything else that the toolbar can do is in `editor.listCommands()`, and `editor.setHTML()`, `setMarkdown()`, `getHTML()` and the other methods are the same as ever.
 
@@ -590,6 +610,7 @@ To add a language to your own application without changing the package, pass its
 | --- | --- |
 | `Mod+K` | Link (opens the link box, prefilled when the caret is in a link) |
 | `Mod+E` | Inline code (again to remove) |
+| `Mod+F` / `Mod+H` | Find / find and replace |
 | `Mod+Shift+X` | Strikethrough |
 | `Mod+\` | Clear all formatting |
 | `Mod+.` / `Mod+,` | Superscript / subscript |

@@ -209,7 +209,7 @@ describe('the default toolbar', () => {
     ]);
     // undo and redo are in the strip above it, not in the toolbar
     expect(DEFAULT_TOOLBAR).not.toContain('undo');
-    expect(DEFAULT_QUICKBAR).toEqual(['undo', 'redo']);
+    expect(DEFAULT_QUICKBAR).toEqual(['undo', 'redo', 'find']);
   });
 
   it('has only items that exist, each once, and no separator at the start, the end or doubled', () => {
@@ -245,9 +245,9 @@ describe('the default toolbar', () => {
     el.remove();
   });
 
-  it('has undo and redo in the strip above, and the strip only with the default toolbar, so they are not there twice', () => {
+  it('has undo, redo and find in the strip above, and the strip only with the default toolbar, so they are not there twice', () => {
     const el = build();
-    expect(Array.from(el.querySelectorAll('.aurebesh-quickbar button')).map((b) => b.getAttribute('title'))).toEqual(['Undo', 'Redo']);
+    expect(Array.from(el.querySelectorAll('.aurebesh-quickbar button')).map((b) => b.getAttribute('title'))).toEqual(['Undo', 'Redo', 'Find and replace']);
     expect(el.querySelector('.aurebesh')!.firstElementChild!.classList.contains('aurebesh-quickbar')).toBe(true);
     expect(main(el).querySelector('button[title="Undo"]')).toBeNull();
     el.remove();

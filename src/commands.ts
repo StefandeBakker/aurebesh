@@ -233,6 +233,8 @@ export const COMMANDS: Record<string, CommandDef> = {
   tableCaption: { name: 'tableCaption', icon: 'caption', label: 'Caption', title: 'Table caption', run: () => toggleCaption(), isActive: hasCaption },
   /** The language of the code block that has the caret; a box in the toolbar, built by the editor. run('python'), run('auto'). */
   codeLanguage: { name: 'codeLanguage', label: 'Language', title: 'Code language', run: (id) => setCodeLanguage(id ?? 'auto') },
+  /** Opens the bar to find and replace; built by the editor. exec('find', 'replace') opens it with the row to replace with. */
+  find: { name: 'find', icon: 'find', label: '🔍', title: 'Find and replace', run: () => {} },
   /** The weight of the selected text, from light to bold; a box in the toolbar, built by the editor. */
   weight: { name: 'weight', label: 'Weight', title: 'Font weight', run: (value) => value && setWeight(Number(value)) },
   /** A list to take away one kind of formatting from the selected text: bold, italic, underline, strikethrough, colour or highlight. Built by the editor. */
@@ -270,4 +272,4 @@ export const DEFAULT_TOOLBAR = [
 ];
 
 /** The strip above the toolbar. It is on when the default toolbar is used; set `quickbar` to change it. */
-export const DEFAULT_QUICKBAR = ['undo', 'redo'];
+export const DEFAULT_QUICKBAR = ['undo', 'redo', 'find'];
