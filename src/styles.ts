@@ -229,6 +229,19 @@ export const CSS = `
 .aurebesh-color-grid button{width:var(--aurebesh-cell,18px);height:var(--aurebesh-cell,18px);min-width:0;padding:0;border:1px solid rgba(0,0,0,.2);border-radius:3px;cursor:pointer}
 .aurebesh-color-grid button:hover{outline:2px solid var(--aurebesh-accent,#2563eb);outline-offset:1px}
 .aurebesh-toolbar button:focus-visible,.aurebesh-toolbar select:focus-visible,.aurebesh-table-pop input:focus-visible,.aurebesh-table-pop button:focus-visible,.aurebesh-alt:focus-visible{outline:2px solid var(--aurebesh-accent,#2563eb);outline-offset:1px}
+/* a narrow screen: the toolbar is one row that scrolls sideways (the ribbon would take most of the screen), and its dropdowns are fixed to the window (see floatPops) */
+@media (max-width:640px){
+.aurebesh-toolbar{flex-wrap:nowrap;align-items:center;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none}
+.aurebesh-toolbar::-webkit-scrollbar{display:none}
+.aurebesh-toolbar .aurebesh-group{flex:none;max-width:none;flex-direction:row;align-items:center;gap:2px}
+.aurebesh-toolbar .aurebesh-row{flex-wrap:nowrap}
+.aurebesh-toolbar .aurebesh-group-label{display:none}
+.aurebesh-ribbon .aurebesh-toolbar:not(.aurebesh-quickbar){align-items:center;gap:0 2px;padding:6px 8px}
+.aurebesh-ribbon .aurebesh-group{padding-inline:6px;gap:2px}
+.aurebesh-ribbon .aurebesh-group:first-child{padding-inline-start:0}
+.aurebesh-table-pop{max-width:calc(100vw - 16px)}
+.aurebesh-link-tools{max-width:calc(100% - 8px);overflow-x:visible}
+}
 @media (pointer:coarse){
 .aurebesh-toolbar button{min-width:40px;height:40px}
 .aurebesh-font,.aurebesh-size,.aurebesh-weight,.aurebesh-codelang,.aurebesh-columns,.aurebesh-pagesel,.aurebesh-cellborder{height:40px}
@@ -342,5 +355,18 @@ export const CSS = `
 .aurebesh-content pre{direction:ltr;text-align:left}
 .aurebesh-content pre[dir=rtl]{direction:rtl;text-align:right}
 .aurebesh-content :is(ul,ol)[dir=rtl]{padding-inline-start:40px}
+/* a narrow screen: the find bar goes over more lines instead of out of the window */
+@media (max-width:640px){
+.aurebesh-find-row{flex-wrap:wrap}
+.aurebesh-find-input{flex:1 1 140px}
+.aurebesh-find-replace-row{padding-inline-start:0}
+}
+/* a finger: what is tapped is bigger (after the rules of the sizes above, which these replace) */
+@media (pointer:coarse){
+.aurebesh-blockhandle{width:28px;height:32px}
+.aurebesh-blockhandle .aurebesh-icon{width:20px;height:20px}
+.aurebesh-blockmenu-item,.aurebesh-slash-item,.aurebesh-callout-option,.aurebesh-strike-option,.aurebesh-export-item{min-height:40px;display:flex;align-items:center}
+.aurebesh-find button,.aurebesh-find input{min-height:40px}
+}
 ` + calloutCss(DEFAULT_CALLOUTS) + taskListCss() + `.aurebesh-content ul[data-task]>li::before{cursor:pointer}
 `;

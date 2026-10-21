@@ -415,7 +415,7 @@ test.describe('the toolbar layout', () => {
   });
 
   test('the strip keeps its place when the toolbar wraps onto more rows', async ({ page }) => {
-    await page.setViewportSize({ width: 520, height: 800 });
+    await page.setViewportSize({ width: 660, height: 800 });
     await open(page);
     const strip = await box(page, '.aurebesh-quickbar');
     const bar = await box(page, '.aurebesh-toolbar:not(.aurebesh-quickbar)');
@@ -489,7 +489,7 @@ test.describe('the toolbar layout', () => {
   });
 
   test('a block is never cut in two: when it is narrow whole blocks go to the next line', async ({ page }) => {
-    await page.setViewportSize({ width: 520, height: 800 });
+    await page.setViewportSize({ width: 660, height: 800 });
     await open(page);
     const g = await groups(page);
     const tops = new Set(g.map((b: any) => Math.round(b.top)));
@@ -566,7 +566,7 @@ test.describe('a fixed maximum height', () => {
 
 test('a wide block wraps inside a narrow toolbar instead of running out of it', async ({ page }) => {
   await open(page);
-  await page.setViewportSize({ width: 360, height: 700 });
+  await page.setViewportSize({ width: 660, height: 700 });
   const over = await page.evaluate(() => {
     const bar = document.querySelector('.aurebesh-toolbar:not(.aurebesh-quickbar)') as HTMLElement;
     return bar.scrollWidth - bar.clientWidth;

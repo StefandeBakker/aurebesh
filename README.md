@@ -172,9 +172,18 @@ When the pointer is over a block, a grip (six dots) shows in the margin beside i
 - **Click** the grip for a menu: *Duplicate*, *Move up*, *Move down*, *Delete*, and *Turn into* (paragraph, heading 1 to 3, bullet list, numbered list, task list, quote, code block, callout). The text and the formatting in it stay: a list becomes a paragraph for each item, a list into another kind of list keeps its nesting, and a table or a row can be moved and deleted but not turned into something else. The menu is a `role="menu"` that works with the arrow keys, Home, End, Enter and Escape.
 - **Keyboard**: `Alt+Shift+Up` and `Alt+Shift+Down` move the block with the caret, and `Alt+Shift+M` opens its menu.
 
-The grip is for a mouse: it is not shown on a screen that has no hover (a phone), in the HTML and Markdown views, or in a read-only editor. Everything it does is also in the keyboard and the menu. `blockHandles: false` leaves it out. The grip stands in a margin of its own beside the text (28 px, `--aurebesh-handle-gutter`; in a page format it is beside the sheet), so that it does not cover the first letters, a task box or a table's grips; a headless editor has no margin of its own, so there the page makes room for it. A table with the caret in it has grips of its own on its edge, so its handle is left out then (the menu is still there with `Alt+Shift+M`).
+The grip is not shown in the HTML and Markdown views or in a read-only editor. On a screen that has no hover (a phone, a tablet) it stays with the block that has the caret instead, and a tap on it opens the menu (there is nothing to drag with there, and *Move up* and *Move down* do the same). Everything it does is also in the keyboard and the menu. `blockHandles: false` leaves it out. The grip stands in a margin of its own beside the text (28 px, `--aurebesh-handle-gutter`; in a page format it is beside the sheet), so that it does not cover the first letters, a task box or a table's grips; a headless editor has no margin of its own, so there the page makes room for it. A table with the caret in it has grips of its own on its edge, so its handle is left out then (the menu is still there with `Alt+Shift+M`).
 
 A browser has no undo for blocks that are moved, and puts blocks that are inserted as HTML together with the ones beside them, so the editor does these changes itself and keeps them in a history of its own. `Ctrl+Z` and `Ctrl+Y` (and the buttons, and the menu of the browser) take them back and do them again, **in the order of what was done**: typing after a move is undone first, then the move. Replace all (see below) is in that history too. What was done before a move by the browser's own undo stack stays undoable as long as the text is as it was, but undo after a move and several changes of the text in other blocks can take the browser's own history with it: a change made by the handle is the one to undo right after you made it.
+
+## Phones and tablets
+
+The editor works with a finger. Below a window width of 640 px:
+
+- the toolbar is **one row that scrolls sideways** (a ribbon with its names above the groups would take most of the screen), and its dropdowns (colours, lists, the size of a table) are fixed under their button, so that the scrolling toolbar does not cut them off. They close when the toolbar is scrolled;
+- the find bar goes over more lines instead of out of the window.
+
+On a screen with a touch pointer (`pointer: coarse`) the buttons, the menus and the handles of a table are at least 40 px, and the tip with the name of a button is not shown at every tap. The page needs `<meta name="viewport" content="width=device-width, initial-scale=1">`, as any page for a phone does; without it the phone shows a page of 980 px, scaled down.
 
 ## Find and replace
 
