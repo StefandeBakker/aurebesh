@@ -2,6 +2,9 @@
  * The handle of a block: a grip in the margin beside the block under the pointer. Dragging it moves the block (a line shows where it
  * will go), and clicking it opens a menu: duplicate, move up or down, delete, and turn into another kind of block. A block is a child
  * of the text area or of a column, so rows of columns and what is in the columns have handles of their own.
+ *
+ * On a screen without a pointer to hover with (a phone, a tablet) the handle stays with the block that has the caret, and is tapped for
+ * the menu: there is nothing to drag with there, and the menu can move a block up and down.
  */
 import { spotAt } from './blocks';
 import type { Spot } from './blocks';
@@ -39,13 +42,16 @@ export class BlockHandle {
   private pressed: HTMLElement | null = null;
   private hideTimer: ReturnType<typeof setTimeout> | undefined;
   private cleanup: Array<() => void> = [];
+  /** A screen that cannot hover: the handle follows the caret. */
+  private touch: boolean;
 
   constructor(private host: BlockHandleHost) {
     const doc = host.content.ownerDocument;
+    this.touch = !!doc.defaultView?.matchMedia?.('(hover: none)').matches;
     this.handle = doc.createElement('button');
     this.handle.type = 'button';
     this.handle.className = 'aurebesh-blockhandle';
-    this.handle.draggable = true;
+    this.handle.draggable = !this.touch;
     this.handle.hidden = true;
     const name = host.t('ui.blockHandle');
     this.handle.title = name;
@@ -77,7 +83,7 @@ export class BlockHandle {
     on(host.content, 'dragover', (e: DragEvent) => this.onDragOver(e), true);
     on(host.content, 'drop', (e: DragEvent) => this.onDrop(e), true);
     on(host.content, 'keydown', (e: KeyboardEvent) => {
-      if (!['Shift', 'Alt', 'Control', 'Meta'].includes(e.key)) this.hide();
+      if (!this.touch && !['Shift', 'Alt', 'Control', 'Meta'].includes(e.key)) this.hide();
     });
     on(host.content, 'scroll', () => this.hide());
     // a click in the text: the handle goes until the pointer moves again; and a table that gets the caret has grips of its own along its edge
@@ -85,11 +91,15 @@ export class BlockHandle {
     on(doc, 'selectionchange', () => {
       const sel = doc.getSelection();
       if (this.block?.matches('table') && sel?.anchorNode && this.block.contains(sel.anchorNode)) this.hide();
+      else if (this.touch) this.follow();
     });
     // where the handle is is where the block was: when the text or its layout changes, the handle goes until the pointer moves again
     const win = doc.defaultView;
     if (win?.MutationObserver) {
-      const observer = new win.MutationObserver(() => this.hide());
+      const observer = new win.MutationObserver(() => {
+        this.hide();
+        if (this.touch) setTimeout(() => this.follow(), 0);
+      });
       observer.observe(host.content, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['style', 'class', 'data-layout'] });
       this.cleanup.push(() => observer.disconnect());
     }
@@ -127,6 +137,17 @@ export class BlockHandle {
     // a table with the caret in it has grips of its own along its edge: the handle leaves them alone (the menu is still there with Alt+Shift+M)
     const sel = block.ownerDocument.getSelection();
     if (block.matches('table') && sel?.anchorNode && block.contains(sel.anchorNode)) return this.hide();
+    this.show(block);
+  }
+
+  /** On a touch screen: the handle goes to the block with the caret, and goes when the caret is not in the text. */
+  private follow(): void {
+    if (!this.menu.hidden || this.dragging) return;
+    const { content } = this.host;
+    const sel = content.ownerDocument.getSelection();
+    if (!this.host.active() || !sel?.rangeCount || !sel.anchorNode || !content.contains(sel.anchorNode)) return this.hide();
+    const block = blockOf(content, sel.anchorNode);
+    if (!block || !hasHandle(block) || (block.matches('table') && block.contains(sel.anchorNode))) return this.hide();
     this.show(block);
   }
 

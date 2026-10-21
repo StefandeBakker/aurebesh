@@ -429,13 +429,14 @@ export class Aurebesh {
         stage: this.stage,
         t: (key) => this.t(key),
         label: (kind) => this.blockLabel(kind),
-        active: () => this.content.isContentEditable && (!this.modeSwitch || this.modeSwitch.mode === 'editor') && !!doc.defaultView?.matchMedia?.('(hover: hover)').matches,
+        active: () => this.content.isContentEditable && (!this.modeSwitch || this.modeSwitch.mode === 'editor'),
         run: (change) => this.runChange(change),
         line: (spot) => this.showBlockLine(spot),
         calloutType: () => this.calloutTypes[0]?.id ?? 'note',
       });
     }
     this.root.appendChild(footer);
+    this.floatPops();
     this.maxLength = options.maxLength && options.maxLength > 0 ? Math.floor(options.maxLength) : null;
     this.counterEl.hidden = !options.counter;
 
@@ -1251,6 +1252,51 @@ export class Aurebesh {
     this.highlightTimer = setTimeout(() => highlightCode(this.content), 50);
   }
 
+  /**
+   * A toolbar that scrolls sideways (on a narrow screen) would cut off its dropdowns, so while it does they are fixed to the window,
+   * under their button, and they close when the toolbar is scrolled.
+   */
+  private floatPops(): void {
+    const win = this.root.ownerDocument.defaultView;
+    if (!win?.MutationObserver) return;
+    const clear = (pop: HTMLElement) => {
+      delete pop.dataset.floated;
+      for (const p of ['position', 'left', 'top', 'margin', 'max-height', 'overflow-y', 'inset-inline-start']) pop.style.removeProperty(p);
+    };
+    const observer = new win.MutationObserver((records) => {
+      for (const record of records) {
+        const pop = record.target as HTMLElement;
+        if (!pop.matches('.aurebesh-table-pop')) continue;
+        const bar = pop.closest('.aurebesh-toolbar');
+        if (pop.hidden || !bar || win.getComputedStyle(bar).overflowX === 'visible') {
+          if (pop.dataset.floated) clear(pop);
+          continue;
+        }
+        const anchor = (pop.parentElement ?? pop).getBoundingClientRect();
+        const width = pop.offsetWidth;
+        const top = Math.round(anchor.bottom + 4);
+        pop.dataset.floated = '1';
+        pop.style.position = 'fixed';
+        pop.style.margin = '0';
+        pop.style.insetInlineStart = 'auto';
+        pop.style.left = `${Math.round(Math.max(8, Math.min(anchor.left, win.innerWidth - width - 8)))}px`;
+        pop.style.top = `${top}px`;
+        pop.style.maxHeight = `${Math.max(120, win.innerHeight - top - 8)}px`;
+        pop.style.overflowY = 'auto';
+      }
+    });
+    observer.observe(this.root, { subtree: true, attributes: true, attributeFilter: ['hidden'] });
+    this.cleanup.push(() => observer.disconnect());
+    this.listen(
+      this.root,
+      'scroll',
+      (e) => {
+        if ((e.target as HTMLElement).classList?.contains('aurebesh-toolbar')) this.root.querySelectorAll<HTMLElement>('[data-floated]').forEach((p) => (p.hidden = true));
+      },
+      true,
+    );
+  }
+
   private listen(target: EventTarget, type: string, fn: (e: Event) => void, capture = false): void {
     target.addEventListener(type, fn, capture);
     this.cleanup.push(() => target.removeEventListener(type, fn, capture));
@@ -1620,7 +1666,9 @@ export class Aurebesh {
       }
       if (this.tip) this.tip.hidden = true;
     };
-    btn.addEventListener('pointerenter', () => show(true));
+    btn.addEventListener('pointerenter', (e) => {
+      if (e.pointerType !== 'touch') show(true); // a finger has no hover: the tip would only flash at every tap
+    });
     btn.addEventListener('pointerleave', hide);
     btn.addEventListener('pointerdown', () => {
       if (btn.dataset.title) {
