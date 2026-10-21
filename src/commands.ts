@@ -28,6 +28,8 @@ export interface CommandDef {
   title: string;
   /** Runs the command on the current selection. */
   run: (arg?: string, extra?: string) => void;
+  /** The command changes the DOM itself: the editor keeps it in its own history, so that undo and redo take it back (see history.ts). */
+  domEdit?: boolean;
   /** Whether the command is active at the current selection. */
   isActive?: () => boolean;
   /** Whether the command can do anything at the current selection; the button is disabled when not. */
@@ -84,7 +86,7 @@ export const COMMANDS: Record<string, CommandDef> = {
   italic: { name: 'italic', label: 'I', title: 'Italic', run: () => exec('italic'), isActive: () => state('italic') },
   underline: { name: 'underline', label: 'U', title: 'Underline', run: () => exec('underline'), isActive: () => state('underline') },
   strike: { name: 'strike', label: 'S', title: 'Strikethrough', run: () => exec('strikeThrough'), isActive: () => state('strikeThrough') },
-  code: { name: 'code', icon: 'code', label: '</>', title: 'Inline code', run: toggleInlineCode, isActive: isInlineCode },
+  code: { name: 'code', icon: 'code', label: '</>', title: 'Inline code', run: toggleInlineCode, isActive: isInlineCode, domEdit: true },
   sup: { name: 'sup', label: 'x²', title: 'Superscript', run: () => exclusive('superscript', 'subscript'), isActive: () => state('superscript') },
   sub: { name: 'sub', label: 'x₂', title: 'Subscript', run: () => exclusive('subscript', 'superscript'), isActive: () => state('subscript') },
   h1: { name: 'h1', label: 'H1', title: 'Heading 1', run: toggleBlock('h1'), isActive: isBlock('h1') },
@@ -100,6 +102,7 @@ export const COMMANDS: Record<string, CommandDef> = {
     icon: 'underlineStyle',
     label: 'U=',
     title: 'Underline style',
+    domEdit: true,
     run: (arg, extra) => (arg === 'color' ? setDecoration('underline', { color: extra || null }) : setDecoration('underline', { style: (arg || 'solid') as LineStyle })),
   },
   /** The look of a strikethrough: a single or a double line, and a colour. Built by the editor as a picker. */
@@ -108,6 +111,7 @@ export const COMMANDS: Record<string, CommandDef> = {
     icon: 'strikeStyle',
     label: 'S=',
     title: 'Strikethrough style',
+    domEdit: true,
     run: (arg, extra) => (arg === 'color' ? setDecoration('strike', { color: extra || null }) : setDecoration('strike', { style: arg === 'double' ? 'double' : 'solid' })),
   },
   task: { name: 'task', icon: 'task', label: '☑', title: 'Task list', run: () => toggleTaskList(), isActive: () => isTaskList() },
@@ -161,6 +165,7 @@ export const COMMANDS: Record<string, CommandDef> = {
     name: 'size',
     label: 'Size',
     title: 'Size',
+    domEdit: true,
     run: (value) => {
       if (!value) return;
       if (/^[1-7]$/.test(value)) withCss(() => exec('fontSize', value));
@@ -238,13 +243,14 @@ export const COMMANDS: Record<string, CommandDef> = {
   /** Opens the bar to find and replace; built by the editor. exec('find', 'replace') opens it with the row to replace with. */
   find: { name: 'find', icon: 'find', label: '🔍', title: 'Find and replace', run: () => {} },
   /** The weight of the selected text, from light to bold; a box in the toolbar, built by the editor. */
-  weight: { name: 'weight', label: 'Weight', title: 'Font weight', run: (value) => value && setWeight(Number(value)) },
+  weight: { name: 'weight', label: 'Weight', title: 'Font weight', domEdit: true, run: (value) => value && setWeight(Number(value)) },
   /** A list to take away one kind of formatting from the selected text: bold, italic, underline, strikethrough, colour or highlight. Built by the editor. */
   clearStyle: {
     name: 'clearStyle',
     icon: 'clearStyle',
     label: 'Tx…',
     title: 'Clear one kind of formatting',
+    domEdit: true,
     run: (kind) => {
       if (kind === 'color') COMMANDS.color.run('inherit');
       else if (kind === 'highlight') COMMANDS.highlight.run('transparent');

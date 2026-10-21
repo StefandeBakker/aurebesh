@@ -97,6 +97,7 @@ test.describe('adding with a click', () => {
 });
 
 test.describe('dragging into the text', () => {
+  test.skip(({ browserName }) => browserName === 'webkit', 'Playwright cannot drive HTML5 drag and drop in WebKit (it is covered in Chromium and Firefox)');
   test('a layout dropped between two paragraphs goes between them, with a line that showed where', async ({ page }) => {
     await start(page);
     const second = (await content(page).locator('p').nth(1).boundingBox())!;
@@ -168,7 +169,8 @@ test.describe('the row tools', () => {
     await expect(tools(page)).toBeHidden();
   });
 
-  test('the distribution can be changed afterwards, also to more or fewer columns, without losing the content', async ({ page }) => {
+  test('the distribution can be changed afterwards, also to more or fewer columns, without losing the content', async ({ page, browserName }) => {
+    test.skip(browserName === 'webkit', 'Playwright cannot drive HTML5 drag and drop in WebKit (it is covered in Chromium and Firefox)');
     await start(page);
     await content(page).locator('p').first().click();
     await block(page, 'row2').click();

@@ -10,7 +10,9 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { AurebeshEditor } from '../src';
 import type { AurebeshElement } from 'aurebesh/element';
 
-beforeAll(() => {
+beforeAll(async () => {
+  // the element is loaded by the component when it is made (a dynamic import): load it here, so that the first test does not wait for a module that grows with the editor
+  await import('aurebesh/element');
   // jsdom has the form association of custom elements only in part
   const attach = HTMLElement.prototype.attachInternals;
   HTMLElement.prototype.attachInternals = function (this: HTMLElement) {

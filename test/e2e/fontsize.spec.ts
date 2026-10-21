@@ -52,7 +52,16 @@ test.describe('the size of text in points', () => {
 
   test('a size on part of a bigger text: the rest keeps its size, and the box shows the new one', async ({ page }) => {
     await start(page, '<p><span style="font-size: 36pt">one two three</span></p>');
-    await content(page).locator('span').dblclick(); // "two "
+    // "two " (a double click selects the space after the word in some browsers, and not in others)
+    await page.evaluate(() => {
+      const text = document.querySelector('.aurebesh-content span')!.firstChild as Text;
+      const range = document.createRange();
+      range.setStart(text, 4);
+      range.setEnd(text, 8);
+      (document.querySelector('.aurebesh-content') as HTMLElement).focus();
+      getSelection()!.removeAllRanges();
+      getSelection()!.addRange(range);
+    });
     await size(page).selectOption('12');
     expect(await html(page)).toBe('<p><span style="font-size: 36pt">one </span><span style="font-size: 12pt">two </span><span style="font-size: 36pt">three</span></p>');
     await expect(size(page)).toHaveValue('12');

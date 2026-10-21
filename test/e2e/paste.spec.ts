@@ -11,13 +11,7 @@ const servePicture = (route: Route) =>
 
 async function paste(page: Page, data: { html: string; rtf?: string; text?: string }): Promise<void> {
   await content(page).click();
-  await page.evaluate((d) => {
-    const dt = new DataTransfer();
-    dt.setData('text/html', d.html);
-    if (d.rtf) dt.setData('text/rtf', d.rtf);
-    dt.setData('text/plain', d.text ?? 'pasted text');
-    document.querySelector('.aurebesh-content')!.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
-  }, data);
+  await page.evaluate((d) => (window as any).__paste(d), data);
 }
 
 const value = (page: Page): Promise<string> => page.evaluate(() => (window as any).ed.value);

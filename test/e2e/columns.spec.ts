@@ -137,12 +137,7 @@ test.describe('columns when pasting from Word', () => {
   test('a two-column section arrives as a two-column block', async ({ page }) => {
     await open(page);
     await content(page).click();
-    await page.evaluate((html) => {
-      const dt = new DataTransfer();
-      dt.setData('text/html', html);
-      dt.setData('text/plain', 'Krant kolom een');
-      document.querySelector('.aurebesh-content')!.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
-    }, WORD_COLUMNS_HTML);
+    await page.evaluate((html) => (window as any).__paste({ html, text: 'Krant kolom een' }), WORD_COLUMNS_HTML);
 
     const out = await value(page);
     expect(out).toContain('column-count: 2');

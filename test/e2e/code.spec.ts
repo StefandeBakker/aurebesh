@@ -23,13 +23,9 @@ test.describe('code blocks', () => {
     await open(page);
     await content(page).click();
     await button(page, 'Code block').click();
-    await page.evaluate(() => {
-      const c = document.querySelector('.aurebesh-content')!;
-      const dt = new DataTransfer();
-      dt.setData('text/plain', 'function a() {\n  return 1;\n}');
-      dt.setData('text/html', '<div><div>function a() {</div><div>&nbsp; return 1;</div><div>}</div></div>');
-      c.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
-    });
+    await page.evaluate(() =>
+      (window as any).__paste({ text: 'function a() {\n  return 1;\n}', html: '<div><div>function a() {</div><div>&nbsp; return 1;</div><div>}</div></div>' }),
+    );
     expect(await page.locator('.aurebesh-content pre').count()).toBe(1);
     const text = await page.evaluate(() => (document.querySelector('.aurebesh-content pre') as HTMLElement).innerText);
     expect(text.replace(/ /g, ' ')).toContain('function a() {\n  return 1;\n}');

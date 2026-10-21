@@ -135,7 +135,10 @@ test.describe('exec() with what the commands take', () => {
   });
 
   test('the language of a code block, and a table', async ({ page }) => {
-    expect(await run(page, '<pre>x = 1</pre>', "window.ed.instance.exec('codeLanguage', 'python')")).toBe('<pre data-language="python">x = 1</pre>');
+    await openHeadless(page, { toolbar: 'none' }, '<pre>x = 1</pre>');
+    await content(page).locator('pre').click();
+    await page.evaluate("window.ed.instance.exec('codeLanguage', 'python')");
+    expect(await page.evaluate(() => (window as any).ed.instance.getHTML())).toBe('<pre data-language="python">x = 1</pre>');
     const out = await run(page, '<p>text</p>', "window.ed.instance.exec('table', '2x3')");
     expect(out).toContain('<table');
   });

@@ -134,6 +134,7 @@ test.describe('the menu of a block', () => {
 });
 
 test.describe('moving a block by dragging', () => {
+  test.skip(({ browserName }) => browserName === 'webkit', 'Playwright cannot drive HTML5 drag and drop in WebKit (it is covered in Chromium and Firefox)');
   test('puts it where it is dropped, and says where with a line while dragging', async ({ page }) => {
     await start(page);
     await hover(page, 'p');
@@ -179,7 +180,8 @@ test.describe('blocks in columns and in a page layout', () => {
     await expect(handle(page)).toBeVisible();
   });
 
-  test('a block can be dragged from a column to the text and the other way', async ({ page }) => {
+  test('a block can be dragged from a column to the text and the other way', async ({ page, browserName }) => {
+    test.skip(browserName === 'webkit', 'Playwright cannot drive HTML5 drag and drop in WebKit (it is covered in Chromium and Firefox)');
     await start(page, `<p>top</p>${ROW}<p>bottom</p>`);
     await hover(page, '[data-layout="col"]:nth-child(2) p');
     const bottom = (await content(page).locator('p', { hasText: 'bottom' }).boundingBox())!;

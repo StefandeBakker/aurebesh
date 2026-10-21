@@ -2,7 +2,7 @@
  * The size of the selected text in points, as Word and Google Docs have it: 8, 9, 10 ... 72. It is a style on a span
  * (<span style="font-size: 14pt">), so the HTML says what was chosen, whatever the size of the text around it.
  */
-import { firstElement, rootOf } from './selection';
+import { firstElement, restoreSelection, rootOf, saveSelection } from './selection';
 
 /** The sizes of the box in the toolbar, in points. */
 export const DEFAULT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72];
@@ -20,7 +20,11 @@ export function currentSize(): number | null {
   const el = firstElement(sel);
   if (!el) return null;
   const px = parseFloat(getComputedStyle(el).fontSize);
-  return px ? Math.round(px * 75) / 100 : null;
+  if (!px) return null;
+  // a browser rounds the size in pixels (Firefox: 19.99 for 20), so a size that is within a hair of a quarter of a point is that
+  const pt = px * 0.75;
+  const quarter = Math.round(pt * 4) / 4;
+  return Math.abs(pt - quarter) < 0.05 ? quarter : Math.round(pt * 100) / 100;
 }
 
 /** Whether all the text of an element is selected. */
@@ -67,6 +71,16 @@ export function setFontSize(points: number | null): void {
   const root = rootOf(sel.anchorNode);
   if (!root) return;
   pending = null;
+  // some browsers leave the selection empty after this (the text is changed under it): it is put back
+  const saved = sel.isCollapsed ? null : saveSelection(root);
+  try {
+    apply(sel, root, points);
+  } finally {
+    restoreSelection(root, saved);
+  }
+}
+
+function apply(sel: Selection, root: Element, points: number | null): void {
   const sized = (range: Range): HTMLElement[] => Array.from(root.querySelectorAll<HTMLElement>('[style*="font-size"]')).filter((el) => overlaps(range, el));
   if (!sel.isCollapsed) {
     // the text with a size that is all selected loses it (the new size goes on the selection); a partly selected one is split by the browser

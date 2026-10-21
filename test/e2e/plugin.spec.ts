@@ -124,7 +124,8 @@ test.describe('plugins', () => {
       };
     });
 
-  test('a plugin adds its button to the toolbar the user gave, and a field is dragged from the sidebar into the text', async ({ page }) => {
+  test('a plugin adds its button to the toolbar the user gave, and a field is dragged from the sidebar into the text', async ({ page, browserName }) => {
+    test.skip(browserName === 'webkit', 'Playwright cannot drive HTML5 drag and drop in WebKit (it is covered in Chromium and Firefox)');
     await open(page, '<p>Dear , welcome</p>');
     await installFields(page);
     await expect(page.locator('.aurebesh-toolbar button')).toHaveCount(3); // bold, italic, fields
@@ -134,7 +135,8 @@ test.describe('plugins', () => {
     await expect(content(page).locator('span[data-field="name"]')).toHaveText('{name}');
   });
 
-  test('a dropped field is one step for undo and redo', async ({ page }) => {
+  test('a dropped field is one step for undo and redo', async ({ page, browserName }) => {
+    test.skip(browserName === 'webkit', 'Playwright cannot drive HTML5 drag and drop in WebKit (it is covered in Chromium and Firefox)');
     await open(page, '<p>Dear , welcome</p>');
     await installFields(page);
     await page.locator('.aurebesh-cmd-fields').click();
@@ -146,7 +148,8 @@ test.describe('plugins', () => {
     await expect(content(page).locator('span[data-field="date"]')).toHaveCount(1);
   });
 
-  test('after a drop the caret is behind the field, and one Backspace removes the whole chip', async ({ page }) => {
+  test('after a drop the caret is behind the field, and one Backspace removes the whole chip', async ({ page, browserName }) => {
+    test.skip(browserName === 'webkit', 'Playwright cannot drive HTML5 drag and drop in WebKit (it is covered in Chromium and Firefox)');
     await open(page, '<p>Dear , welcome</p>');
     await installFields(page);
     await page.locator('.aurebesh-cmd-fields').click();

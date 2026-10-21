@@ -3,7 +3,7 @@
  * those of GitHub's alerts (note, tip, important, warning, caution), so that they go to Markdown and back as `> [!NOTE]`. A callout is
  * `<div data-callout="warning">` around its blocks; how it looks is CSS (`calloutCss`), which can be changed with variables.
  */
-import { replaceSiblings, outer } from './blocks';
+import { restoreSelection, saveSelection } from './selection';
 
 export interface CalloutDef {
   /** The name in the HTML (`data-callout="id"`): lower case letters, digits and hyphens. */
@@ -96,12 +96,15 @@ function touchedBlocks(content: HTMLElement): { container: HTMLElement; blocks: 
   const sel = content.ownerDocument.getSelection();
   if (!sel?.rangeCount || !content.contains(sel.anchorNode)) return null;
   const range = sel.getRangeAt(0);
-  const container = containerOf(content, range.startContainer);
-  const first = childOf(container, range.startContainer);
+  // a selection can start and end at the text area or a block itself (a select-all in Firefox does): the child at that place is the node
+  const startNode = range.startContainer.nodeType === Node.ELEMENT_NODE ? range.startContainer.childNodes[range.startOffset] ?? range.startContainer.lastChild ?? range.startContainer : range.startContainer;
+  const container = containerOf(content, startNode);
+  const first = childOf(container, startNode);
   // the end of a selection that is dragged over a whole block is at the start of the next one: that one is not touched
   let endNode: Node | null = range.endContainer;
-  if (!range.collapsed && range.endOffset === 0 && endNode.nodeType === Node.ELEMENT_NODE && endNode !== container) endNode = endNode.previousSibling ?? endNode;
-  const last = containerOf(content, range.endContainer) === container ? childOf(container, endNode) ?? first : first;
+  if (endNode.nodeType === Node.ELEMENT_NODE && range.endOffset > 0 && endNode.childNodes[range.endOffset - 1]) endNode = endNode.childNodes[range.endOffset - 1];
+  else if (!range.collapsed && range.endOffset === 0 && endNode.nodeType === Node.ELEMENT_NODE && endNode !== container) endNode = endNode.previousSibling ?? endNode;
+  const last = containerOf(content, endNode) === container ? childOf(container, endNode) ?? first : first;
   if (!first || !last) return null;
   const kids = Array.from(container.children);
   const [a, b] = [kids.indexOf(first), kids.indexOf(last)];
@@ -123,47 +126,35 @@ function caretAtEnd(el: Element): void {
 
 /**
  * Puts the blocks the selection reaches in a callout of a type, changes the type when they are in one already, and takes the callout
- * away (the blocks stay) when the type is the same or `null`. One step for undo, where there are blocks that are not divs on both sides
- * (otherwise a browser merges the callout with the div beside it, so it is done as it is, without a step for undo).
+ * away (the blocks stay) when the type is the same or `null`. It changes the DOM itself (the editor keeps it in its own history, see
+ * history.ts): a browser merges a callout that is put in with `insertHTML` with the div beside it, and not the same in every browser.
  */
 export function setCallout(content: HTMLElement, type: string | null): void {
   if (type !== null && !CALLOUT_ID.test(type)) return;
   const touched = touchedBlocks(content);
   if (!touched) return;
   const { blocks } = touched;
+  const saved = saveSelection(content);
   const inside = blocks.length === 1 && blocks[0].matches(SELECTOR) ? (blocks[0] as HTMLElement) : null;
-  const doc = content.ownerDocument;
-  let html: string;
-  let first: Element = blocks[0];
-  const last: Element = blocks[blocks.length - 1];
+  let fresh: HTMLElement | null = null;
   if (inside) {
-    first = inside;
-    html = type === null || inside.getAttribute('data-callout') === type ? inside.innerHTML : `<div data-new-block data-callout="${type}">${inside.innerHTML}</div>`;
+    if (type === null || inside.getAttribute('data-callout') === type) inside.replaceWith(...Array.from(inside.childNodes));
+    else {
+      inside.setAttribute('data-callout', type);
+      fresh = inside;
+    }
   } else {
     if (type === null) return;
-    html = `<div data-new-block data-callout="${type}">${outer(blocks)}</div>`;
+    const div = content.ownerDocument.createElement('div');
+    div.setAttribute('data-callout', type);
+    blocks[0].before(div);
+    div.append(...blocks);
+    fresh = div;
   }
-  // at the edge of the text there is no block to hold on to: the paragraph that is needed there anyway is made first
-  if (first.parentElement === content) {
-    if (!first.previousElementSibling) first.insertAdjacentHTML('beforebegin', guard);
-    if (!last.nextElementSibling) last.insertAdjacentHTML('afterend', guard);
-  }
-  const done = replaceSiblings(content, first, last, html);
-  let fresh = content.querySelector('[data-new-block]');
-  if (!done) {
-    // nothing to hold on to: the callout is made in the DOM
-    const tpl = doc.createElement('template');
-    tpl.innerHTML = html;
-    const parent = first.parentElement;
-    if (!parent) return;
-    const nodes = Array.from(tpl.content.childNodes);
-    parent.insertBefore(tpl.content, first);
-    for (const b of inside ? [inside] : blocks) b.remove();
-    fresh = nodes.find((n): n is Element => n.nodeType === Node.ELEMENT_NODE && (n as Element).hasAttribute('data-new-block')) ?? null;
-  }
-  fresh?.removeAttribute('data-new-block');
   normalizeCallouts(content);
-  if (fresh) caretAtEnd(fresh);
+  content.normalize();
+  if (fresh && !inside) caretAtEnd(fresh);
+  else restoreSelection(content, saved);
 }
 
 /**

@@ -42,12 +42,7 @@ test.describe('counter, max length and ready', () => {
     await open(page);
     await ed(page).evaluate((el: HTMLElement) => el.setAttribute('maxlength', '6'));
     await type(page, 'ab');
-    await page.evaluate(() => {
-      const dt = new DataTransfer();
-      dt.setData('text/plain', 'cdefghij');
-      dt.setData('text/html', '<p>cdefghij</p>');
-      document.querySelector('.aurebesh-content')!.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
-    });
+    await page.evaluate(() => (window as any).__paste({ text: 'cdefghij', html: '<p>cdefghij</p>' }));
     expect((await content(page).innerText()).trim()).toBe('abcdef');
   });
 

@@ -893,10 +893,11 @@ export class Aurebesh {
       return;
     }
     if (handleLayoutKey(e, this.content)) return; // Backspace at the start of a column would take the layout apart
-    if (handleCalloutKey(e, this.content)) {
-      this.syncEmpty();
-      this.emitChange();
-      return;
+    // in a callout, Backspace and Enter change the DOM themselves: in the history of the editor
+    if ((e.key === 'Backspace' || e.key === 'Enter') && currentCallout(this.content)) {
+      let handled = false;
+      this.runChange(() => (handled = handleCalloutKey(e, this.content)));
+      if (handled) return;
     }
     if (handleListKey(e) || handleTab(e) || handleCodeKey(e)) this.emitChange();
   }
@@ -1198,7 +1199,8 @@ export class Aurebesh {
     this.content.focus();
     // Focusing from a popover input or the font select moves the caret to the start: put it back.
     if (!hadFocus) this.restoreSelection();
-    cmd.run(arg, extra);
+    if (cmd.domEdit) this.blockHistory.run(() => cmd.run(arg, extra));
+    else cmd.run(arg, extra);
     this.tidyStyles();
     this.syncEmpty();
     this.emitChange();
@@ -1751,10 +1753,7 @@ export class Aurebesh {
     if (!this.content.isContentEditable) return;
     if (!this.content.contains(this.container.ownerDocument.getSelection()?.anchorNode ?? null)) this.restoreSelection();
     this.content.focus();
-    setCallout(this.content, type);
-    this.syncEmpty();
-    this.emitChange();
-    this.updateToolbar();
+    this.runChange(() => setCallout(this.content, type));
   }
 
   /** The button with the list of callout types: the selection goes in one, the one it is in is marked, and "no callout" takes it away. */

@@ -4,12 +4,15 @@
  * after it. Undo takes the HTML back when the text is as the change left it, and passes to the undo of the browser when it is not (typing
  * after a change is undone first, by the browser, and then the change). Redo is the other way.
  */
+import { restoreSelection, saveSelection } from './selection';
+import type { SavedSelection } from './selection';
+
 interface Entry {
   before: string;
   after: string;
-  /** Where the caret was, as the number of characters of text before it, before and after the change. */
-  caretBefore: number;
-  caretAfter: number;
+  /** Where the selection was (as numbers of characters of text before its ends), before and after the change. */
+  selBefore: SavedSelection | null;
+  selAfter: SavedSelection | null;
 }
 
 const LIMIT = 100;
@@ -20,52 +23,14 @@ export class BlockHistory {
 
   constructor(private content: HTMLElement) {}
 
-  /** The number of characters of text before the caret, or -1 when the caret is not in the text. */
-  private caret(): number {
-    const sel = this.content.ownerDocument.getSelection();
-    if (!sel?.rangeCount || !this.content.contains(sel.anchorNode)) return -1;
-    const range = this.content.ownerDocument.createRange();
-    range.selectNodeContents(this.content);
-    range.setEnd(sel.anchorNode!, sel.anchorOffset);
-    return range.toString().length;
-  }
-
-  private place(chars: number): void {
-    const doc = this.content.ownerDocument;
-    const sel = doc.getSelection();
-    if (chars < 0 || !sel) return;
-    const walker = doc.createTreeWalker(this.content, NodeFilter.SHOW_TEXT);
-    let left = chars;
-    let last: Text | null = null;
-    for (let n = walker.nextNode() as Text | null; n; n = walker.nextNode() as Text | null) {
-      last = n;
-      if (left <= n.length) {
-        const range = doc.createRange();
-        range.setStart(n, left);
-        range.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(range);
-        return;
-      }
-      left -= n.length;
-    }
-    if (last) {
-      const range = doc.createRange();
-      range.setStart(last, last.length);
-      range.collapse(true);
-      sel.removeAllRanges();
-      sel.addRange(range);
-    }
-  }
-
   /** Runs a change of the DOM and keeps it. Returns whether it changed the text. */
   run(change: () => void): boolean {
     const before = this.content.innerHTML;
-    const caretBefore = this.caret();
+    const selBefore = saveSelection(this.content);
     change();
     const after = this.content.innerHTML;
     if (after === before) return false;
-    this.undos.push({ before, after, caretBefore, caretAfter: this.caret() });
+    this.undos.push({ before, after, selBefore, selAfter: saveSelection(this.content) });
     if (this.undos.length > LIMIT) this.undos.shift();
     this.redos = [];
     return true;
@@ -93,7 +58,7 @@ export class BlockHistory {
     const entry = this.undos.pop()!;
     this.content.innerHTML = entry.before;
     this.redos.push(entry);
-    this.place(entry.caretBefore);
+    restoreSelection(this.content, entry.selBefore);
     return true;
   }
 
@@ -102,7 +67,7 @@ export class BlockHistory {
     const entry = this.redos.pop()!;
     this.content.innerHTML = entry.after;
     this.undos.push(entry);
-    this.place(entry.caretAfter);
+    restoreSelection(this.content, entry.selAfter);
     return true;
   }
 
