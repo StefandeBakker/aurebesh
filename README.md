@@ -858,6 +858,10 @@ Firefox 140+); without it code blocks simply show no colours.
 Importing the package on the server (Next.js, Nuxt, Angular Universal) is safe and the React/Vue wrappers render on the server;
 the editor itself only runs in the browser. `sanitize()` needs a DOM (`DOMParser`), so on a server use it with jsdom or similar.
 
+## Thanks
+
+- [@LukasVanHolle](https://github.com/LukasVanHolle) tested Aurebesh many times and gave feedback that made it better.
+
 ## License
 
 [MIT](LICENSE): free to use, also commercially.
