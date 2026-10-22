@@ -1,0 +1,28 @@
+name: Feature request
+description: An idea or an improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the problem or the need first, not only the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like to see
+      description: How could it work? A sketch or an example from another editor helps.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: What do you do now, and what else did you consider?
+  - type: markdown
+    attributes:
+      value: |
+        Aurebesh has no runtime dependencies and stays small, so not every idea fits in the core.
+        Some things work better as a [plugin](https://github.com/StefandeBakker/aurebesh#sidebar-and-plugins).

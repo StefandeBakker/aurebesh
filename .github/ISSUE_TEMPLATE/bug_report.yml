@@ -1,0 +1,60 @@
+name: Bug report
+description: Something does not work as it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please check that the problem is still there in the latest version.
+        **Security problems:** do not report them here, use the *Security* tab instead.
+        Do not paste real customer data or private templates: use invented text.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: The steps, or the smallest piece of HTML and code that shows it. A link to a CodePen or StackBlitz is welcome.
+      placeholder: |
+        1. Type ...
+        2. Select ...
+        3. Press ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Aurebesh version
+      placeholder: "1.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: usage
+    attributes:
+      label: How do you use it?
+      options:
+        - Plain HTML / web component
+        - React
+        - Vue
+        - Angular
+        - Vanilla JavaScript (Aurebesh class)
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and device
+      description: Name and version, and whether it is a phone or tablet.
+      placeholder: "Firefox 130 on Windows 11"
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Errors from the browser console, screenshots, the options you use.
