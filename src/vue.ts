@@ -14,6 +14,7 @@ import type { AurebeshElement } from './element';
 import type { Aurebesh, AurebeshOptions } from './editor';
 import type { ResolvedPage } from './page';
 import type { TextStats } from './stats';
+import type { MentionUser } from './mentions';
 
 export const AurebeshEditor = defineComponent({
   name: 'AurebeshEditor',
@@ -40,6 +41,7 @@ export const AurebeshEditor = defineComponent({
     error: (error: Error) => error instanceof Error,
     ready: (editor: Aurebesh) => !!editor,
     count: (stats: TextStats) => !!stats,
+    mention: (user: MentionUser) => !!user,
     pageChange: (page: ResolvedPage | null) => page === null || typeof page === 'object',
   },
   setup(props, { emit }) {
@@ -67,6 +69,7 @@ export const AurebeshEditor = defineComponent({
         onError: (e: CustomEvent<Error>) => emit('error', e.detail),
         onReady: (e: CustomEvent<Aurebesh>) => emit('ready', e.detail),
         onCount: (e: CustomEvent<TextStats>) => emit('count', e.detail),
+        onMention: (e: CustomEvent<MentionUser>) => emit('mention', e.detail),
         onPage: (e: CustomEvent<ResolvedPage | null>) => emit('pageChange', e.detail),
       });
   },

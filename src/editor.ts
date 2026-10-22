@@ -26,6 +26,8 @@ import { attachColumnResize } from './table-resize';
 import { attachTableHandles } from './table-handles';
 import { CALLOUT_ID, DEFAULT_CALLOUTS, calloutCss, currentCallout, handleCalloutKey, normalizeCallouts, setCallout } from './callouts';
 import type { CalloutDef } from './callouts';
+import { attachMentions, markMentions, mentionsIn } from './mentions';
+import type { MentionOptions, MentionUser } from './mentions';
 import { attachSlashMenu } from './slash';
 import { handleSoftBreak } from './softbreak';
 import { FindBar } from './find';
@@ -109,6 +111,12 @@ export interface AurebeshOptions {
   /** The slash menu: typing `/` at the start of a line lists what to insert (callouts, headings, lists...). Default: on when the toolbar has the `callout` item. */
   slash?: boolean;
   /**
+   * Mentions: typing `@` at the start of a line or after a space lists people (from `search`, which the application provides), and a pick
+   * becomes a chip in the text, `<span data-mention="id">@Name</span>`. Default: off. The `mention` event tells who was mentioned;
+   * `getMentions()` lists who is in the text.
+   */
+  mentions?: MentionOptions;
+  /**
    * The format of `value`, of what `getValue()` and `setValue()` use without a format, and of the `change` event: 'html' (default),
    * 'markdown' (a Markdown-first editor: you give it Markdown and get Markdown back) or the name of a format that a plugin adds.
    * `getHTML()` and `getMarkdown()` stay what they say.
@@ -185,6 +193,8 @@ export interface AurebeshEvents {
   state: undefined;
   focus: undefined;
   blur: undefined;
+  /** A person was picked in the mentions list (not when a mention is pasted or loaded). */
+  mention: MentionUser;
   /** An upload failed or a link was rejected. */
   error: Error;
 }
@@ -197,6 +207,7 @@ export class Aurebesh {
   /** The buttons of each command: more than one when a command is both in the quickbar and in the toolbar. */
   private buttons = new Map<string, HTMLButtonElement[]>();
   private listeners = new Map<string, Set<Listener<any>>>();
+  private mentionTrigger = '@';
   private cleanup: Array<() => void> = [];
   private highlightTimer: ReturnType<typeof setTimeout> | undefined;
   private fonts: FontDef[];
@@ -442,7 +453,10 @@ export class Aurebesh {
 
     this.setPlaceholder(options.placeholder ?? '');
     this.setReadOnly(options.readOnly ?? false);
-    if (options.value) this.content.innerHTML = this.clean(this.toHtml(options.value, this.valueFormat));
+    if (options.value) {
+      this.content.innerHTML = this.clean(this.toHtml(options.value, this.valueFormat));
+      markMentions(this.content);
+    }
     this.syncEmpty();
     if (options.mode) this.modeSwitch?.set(options.mode);
 
@@ -462,6 +476,7 @@ export class Aurebesh {
       });
       normalizeLayouts(this.content);
       normalizeCallouts(this.content);
+      markMentions(this.content);
       if (!(e as InputEvent).inputType?.startsWith('history')) this.blockHistory.edited();
       applyPendingSize();
       this.findBar?.refresh();
@@ -531,6 +546,20 @@ export class Aurebesh {
 
     if (options.slash ?? commands.includes('callout')) {
       this.cleanup.push(attachSlashMenu({ content: this.content, items: () => this.slashItems(), t: (key) => this.t(key), canEdit: () => this.content.isContentEditable }));
+    }
+
+    if (options.mentions) {
+      this.mentionTrigger = options.mentions.trigger?.length === 1 ? options.mentions.trigger : '@';
+      this.cleanup.push(
+        attachMentions({
+          content: this.content,
+          options: options.mentions,
+          t: (key) => this.t(key),
+          canEdit: () => this.content.isContentEditable,
+          run: (change) => this.runChange(change),
+          mentioned: (user) => this.emit('mention', user),
+        }),
+      );
     }
 
     if (commands.includes('table')) {
@@ -789,6 +818,11 @@ export class Aurebesh {
     return this.isEmpty() ? '' : toMarkdown(this.getHTML());
   }
 
+  /** The people mentioned in the text, each once, in the order of the text. */
+  getMentions(): MentionUser[] {
+    return mentionsIn(this.content, this.mentionTrigger);
+  }
+
   /** The content in the given format: 'html', 'markdown' or 'text' (default: the `valueFormat` option, 'html' unless set). */
   getValue(format: OutputFormat = this.valueFormat): string {
     for (const p of this.plugins) {
@@ -906,6 +940,7 @@ export class Aurebesh {
   setHTML(html: string): void {
     this.blockHistory.clear(); // what was done before is of another text
     this.content.innerHTML = this.clean(html);
+    markMentions(this.content);
     this.syncEmpty();
     this.scheduleHighlight();
     this.updateStats();
@@ -1009,6 +1044,7 @@ export class Aurebesh {
         },
         restore: (html) => {
           this.content.innerHTML = html;
+          markMentions(this.content);
           this.syncEmpty();
           this.emitChange();
         },

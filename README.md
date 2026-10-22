@@ -125,6 +125,7 @@ import 'aurebesh/element'; // registers <aurebesh-editor>
 | `toolbar` | Items, e.g. `['bold','italic','|','link']`; `[]` hides it |
 | `headless` | No look of its own: the page styles everything (see *Your own look*) |
 | `exportName` | The name of exported files, without the extension, and the title in them (default `document`) |
+| `mentions` | `@mentions`: the people to pick from, `{ search(query) }` (see *Mentions*; default off) |
 | `blockHandles` | The grip beside a block to move it and its menu (default on; `false` leaves it out) |
 | `fonts` | Font list for the font picker (default: 15 system font stacks, nothing to download) |
 | `colors` | Swatches for text/highlight colour (default: 40) |
@@ -443,6 +444,30 @@ The text stays in `<u>` or `<s>` and the look is two properties on it, so the te
 ```
 
 The sanitizer allows `text-decoration-style` (`double`, `dashed`, `dotted` or `wavy`) and `text-decoration-color` (a hex or `rgb()` colour) on `u`, `s`, `strike` and `del`, and nothing else. In Markdown the line is `<u>text</u>` and `~~text~~`: the kind of line and the colour are not kept. The look is a direct DOM edit, so the browser's undo does not take it back (the line itself it does). A line above the text (overline) and the thickness of a line are not there.
+
+## Mentions
+
+Mentions put a person in the text: type `@` at the start of a line or after a space, and a list of people opens. What is typed after the `@` narrows the list, the arrow keys and Enter (or a click) pick one, and Escape closes it. The editor knows nobody: the application gives it a function that finds people, so the list can come from a directory, an API or a short array.
+
+```js
+new Aurebesh(element, {
+  mentions: {
+    // the people for what is typed after the @ ('' straight after it); it can return a promise
+    search: async (query) => {
+      const found = await fetch('/api/users?q=' + encodeURIComponent(query)).then((r) => r.json());
+      return found.map((u) => ({ id: u.id, name: u.name, description: u.team })); // description is optional
+    },
+    // trigger: '@', limit: 8
+  },
+});
+```
+
+- **In the text** a mention is `<span data-mention="id">@Name</span>`, one piece: Backspace takes it away whole, and typing next to it does not go into it. The id is yours (letters, digits and `. _ - @ : +`, up to 64 characters); the sanitizer keeps `data-mention` with a valid id and nothing else on that span. The HTML has no styles of its own: the editor shows a mention as a chip, and `mentionCss` is that look for the page that shows the HTML (the colour is `--aurebesh-accent`).
+- **Who was mentioned**: the `mention` event (`on('mention', fn)`, a DOM event on `<aurebesh-editor>`, `onMention` in React, `@mention` in Vue, `(mention)` in Angular) gives `{ id, name }` when somebody is picked. `getMentions()` lists everybody who is in the text now, each once, so a notification can be sent when the text is saved. `mentionsIn(element)` does the same for an element that you filled with saved HTML (for example in jsdom on a server).
+- **Undo**: a pick is one step for `Ctrl+Z`, together with the space that comes after the chip.
+- **Several searches**: a search that is slow does not overwrite the answer of a newer one, and the list closes when nobody is found. `@` in the middle of a word (an address) and in code does not open the list.
+- **Pasting**: a mention that is copied inside the editor stays a mention.
+- **Markdown, plain text and Word**: a mention is the text of the chip (`@Name`); the id is not in them, so a Markdown round trip gives text. Store HTML to keep the people.
 
 ## Callouts
 

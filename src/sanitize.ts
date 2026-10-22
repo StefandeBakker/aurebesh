@@ -1,5 +1,6 @@
 import { SAFE_COLOR } from './colors';
 import { SAFE_FAMILY } from './fonts';
+import { MENTION_ID } from './mentions';
 import { IFRAME_ATTRS, isEmbedSrc, isSafeImageSrc, isSafeVideoSrc } from './media-urls';
 
 const ALLOWED_TAGS = new Set([
@@ -17,6 +18,7 @@ const ALLOWED_ATTRS: Record<string, string[]> = {
   li: ['data-checked'],
   td: ['colspan', 'rowspan'],
   th: ['colspan', 'rowspan'],
+  span: ['data-mention'],
   img: ['src', 'alt', 'title', 'width', 'height'],
   video: ['src', 'width'],
 };
@@ -219,6 +221,11 @@ function clean(parent: Node, ext: SanitizeExtension[]): void {
     if (tag === 'pre' && el.hasAttribute('data-language') && !/^[a-z][a-z0-9-]{0,19}$/.test(el.getAttribute('data-language')!)) el.removeAttribute('data-language');
     // a callout has a type that is a plain name (it is written in CSS and in Markdown)
     if (tag === 'div' && el.hasAttribute('data-callout') && !/^[a-z][a-z0-9-]{0,19}$/.test(el.getAttribute('data-callout')!)) el.removeAttribute('data-callout');
+    // a mention names a person with a plain id (see mentions.ts)
+    if (tag === 'span' && el.hasAttribute('data-mention')) {
+      if (!MENTION_ID.test(el.getAttribute('data-mention')!)) el.removeAttribute('data-mention');
+      else el.removeAttribute('style'); // what it looks like is the page's CSS, not the look of the text it was pasted from
+    }
     if (tag === 'a' && el.hasAttribute('data-button')) el.setAttribute('data-button', '');
     for (const e of ext) e.clean?.(el);
     // Text direction (Word and Docs paste `dir="RTL"`): on blocks only, and only a known value.

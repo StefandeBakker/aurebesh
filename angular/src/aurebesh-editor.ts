@@ -27,7 +27,7 @@ import {
   inject,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import type { Aurebesh, AurebeshOptions, Layout, ResolvedPage, TextStats } from 'aurebesh';
+import type { Aurebesh, AurebeshOptions, Layout, MentionUser, ResolvedPage, TextStats } from 'aurebesh';
 import type { AurebeshElement } from 'aurebesh/element';
 
 /** The inputs that are attributes of the element, with the name of the attribute. */
@@ -77,6 +77,8 @@ export class AurebeshEditor implements ControlValueAccessor, AfterViewInit, OnCh
   @Output() valueChange = new EventEmitter<string>();
   @Output() ready = new EventEmitter<Aurebesh>();
   @Output() count = new EventEmitter<TextStats>();
+  /** A person was picked in the mentions list (see the `mentions` option). */
+  @Output() mention = new EventEmitter<MentionUser>();
   @Output() pageChange = new EventEmitter<ResolvedPage | null>();
   @Output() layoutChange = new EventEmitter<Layout>();
   @Output() error = new EventEmitter<Error>();
@@ -192,6 +194,7 @@ export class AurebeshEditor implements ControlValueAccessor, AfterViewInit, OnCh
     });
     listen<Aurebesh>('ready', (editor) => emit(() => this.ready.emit(editor)));
     listen<TextStats>('count', (stats) => emit(() => this.count.emit(stats)));
+    listen<MentionUser>('mention', (user) => emit(() => this.mention.emit(user)));
     listen<ResolvedPage | null>('page', (page) => emit(() => this.pageChange.emit(page)));
     listen<Layout>('layout', (layout) => emit(() => this.layoutChange.emit(layout)));
     listen<Error>('error', (error) => emit(() => this.error.emit(error)));

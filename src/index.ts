@@ -8,6 +8,8 @@ export type { PageFormat, PagePreset, PageSpec, ResolvedPage } from './page';
 export { toMarkdown, toText } from './export';
 export { fromMarkdown } from './from-markdown';
 export { DEFAULT_CALLOUTS, calloutCss } from './callouts';
+export { mentionCss, mentionsIn } from './mentions';
+export type { MentionOptions, MentionUser } from './mentions';
 export { taskListCss } from './tasks';
 export { toDocx } from './docx';
 export type { DocxOptions, DocxPage } from './docx';

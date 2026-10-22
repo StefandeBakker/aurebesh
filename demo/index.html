@@ -159,7 +159,15 @@
       return { attach: () => context.editor.on('count', show) };
     },
   });
-  ed.options = { labels: LABELS_NL, layout: { textWidth: 800, padding: 48, lineHeight: 1.7 }, plugins: [info] };
+  // Mentions: type @ in the text. The people are the application's: here a short list, found by a part of the name.
+  const people = [
+    { id: 'ann', name: 'Ann de Vries', description: 'Design' },
+    { id: 'bo', name: 'Bo Jansen', description: 'Development' },
+    { id: 'chen', name: 'Chen Wei', description: 'Support' },
+    { id: 'dana', name: 'Dana Okafor', description: 'Marketing' },
+  ];
+  const mentions = { search: (q) => people.filter((p) => p.name.toLowerCase().includes(q.toLowerCase())) };
+  ed.options = { labels: LABELS_NL, layout: { textWidth: 800, padding: 48, lineHeight: 1.7 }, mentions, plugins: [info] };
   const out = document.getElementById('out');
   const tabs = document.getElementById('tabs');
   let format = 'markdown';

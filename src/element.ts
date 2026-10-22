@@ -172,6 +172,7 @@ export class AurebeshElement extends BaseElement {
     });
     this.editor.on('error', (error) => this.dispatchEvent(new CustomEvent('error', { detail: error, bubbles: true })));
     this.editor.on('page', (page) => this.dispatchEvent(new CustomEvent('page', { detail: page, bubbles: true })));
+    this.editor.on('mention', (user) => this.dispatchEvent(new CustomEvent('mention', { detail: user, bubbles: true })));
     this.editor.on('mode', (mode) => this.dispatchEvent(new CustomEvent('mode', { detail: mode, bubbles: true })));
     this.editor.on('layout', (layout) => this.dispatchEvent(new CustomEvent('layout', { detail: layout, bubbles: true })));
     this.editor.on('ready', () => this.dispatchEvent(new CustomEvent('ready', { detail: this.editor })));

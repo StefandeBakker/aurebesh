@@ -1,4 +1,5 @@
 import { DEFAULT_CALLOUTS, calloutCss } from './callouts';
+import { mentionCss } from './mentions';
 import { taskListCss } from './tasks';
 
 /**
@@ -368,5 +369,8 @@ export const CSS = `
 .aurebesh-blockmenu-item,.aurebesh-slash-item,.aurebesh-callout-option,.aurebesh-strike-option,.aurebesh-export-item{min-height:40px;display:flex;align-items:center}
 .aurebesh-find button,.aurebesh-find input{min-height:40px}
 }
-` + calloutCss(DEFAULT_CALLOUTS) + taskListCss() + `.aurebesh-content ul[data-task]>li::before{cursor:pointer}
+` + calloutCss(DEFAULT_CALLOUTS) + taskListCss() + mentionCss + `.aurebesh-mention-name{font-weight:500}
+.aurebesh-mention-desc{color:var(--aurebesh-label,#667085);font-size:12px}
+.aurebesh-mention-menu .aurebesh-slash-item{display:flex;flex-direction:column;align-items:flex-start;justify-content:center}
+.aurebesh-content ul[data-task]>li::before{cursor:pointer}
 `;

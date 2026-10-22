@@ -175,6 +175,7 @@ export const LABELS_EN: Labels = {
   'ui.callout.none': 'No callout',
   'ui.slash': 'Insert',
   'ui.slash.empty': 'Nothing found',
+  'ui.mention': 'Mention a person',
   'callout.note': 'Note',
   'callout.tip': 'Tip',
   'callout.important': 'Important',

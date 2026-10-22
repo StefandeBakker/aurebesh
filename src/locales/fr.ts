@@ -171,6 +171,7 @@ export const LABELS_FR: Labels = {
   'ui.callout.none': 'Aucun encadré',
   'ui.slash': 'Insérer',
   'ui.slash.empty': 'Aucun résultat',
+  'ui.mention': 'Mentionner une personne',
   'callout.note': 'Remarque',
   'callout.tip': 'Astuce',
   'callout.important': 'Important',

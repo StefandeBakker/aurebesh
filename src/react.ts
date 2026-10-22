@@ -15,6 +15,7 @@ import type { AurebeshElement } from './element';
 import type { Aurebesh, AurebeshOptions } from './editor';
 import type { ResolvedPage } from './page';
 import type { TextStats } from './stats';
+import type { MentionUser } from './mentions';
 
 export interface AurebeshEditorProps {
   /** Controlled HTML. Pair it with `onChange`. */
@@ -27,6 +28,8 @@ export interface AurebeshEditorProps {
   onReady?: (editor: Aurebesh) => void;
   /** Called when the words / characters change. */
   onCount?: (stats: TextStats) => void;
+  /** Called when a person is picked in the mentions list (see the `mentions` option). */
+  onMention?: (user: MentionUser) => void;
   options?: AurebeshOptions;
   /** The language of the texts of the editor: 'nl', 'de', 'fr', 'es', 'en'. Default: the `lang` of the page, or the language of the browser. */
   language?: string;
@@ -53,11 +56,11 @@ export interface AurebeshEditorProps {
 
 export const AurebeshEditor = forwardRef<AurebeshElement, AurebeshEditorProps>(function AurebeshEditor(props, ref) {
   defineAurebeshElement();
-  const { value, defaultValue, onChange, onError, onReady, onCount, onPageChange, options, language, page, pageOrientation, pageMargin, maxLength, counter, placeholder, readOnly, required, name, toolbar, id, className, style } = props;
+  const { value, defaultValue, onChange, onError, onReady, onCount, onMention, onPageChange, options, language, page, pageOrientation, pageMargin, maxLength, counter, placeholder, readOnly, required, name, toolbar, id, className, style } = props;
   const el = useRef<AurebeshElement | null>(null);
   useImperativeHandle(ref, () => el.current as AurebeshElement);
-  const handlers = useRef({ onChange, onError, onReady, onCount, onPageChange });
-  handlers.current = { onChange, onError, onReady, onCount, onPageChange };
+  const handlers = useRef({ onChange, onError, onReady, onCount, onMention, onPageChange });
+  handlers.current = { onChange, onError, onReady, onCount, onMention, onPageChange };
 
   // Layout effects run right after the element is inserted, before it creates its editor.
   useLayoutEffect(() => {
@@ -78,18 +81,21 @@ export const AurebeshEditor = forwardRef<AurebeshElement, AurebeshEditorProps>(f
     const error = (e: Event) => handlers.current.onError?.((e as CustomEvent<Error>).detail);
     const ready = (e: Event) => handlers.current.onReady?.((e as CustomEvent<Aurebesh>).detail);
     const count = (e: Event) => handlers.current.onCount?.((e as CustomEvent<TextStats>).detail);
+    const mention = (e: Event) => handlers.current.onMention?.((e as CustomEvent<MentionUser>).detail);
     const pageChange = (e: Event) => handlers.current.onPageChange?.((e as CustomEvent<ResolvedPage | null>).detail);
     node.addEventListener('page', pageChange);
     node.addEventListener('change', change);
     node.addEventListener('error', error);
     node.addEventListener('ready', ready);
     node.addEventListener('count', count);
+    node.addEventListener('mention', mention);
     return () => {
       node.removeEventListener('page', pageChange);
       node.removeEventListener('change', change);
       node.removeEventListener('error', error);
       node.removeEventListener('ready', ready);
       node.removeEventListener('count', count);
+      node.removeEventListener('mention', mention);
     };
   }, []);
 

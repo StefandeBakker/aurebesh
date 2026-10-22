@@ -171,6 +171,7 @@ export const LABELS_DE: Labels = {
   'ui.callout.none': 'Keine Hinweisbox',
   'ui.slash': 'Einfügen',
   'ui.slash.empty': 'Nichts gefunden',
+  'ui.mention': 'Person erwähnen',
   'callout.note': 'Hinweis',
   'callout.tip': 'Tipp',
   'callout.important': 'Wichtig',
