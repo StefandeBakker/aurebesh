@@ -125,6 +125,9 @@ import 'aurebesh/element'; // registers <aurebesh-editor>
 | `toolbar` | Items, e.g. `['bold','italic','|','link']`; `[]` hides it |
 | `headless` | No look of its own: the page styles everything (see *Your own look*) |
 | `exportName` | The name of exported files, without the extension, and the title in them (default `document`) |
+| `mentions` | `@mentions`: the people to pick from, `{ search(query) }` (see *Mentions*; default off) |
+| `comments` | Comments on selected text: `{ author, threads }` (see *Comments*; default off) |
+| `suggestions` | Suggestion mode (tracked changes): `{ author, enabled? }` (see *Suggestions*; default off) |
 | `blockHandles` | The grip beside a block to move it and its menu (default on; `false` leaves it out) |
 | `fonts` | Font list for the font picker (default: 15 system font stacks, nothing to download) |
 | `colors` | Swatches for text/highlight colour (default: 40) |
@@ -443,6 +446,82 @@ The text stays in `<u>` or `<s>` and the look is two properties on it, so the te
 ```
 
 The sanitizer allows `text-decoration-style` (`double`, `dashed`, `dotted` or `wavy`) and `text-decoration-color` (a hex or `rgb()` colour) on `u`, `s`, `strike` and `del`, and nothing else. In Markdown the line is `<u>text</u>` and `~~text~~`: the kind of line and the colour are not kept. The look is a direct DOM edit, so the browser's undo does not take it back (the line itself it does). A line above the text (overline) and the thickness of a line are not there.
+
+## Mentions
+
+Mentions put a person in the text: type `@` at the start of a line or after a space, and a list of people opens. What is typed after the `@` narrows the list, the arrow keys and Enter (or a click) pick one, and Escape closes it. The editor knows nobody: the application gives it a function that finds people, so the list can come from a directory, an API or a short array.
+
+```js
+new Aurebesh(element, {
+  mentions: {
+    // the people for what is typed after the @ ('' straight after it); it can return a promise
+    search: async (query) => {
+      const found = await fetch('/api/users?q=' + encodeURIComponent(query)).then((r) => r.json());
+      return found.map((u) => ({ id: u.id, name: u.name, description: u.team })); // description is optional
+    },
+    // trigger: '@', limit: 8
+  },
+});
+```
+
+- **In the text** a mention is `<span data-mention="id">@Name</span>`, one piece: Backspace takes it away whole, and typing next to it does not go into it. The id is yours (letters, digits and `. _ - @ : +`, up to 64 characters); the sanitizer keeps `data-mention` with a valid id and nothing else on that span. The HTML has no styles of its own: the editor shows a mention as a chip, and `mentionCss` is that look for the page that shows the HTML (the colour is `--aurebesh-accent`).
+- **Who was mentioned**: the `mention` event (`on('mention', fn)`, a DOM event on `<aurebesh-editor>`, `onMention` in React, `@mention` in Vue, `(mention)` in Angular) gives `{ id, name }` when somebody is picked. `getMentions()` lists everybody who is in the text now, each once, so a notification can be sent when the text is saved. `mentionsIn(element)` does the same for an element that you filled with saved HTML (for example in jsdom on a server).
+- **Undo**: a pick is one step for `Ctrl+Z`, together with the space that comes after the chip.
+- **Several searches**: a search that is slow does not overwrite the answer of a newer one, and the list closes when nobody is found. `@` in the middle of a word (an address) and in code does not open the list.
+- **Pasting**: a mention that is copied inside the editor stays a mention.
+- **Markdown, plain text and Word**: a mention is the text of the chip (`@Name`); the id is not in them, so a Markdown round trip gives text. Store HTML to keep the people.
+
+## Comments
+
+Select some text and add a comment: the text is marked, and the comment, with the replies to it, is in a panel of the sidebar. Without a `toolbar` of your own the toolbar gets two items, `comment` (start a comment on the selected text; `Ctrl+Alt+M`) and `comments` (opens the panel); with your own toolbar, add them where you want them.
+
+```js
+const editor = new Aurebesh(element, {
+  comments: {
+    author: { id: 'u42', name: 'Ann Smith' }, // who is writing in this editor
+    threads: savedThreads, // what was saved before (optional)
+  },
+});
+editor.on('comments', (threads) => save(editor.getHTML(), threads)); // all the threads, after every change
+editor.on('comment', ({ action, thread, message }) => notify(action, thread, message)); // what happened
+```
+
+- **In the text** a comment is a mark: `<span data-comment="id">piece of text</span>`, the same id on every piece when the text runs over more blocks. The mark goes along with the text when it is saved, copied and loaded again; the sanitizer keeps `data-comment` with a valid id and nothing else on that span. The editor shows it as a highlight (the comment that has the caret is stronger, and a resolved one has none); `commentCss` is that look for a page that shows the HTML, and the colour is `--aurebesh-comment`.
+- **The threads are not in the HTML.** A thread is `{ id, messages: [{ id, author: { id, name }, text, created }], resolved? }`: the first message is the comment, the others are the replies, and `created` is an ISO date. The editor keeps them in memory; the application gives them at the start (`comments.threads`, or `setComments(threads)`) and saves them when the `comments` event fires. Store them next to the HTML: the id of a thread is what links them. `getComments()` gives them at any moment, and what is not valid (an id that is not a plain name, a thread without a message, a text that is too long) is left out.
+- **Events**: `comments` has all the threads; `comment` tells what happened, `{ action, thread, message }`, with the action `add`, `reply`, `resolve`, `reopen`, `delete` or `deleteMessage`, so that you can send a notification. On `<aurebesh-editor>` they are DOM events; in React they are `onComment` and `onComments`, in Vue `@comment` and `@comments`, in Angular `(comment)` and `(comments)`.
+- **From code**: `addComment(text)` writes a comment on the text that is selected and returns the thread (or `null` when no text is selected or the editor is read-only).
+- **The panel** lists the threads in the order of the text. A click on the quote at the top of a thread selects that text, and the caret in the text makes its thread the active one. A thread can be answered (`Ctrl+Enter` sends), resolved (it moves under *Resolved*) and opened again. Only the messages of `author` can be deleted; deleting the only message deletes the thread and the mark. Everything that is written is shown as plain text.
+- **Undo**: adding a comment (the mark) and deleting one are steps for `Ctrl+Z`. The thread itself is not in that history: when the mark is undone the thread stays, now with the note that its text was removed, and it is attached again when the mark comes back with redo.
+- **A thread whose text is gone** (the text was deleted) stays in the panel with that note, so that nothing written is lost; delete it to remove it.
+- **A read-only editor** shows the comments, but cannot start one (a comment is a mark in the text).
+- **Markdown, plain text, Word and print**: the marks and the threads are not in them, only the text.
+- **Not yet**: comments in code blocks, mentions inside a comment, and tracked changes (the next step of the review features).
+
+## Suggestions (tracked changes)
+
+In suggestion mode what is typed is marked as an insertion, and what is deleted stays in the text, marked as a deletion. Somebody can then accept or reject each change, one at a time or all at once, in a panel of the sidebar. It is how a reviewer changes a text without losing the original.
+
+```js
+const editor = new Aurebesh(element, {
+  suggestions: {
+    author: { id: 'u42', name: 'Ann Smith' }, // who is writing in this editor
+    enabled: false, // start in suggestion mode (default: off)
+  },
+});
+editor.on('suggestion', ({ action, suggestion }) => notify(action, suggestion)); // accepted or rejected
+editor.on('suggesting', (on) => showMode(on)); // the mode was switched on or off
+```
+
+Without a `toolbar` of your own the toolbar gets two items: `suggest` (the switch, `Ctrl+Shift+E`) and `suggestions` (opens the panel); with your own toolbar, add them where you want them.
+
+- **In the text** a change is a mark: `<span data-suggestion="id" data-kind="insert" data-author="u42" data-name="Ann Smith" data-date="2026-10-22T09:30:00.000Z">text</span>`, with `data-kind="delete"` for a deletion. A replacement is a deletion and an insertion with the same id. The marks are in the HTML, so there is nothing else to save: the list is made from the text. The sanitizer keeps these attributes when they are valid and nothing else on the span. Typed text that follows other typed text of the same author is one insertion, and so is deleting a few characters in a row.
+- **What is tracked**: typing, Backspace and Delete, cutting, pasting (as text), dropping, an input method and a correction of the spelling. **Not tracked**: line breaks (Enter and Backspace between paragraphs), formatting, tables, pictures, mentions and everything that the toolbar does: those are done as they always are, also in suggestion mode.
+- **Your own insertion** that you delete is simply removed (it was never part of the text); text of somebody else's insertion that you delete is marked as deleted inside it.
+- **The panel** lists the changes in the order of the text, with the author and the date, a replacement as one card (*Deleted* and *Added*), *Accept* and *Reject* per change and *Accept all* and *Reject all*. A click on the text in a card selects it in the text, and the caret in a change makes its card the active one. Accepting or rejecting changes the text, so a read-only editor shows the list but cannot settle a change. The application decides who may accept: the editor does not know about roles, so only show the panel, or call the methods, to those who may.
+- **From code**: `isSuggesting()`, `setSuggesting(on)`, `getSuggestions()` (the list: `id`, `kind` `insert`, `delete` or `replace`, `author`, `date`, `inserted`, `deleted`), `acceptSuggestion(id)`, `rejectSuggestion(id)`, `acceptAllSuggestions()` and `rejectAllSuggestions()`. On `<aurebesh-editor>` the events are DOM events; in React they are `onSuggestion` and `onSuggesting`, in Vue `@suggestion` and `@suggesting`, in Angular `(suggestion)` and `(suggesting)`. `suggestionCss` is the look (green and underlined, red and struck through; `--aurebesh-insert`, `--aurebesh-delete`) for a page that shows the HTML.
+- **Undo**: each step of typing or deleting that follows another within a moment is part of it, so `Ctrl+Z` takes back a word and not a letter. Accepting and rejecting are steps too.
+- **Markdown and Word**: the text as it reads when everything is accepted (what was deleted is gone), because those formats have no marks for it. HTML and printing keep the marks, so a printout shows the changes.
+- **How it works**, because it explains the limits: the browser makes the edit, and in the `input` event what changed is worked out from the text before and after, and turned into marks. That is the same for every way of editing, and it is why only text is tracked. Pasted formatting is lost (the text goes in as an insertion).
 
 ## Callouts
 

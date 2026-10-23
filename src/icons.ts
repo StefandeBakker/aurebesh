@@ -75,6 +75,12 @@ export const ICONS: Record<string, Shape[]> = {
   // two sliders
   layout: [['path', { d: 'M4 8h9M19 8h1M4 16h1M11 16h9' }], ['circle', { cx: 16, cy: 8, r: 2.6 }], ['circle', { cx: 8, cy: 16, r: 2.6 }]],
   close: [['path', { d: 'M6 6l12 12M18 6 6 18' }]],
+  // a pencil, and a list with a mark in front of the lines
+  suggest: [['path', { d: 'M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19z' }], ['path', { d: 'M14.5 6.5l3 3' }]],
+  suggestions: [['path', { d: 'M4 6.5l1.6 1.6L8.5 5M4 14.5l1.6 1.6 2.9-3.1' }], ['path', { d: 'M12 7h8M12 15h8' }]],
+  // a speech bubble with a plus, and one with lines of text
+  comment: [['path', { d: 'M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.7A8 8 0 1 1 21 12z' }], ['path', { d: 'M12 9v6M9 12h6' }]],
+  comments: [['path', { d: 'M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.7A8 8 0 1 1 21 12z' }], ['path', { d: 'M8.5 10.5h7M8.5 13.5h4.5' }]],
   // a bucket with a bar in the colour of the fill (see .aurebesh-icon-swatch in the styles)
   cellFill: [
     ['path', { d: 'M4.5 11.5 10.5 5.5l6 6-6 6z' }],

@@ -75,7 +75,7 @@ export const isInlineCode = (): boolean => {
 const BLOCK = 'p,h1,h2,h3,li,td,th,blockquote,div,caption,aside';
 
 /** The selected text, in runs: the text of each block that the selection reaches, from its first to its last character. */
-function runs(root: Element, range: Range): Range[] {
+export function textRuns(root: Element, range: Range): Range[] {
   const out: Range[] = [];
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   let block: Element | null = null;
@@ -137,7 +137,7 @@ export function toggleInlineCode(): void {
     // taking away: the code goes, what is in it stays
     for (const code of codes) code.replaceWith(...Array.from(code.childNodes));
   } else {
-    for (const run of runs(root, range).reverse()) {
+    for (const run of textRuns(root, range).reverse()) {
       const part = run.extractContents(); // keeps the formatting around the text, in the pieces
       part.querySelectorAll('code').forEach((c) => c.replaceWith(...Array.from(c.childNodes)));
       const code = document.createElement('code');

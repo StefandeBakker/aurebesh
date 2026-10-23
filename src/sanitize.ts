@@ -1,5 +1,8 @@
 import { SAFE_COLOR } from './colors';
 import { SAFE_FAMILY } from './fonts';
+import { COMMENT_ID } from './comments';
+import { SUGGESTION_ID } from './suggestions';
+import { MENTION_ID } from './mentions';
 import { IFRAME_ATTRS, isEmbedSrc, isSafeImageSrc, isSafeVideoSrc } from './media-urls';
 
 const ALLOWED_TAGS = new Set([
@@ -17,6 +20,7 @@ const ALLOWED_ATTRS: Record<string, string[]> = {
   li: ['data-checked'],
   td: ['colspan', 'rowspan'],
   th: ['colspan', 'rowspan'],
+  span: ['data-mention', 'data-comment', 'data-suggestion', 'data-kind', 'data-author', 'data-name', 'data-date'],
   img: ['src', 'alt', 'title', 'width', 'height'],
   video: ['src', 'width'],
 };
@@ -50,6 +54,23 @@ export function sanitize(html: string, extensions: SanitizeExtension[] = []): st
     if (!br.nextSibling && br.previousSibling?.nodeName === 'BR' && !br.closest('pre')) br.remove();
   });
   return doc.body.innerHTML;
+}
+
+const SUGGESTION_ATTRS = ['data-suggestion', 'data-kind', 'data-author', 'data-name', 'data-date'];
+const plain = (value: string | null, max: number): boolean => value !== null && value.length > 0 && value.length <= max && !/[\u0000-\u001f\u007f]/.test(value);
+
+function cleanSuggestion(el: Element): void {
+  const id = el.getAttribute('data-suggestion');
+  const kind = el.getAttribute('data-kind');
+  if (id === null || !SUGGESTION_ID.test(id) || (kind !== 'insert' && kind !== 'delete')) {
+    for (const name of SUGGESTION_ATTRS) el.removeAttribute(name);
+    return;
+  }
+  el.removeAttribute('style');
+  if (!plain(el.getAttribute('data-author'), 128)) el.removeAttribute('data-author');
+  if (!plain(el.getAttribute('data-name'), 128)) el.removeAttribute('data-name');
+  const date = el.getAttribute('data-date');
+  if (date === null || Number.isNaN(Date.parse(date)) || date.length > 40) el.removeAttribute('data-date');
 }
 
 type StyleRules = Record<string, RegExp>;
@@ -219,6 +240,18 @@ function clean(parent: Node, ext: SanitizeExtension[]): void {
     if (tag === 'pre' && el.hasAttribute('data-language') && !/^[a-z][a-z0-9-]{0,19}$/.test(el.getAttribute('data-language')!)) el.removeAttribute('data-language');
     // a callout has a type that is a plain name (it is written in CSS and in Markdown)
     if (tag === 'div' && el.hasAttribute('data-callout') && !/^[a-z][a-z0-9-]{0,19}$/.test(el.getAttribute('data-callout')!)) el.removeAttribute('data-callout');
+    // a mention names a person with a plain id (see mentions.ts)
+    if (tag === 'span' && el.hasAttribute('data-mention')) {
+      if (!MENTION_ID.test(el.getAttribute('data-mention')!)) el.removeAttribute('data-mention');
+      else el.removeAttribute('style'); // what it looks like is the page's CSS, not the look of the text it was pasted from
+    }
+    // a comment is a piece of text with an id (see comments.ts); the thread is not in the HTML
+    if (tag === 'span' && el.hasAttribute('data-comment')) {
+      if (!COMMENT_ID.test(el.getAttribute('data-comment')!)) el.removeAttribute('data-comment');
+      else el.removeAttribute('style');
+    }
+    // a suggestion (a tracked change) has an id, a kind, and who made it and when (see suggestions.ts)
+    if (tag === 'span') cleanSuggestion(el);
     if (tag === 'a' && el.hasAttribute('data-button')) el.setAttribute('data-button', '');
     for (const e of ext) e.clean?.(el);
     // Text direction (Word and Docs paste `dir="RTL"`): on blocks only, and only a known value.
