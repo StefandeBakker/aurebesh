@@ -126,3 +126,91 @@ export function unzip(bytes: Uint8Array): ZipEntry[] {
   }
   return out;
 }
+
+export interface UnzipLimits {
+  /** The most files. Default: 5000. */
+  maxEntries?: number;
+  /** The most bytes of one file, as it is when it is read (a compressed file can be much larger than it looks). Default: 64 MB. */
+  maxSize?: number;
+  /** The most bytes of all the files together. Default: 256 MB. */
+  maxTotal?: number;
+}
+
+/** The bytes of a piece of deflate-compressed data (a ZIP file has them without the zlib header). */
+async function inflate(data: Uint8Array, max: number): Promise<Uint8Array> {
+  const Decompress = (globalThis as { DecompressionStream?: new (format: string) => TransformStream<Uint8Array, Uint8Array> }).DecompressionStream;
+  if (!Decompress) throw new Error('This browser cannot read compressed files');
+  const source = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(data);
+      controller.close();
+    },
+  });
+  const reader = source.pipeThrough(new Decompress('deflate-raw')).getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.length;
+    if (total > max) {
+      await reader.cancel();
+      throw new Error('A file in the ZIP is too large');
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, at);
+    at += chunk.length;
+  }
+  return out;
+}
+
+/**
+ * The files of any ZIP file (stored or deflated, which is what word processors make): by name. A name that is there twice has the
+ * last one. Encrypted files and ZIP64 are not read. The limits keep a file that unpacks to something huge from filling the memory.
+ */
+export async function unzipAll(bytes: Uint8Array, limits: UnzipLimits = {}): Promise<Map<string, Uint8Array>> {
+  const { maxEntries = 5000, maxSize = 64 * 1024 * 1024, maxTotal = 256 * 1024 * 1024 } = limits;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let end = bytes.length - 22;
+  while (end >= 0 && view.getUint32(end, true) !== 0x06054b50) end--;
+  if (end < 0) throw new Error('Not a ZIP file');
+  const count = view.getUint16(end + 10, true);
+  if (count === 0xffff || view.getUint32(end + 16, true) === 0xffffffff) throw new Error('A ZIP64 file cannot be read');
+  if (count > maxEntries) throw new Error('The ZIP file has too many files');
+  let at = view.getUint32(end + 16, true);
+  const out = new Map<string, Uint8Array>();
+  const decoder = new TextDecoder();
+  let total = 0;
+  for (let i = 0; i < count; i++) {
+    if (at + 46 > bytes.length || view.getUint32(at, true) !== 0x02014b50) throw new Error('Broken ZIP directory');
+    const flags = view.getUint16(at + 8, true);
+    const method = view.getUint16(at + 10, true);
+    const packed = view.getUint32(at + 20, true);
+    const size = view.getUint32(at + 24, true);
+    const nameLength = view.getUint16(at + 28, true);
+    const extra = view.getUint16(at + 30, true);
+    const comment = view.getUint16(at + 32, true);
+    const local = view.getUint32(at + 42, true);
+    const name = decoder.decode(bytes.subarray(at + 46, at + 46 + nameLength));
+    at += 46 + nameLength + extra + comment;
+    if (name.endsWith('/')) continue; // a folder
+    if (flags & 1) throw new Error('An encrypted ZIP file cannot be read');
+    if (size > maxSize || packed > maxSize) throw new Error('A file in the ZIP is too large');
+    if (local + 30 > bytes.length) throw new Error('Broken ZIP file');
+    const dataAt = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
+    if (dataAt + packed > bytes.length) throw new Error('Broken ZIP file');
+    const raw = bytes.subarray(dataAt, dataAt + packed);
+    let data: Uint8Array;
+    if (method === 0) data = raw.slice();
+    else if (method === 8) data = await inflate(raw, maxSize);
+    else throw new Error(`A ZIP file with compression method ${method} cannot be read`);
+    total += data.length;
+    if (total > maxTotal) throw new Error('The files in the ZIP are too large together');
+    out.set(name, data);
+  }
+  return out;
+}

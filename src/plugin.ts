@@ -12,6 +12,7 @@ import type { CommandDef } from './commands';
 import type { Shape } from './icons';
 import type { SanitizeExtension } from './sanitize';
 import type { Aurebesh } from './editor';
+import type { ImportedDocument } from './import';
 
 export type { Shape, SanitizeExtension };
 
@@ -112,6 +113,12 @@ export interface PluginInstance {
    * or as text, also late (a promise). The name is the extension. A name that the editor has (such as `pdf`) is made by the plugin instead.
    */
   export?: Record<string, () => Blob | string | Promise<Blob | string>>;
+  /**
+   * Formats that the plugin can open (the `import` item and `editor.importFile()`), by the extension of the file (`pdf`): a function that
+   * reads the file and gives the HTML, or an object with the HTML and what goes with it. A format that the editor has itself (`docx`) is read
+   * by the plugin instead.
+   */
+  import?: Record<string, (file: Blob, name: string) => ImportedDocument | string | Promise<ImportedDocument | string>>;
   /** The other side of `output`: reads a value of that format and returns HTML, for `editor.setValue(value, 'name')`. */
   load?: Record<string, (value: string) => string>;
   /** What `editor.plugin(name)` returns. */

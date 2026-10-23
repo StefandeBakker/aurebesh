@@ -247,6 +247,8 @@ export const COMMANDS: Record<string, CommandDef> = {
   /** The language of the code block that has the caret; a box in the toolbar, built by the editor. run('python'), run('auto'). */
   codeLanguage: { name: 'codeLanguage', label: 'Language', title: 'Code language', run: (id) => setCodeLanguage(id ?? 'auto') },
   /** Saves the content as a file: PDF (through the print dialog), Word, HTML, Markdown or text. A list built by the editor; exec('export', 'docx') does one directly. */
+  /** Opens a file (Word, HTML, Markdown, text, and what plugins read) in the editor; handled by the editor. */
+  import: { name: 'import', icon: 'import', label: '⤒', title: 'Open file', run: () => {} },
   export: { name: 'export', icon: 'download', label: '⤓', title: 'Export', run: () => {} },
   /** Opens the bar to find and replace; built by the editor. exec('find', 'replace') opens it with the row to replace with. */
   find: { name: 'find', icon: 'find', label: '🔍', title: 'Find and replace', run: () => {} },
