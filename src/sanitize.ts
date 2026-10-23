@@ -1,5 +1,6 @@
 import { SAFE_COLOR } from './colors';
 import { SAFE_FAMILY } from './fonts';
+import { COMMENT_ID } from './comments';
 import { MENTION_ID } from './mentions';
 import { IFRAME_ATTRS, isEmbedSrc, isSafeImageSrc, isSafeVideoSrc } from './media-urls';
 
@@ -18,7 +19,7 @@ const ALLOWED_ATTRS: Record<string, string[]> = {
   li: ['data-checked'],
   td: ['colspan', 'rowspan'],
   th: ['colspan', 'rowspan'],
-  span: ['data-mention'],
+  span: ['data-mention', 'data-comment'],
   img: ['src', 'alt', 'title', 'width', 'height'],
   video: ['src', 'width'],
 };
@@ -225,6 +226,11 @@ function clean(parent: Node, ext: SanitizeExtension[]): void {
     if (tag === 'span' && el.hasAttribute('data-mention')) {
       if (!MENTION_ID.test(el.getAttribute('data-mention')!)) el.removeAttribute('data-mention');
       else el.removeAttribute('style'); // what it looks like is the page's CSS, not the look of the text it was pasted from
+    }
+    // a comment is a piece of text with an id (see comments.ts); the thread is not in the HTML
+    if (tag === 'span' && el.hasAttribute('data-comment')) {
+      if (!COMMENT_ID.test(el.getAttribute('data-comment')!)) el.removeAttribute('data-comment');
+      else el.removeAttribute('style');
     }
     if (tag === 'a' && el.hasAttribute('data-button')) el.setAttribute('data-button', '');
     for (const e of ext) e.clean?.(el);

@@ -152,6 +152,10 @@ export const COMMANDS: Record<string, CommandDef> = {
   blocks: { name: 'blocks', icon: 'blocks', label: '▦', title: 'Building blocks', run: () => {} },
   /** Takes the row that has the caret away (the tools of a row are built by the editor). */
   rowDelete: { name: 'rowDelete', icon: 'trash', label: 'Delete row', title: 'Delete row layout', run: () => {} },
+  /** Starts a comment on the selected text (the `comments` option); handled by the editor. */
+  comment: { name: 'comment', icon: 'comment', label: '💬', title: 'Add comment', run: () => {}, isEnabled: () => !!document.getSelection() && !document.getSelection()!.isCollapsed },
+  /** Opens and closes the panel with the comments beside the text; handled by the editor. */
+  comments: { name: 'comments', icon: 'comments', label: '☰', title: 'Comments', run: () => {} },
   /** Opens and closes the layout panel beside the text; handled by the editor. */
   layout: { name: 'layout', icon: 'layout', label: '⚙', title: 'Layout', run: () => {} },
   /** A button that makes the editor fill the window and back; handled by the editor, which owns the view. */

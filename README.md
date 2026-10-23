@@ -126,6 +126,7 @@ import 'aurebesh/element'; // registers <aurebesh-editor>
 | `headless` | No look of its own: the page styles everything (see *Your own look*) |
 | `exportName` | The name of exported files, without the extension, and the title in them (default `document`) |
 | `mentions` | `@mentions`: the people to pick from, `{ search(query) }` (see *Mentions*; default off) |
+| `comments` | Comments on selected text: `{ author, threads }` (see *Comments*; default off) |
 | `blockHandles` | The grip beside a block to move it and its menu (default on; `false` leaves it out) |
 | `fonts` | Font list for the font picker (default: 15 system font stacks, nothing to download) |
 | `colors` | Swatches for text/highlight colour (default: 40) |
@@ -468,6 +469,32 @@ new Aurebesh(element, {
 - **Several searches**: a search that is slow does not overwrite the answer of a newer one, and the list closes when nobody is found. `@` in the middle of a word (an address) and in code does not open the list.
 - **Pasting**: a mention that is copied inside the editor stays a mention.
 - **Markdown, plain text and Word**: a mention is the text of the chip (`@Name`); the id is not in them, so a Markdown round trip gives text. Store HTML to keep the people.
+
+## Comments
+
+Select some text and add a comment: the text is marked, and the comment, with the replies to it, is in a panel of the sidebar. Without a `toolbar` of your own the toolbar gets two items, `comment` (start a comment on the selected text; `Ctrl+Alt+M`) and `comments` (opens the panel); with your own toolbar, add them where you want them.
+
+```js
+const editor = new Aurebesh(element, {
+  comments: {
+    author: { id: 'u42', name: 'Ann Smith' }, // who is writing in this editor
+    threads: savedThreads, // what was saved before (optional)
+  },
+});
+editor.on('comments', (threads) => save(editor.getHTML(), threads)); // all the threads, after every change
+editor.on('comment', ({ action, thread, message }) => notify(action, thread, message)); // what happened
+```
+
+- **In the text** a comment is a mark: `<span data-comment="id">piece of text</span>`, the same id on every piece when the text runs over more blocks. The mark goes along with the text when it is saved, copied and loaded again; the sanitizer keeps `data-comment` with a valid id and nothing else on that span. The editor shows it as a highlight (the comment that has the caret is stronger, and a resolved one has none); `commentCss` is that look for a page that shows the HTML, and the colour is `--aurebesh-comment`.
+- **The threads are not in the HTML.** A thread is `{ id, messages: [{ id, author: { id, name }, text, created }], resolved? }`: the first message is the comment, the others are the replies, and `created` is an ISO date. The editor keeps them in memory; the application gives them at the start (`comments.threads`, or `setComments(threads)`) and saves them when the `comments` event fires. Store them next to the HTML: the id of a thread is what links them. `getComments()` gives them at any moment, and what is not valid (an id that is not a plain name, a thread without a message, a text that is too long) is left out.
+- **Events**: `comments` has all the threads; `comment` tells what happened, `{ action, thread, message }`, with the action `add`, `reply`, `resolve`, `reopen`, `delete` or `deleteMessage`, so that you can send a notification. On `<aurebesh-editor>` they are DOM events; in React they are `onComment` and `onComments`, in Vue `@comment` and `@comments`, in Angular `(comment)` and `(comments)`.
+- **From code**: `addComment(text)` writes a comment on the text that is selected and returns the thread (or `null` when no text is selected or the editor is read-only).
+- **The panel** lists the threads in the order of the text. A click on the quote at the top of a thread selects that text, and the caret in the text makes its thread the active one. A thread can be answered (`Ctrl+Enter` sends), resolved (it moves under *Resolved*) and opened again. Only the messages of `author` can be deleted; deleting the only message deletes the thread and the mark. Everything that is written is shown as plain text.
+- **Undo**: adding a comment (the mark) and deleting one are steps for `Ctrl+Z`. The thread itself is not in that history: when the mark is undone the thread stays, now with the note that its text was removed, and it is attached again when the mark comes back with redo.
+- **A thread whose text is gone** (the text was deleted) stays in the panel with that note, so that nothing written is lost; delete it to remove it.
+- **A read-only editor** shows the comments, but cannot start one (a comment is a mark in the text).
+- **Markdown, plain text, Word and print**: the marks and the threads are not in them, only the text.
+- **Not yet**: comments in code blocks, mentions inside a comment, and tracked changes (the next step of the review features).
 
 ## Callouts
 

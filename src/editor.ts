@@ -26,6 +26,8 @@ import { attachColumnResize } from './table-resize';
 import { attachTableHandles } from './table-handles';
 import { CALLOUT_ID, DEFAULT_CALLOUTS, calloutCss, currentCallout, handleCalloutKey, normalizeCallouts, setCallout } from './callouts';
 import type { CalloutDef } from './callouts';
+import { Comments } from './comments';
+import type { CommentEvent, CommentsOptions, CommentThread } from './comments';
 import { attachMentions, markMentions, mentionsIn } from './mentions';
 import type { MentionOptions, MentionUser } from './mentions';
 import { attachSlashMenu } from './slash';
@@ -117,6 +119,12 @@ export interface AurebeshOptions {
    */
   mentions?: MentionOptions;
   /**
+   * Comments on a piece of text: select text and add a comment, with replies, in a panel of the sidebar. The piece is marked in the HTML
+   * (`<span data-comment="id">`); the threads are not in it: give them with `threads` and save them when the `comments` event says they
+   * changed. `author` is who is writing. Default: off. Without a `toolbar` of your own, the items `comment` and `comments` are added.
+   */
+  comments?: CommentsOptions;
+  /**
    * The format of `value`, of what `getValue()` and `setValue()` use without a format, and of the `change` event: 'html' (default),
    * 'markdown' (a Markdown-first editor: you give it Markdown and get Markdown back) or the name of a format that a plugin adds.
    * `getHTML()` and `getMarkdown()` stay what they say.
@@ -195,6 +203,10 @@ export interface AurebeshEvents {
   blur: undefined;
   /** A person was picked in the mentions list (not when a mention is pasted or loaded). */
   mention: MentionUser;
+  /** What happened to a comment: it was added, replied to, resolved, reopened or deleted (see `comments`). */
+  comment: CommentEvent;
+  /** The threads of comments, after every change (see `comments`): what to save next to the HTML. */
+  comments: CommentThread[];
   /** An upload failed or a link was rejected. */
   error: Error;
 }
@@ -208,6 +220,7 @@ export class Aurebesh {
   private buttons = new Map<string, HTMLButtonElement[]>();
   private listeners = new Map<string, Set<Listener<any>>>();
   private mentionTrigger = '@';
+  private comments: Comments | null = null;
   private cleanup: Array<() => void> = [];
   private highlightTimer: ReturnType<typeof setTimeout> | undefined;
   private fonts: FontDef[];
@@ -353,11 +366,12 @@ export class Aurebesh {
 
     const pluginToolbar = this.plugins.find((p) => p.inst.toolbar)?.inst.toolbar;
     const baseItems = options.toolbar ?? pluginToolbar ?? DEFAULT_TOOLBAR;
-    const items = baseItems.length ? extendToolbar(baseItems, this.plugins.flatMap((p) => p.inst.toolbarExtend ?? [])) : baseItems;
+    const own = options.comments && !options.toolbar && !pluginToolbar ? [{ items: ['|', 'comment', 'comments'] }] : [];
+    const items = baseItems.length ? extendToolbar(baseItems, [...this.plugins.flatMap((p) => p.inst.toolbarExtend ?? []), ...own]) : baseItems;
     const quick = options.quickbar ?? (options.toolbar || pluginToolbar ? [] : DEFAULT_QUICKBAR);
     const commands = [...items, ...quick];
     // the panels there are: those with a button of their own in the toolbar, and with the `sidebar` item all of them
-    const known = ['layout', 'blocks', ...plugins.flatMap((p) => (p.panels ?? []).map((panel) => panel.id))];
+    const known = ['layout', 'blocks', ...(options.comments ? ['comments'] : []), ...plugins.flatMap((p) => (p.panels ?? []).map((panel) => panel.id))];
     this.panelIds = known.filter((id) => commands.includes('sidebar') || commands.includes(id));
     if (quick.length) this.buildQuickbar(quick);
     if (items.length) this.buildToolbar(items);
@@ -373,9 +387,28 @@ export class Aurebesh {
     this.stage = doc.createElement('div');
     this.stage.className = 'aurebesh-stage';
     this.stage.appendChild(this.content);
+    if (options.comments) {
+      this.comments = new Comments(
+        {
+          content: this.content,
+          root: this.root,
+          t: (key, vars) => this.t(key, vars),
+          lang: () => this.language,
+          canEdit: () => this.content.isContentEditable,
+          run: (change) => this.runChange(change),
+          show: () => this.sidebar?.open('comments'),
+          changed: (event) => {
+            if (event) this.emit('comment', event);
+            this.emit('comments', this.comments!.getThreads());
+          },
+        },
+        options.comments,
+      );
+    }
     const panels: PanelDef[] = [];
     if (this.panelIds.includes('layout')) panels.push({ id: 'layout', title: this.t('ui.layout'), build: () => this.buildLayoutPanel() });
     if (this.panelIds.includes('blocks')) panels.push({ id: 'blocks', title: this.t('ui.blocks'), build: () => this.buildBlocksPanel() });
+    if (this.comments && this.panelIds.includes('comments')) panels.push({ id: 'comments', title: this.t('ui.comments'), build: () => this.comments!.build() });
     for (const p of plugins) for (const panel of p.panels ?? []) if (this.panelIds.includes(panel.id)) panels.push(panel);
     if (panels.length) {
       // the text with the sidebar beside it
@@ -818,6 +851,21 @@ export class Aurebesh {
     return this.isEmpty() ? '' : toMarkdown(this.getHTML());
   }
 
+  /** The threads of comments (a copy), in the order they were made. Empty without the `comments` option. */
+  getComments(): CommentThread[] {
+    return this.comments?.getThreads() ?? [];
+  }
+
+  /** Replaces the threads of comments, for example with what was saved: the ones that are not valid are left out. */
+  setComments(threads: CommentThread[]): void {
+    this.comments?.setThreads(threads);
+  }
+
+  /** Writes a comment on the text that is selected. Returns the thread, or null when no text is selected, the text cannot be changed or there is no `comments` option. */
+  addComment(text: string): CommentThread | null {
+    return this.comments?.add(text) ?? null;
+  }
+
   /** The people mentioned in the text, each once, in the order of the text. */
   getMentions(): MentionUser[] {
     return mentionsIn(this.content, this.mentionTrigger);
@@ -941,6 +989,7 @@ export class Aurebesh {
     this.blockHistory.clear(); // what was done before is of another text
     this.content.innerHTML = this.clean(html);
     markMentions(this.content);
+    this.comments?.refresh();
     this.syncEmpty();
     this.scheduleHighlight();
     this.updateStats();
@@ -1227,6 +1276,11 @@ export class Aurebesh {
     }
     const cmd = this.commands[name];
     if (!cmd) throw new Error(`Aurebesh: unknown command "${name}"`);
+    if (name === 'comment') {
+      this.comments?.begin();
+      this.updateToolbar();
+      return;
+    }
     // the callout button is a list built here: exec('callout', 'warning') does what a choice in it does, '' or 'none' takes the callout away
     if (name === 'callout') {
       this.applyCallout(arg && arg !== 'none' ? arg : null);
@@ -1262,6 +1316,7 @@ export class Aurebesh {
     clearTimeout(this.highlightTimer);
     clearHighlights(this.content);
     this.findBar?.destroy();
+    this.comments?.destroy();
     this.blockHandle?.destroy();
     this.cleanup.forEach((fn) => fn());
     this.cleanup = [];
@@ -3030,6 +3085,7 @@ export class Aurebesh {
         if (enabled) btn.disabled = !this.content.isContentEditable || !(inside && enabled());
       }
     });
+    this.comments?.sync();
     this.emit('state', undefined);
   }
 
