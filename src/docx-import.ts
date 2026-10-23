@@ -632,7 +632,7 @@ function renderBlocks(ctx: Context, parent: Element): string {
             html += `<${kind}>`;
             stack.push({ tag: kind, level, numId });
           }
-          html += `<li${para.attrs.replace(' dir="rtl"', ' dir="rtl"')}>${para.inner}`;
+          html += `<li${para.attrs}>${para.inner}`;
           liOpen = true;
         } else {
           closeTo(0);
