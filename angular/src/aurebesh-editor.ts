@@ -27,7 +27,7 @@ import {
   inject,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import type { Aurebesh, AurebeshOptions, CommentEvent, CommentThread, Layout, MentionUser, ResolvedPage, SuggestionEvent, TextStats } from 'aurebesh';
+import type { Aurebesh, AurebeshOptions, CommentEvent, CommentThread, Layout, MentionUser, ResolvedPage, SuggestionEvent, TextStats, ImportResult } from 'aurebesh';
 import type { AurebeshElement } from 'aurebesh/element';
 
 /** The inputs that are attributes of the element, with the name of the attribute. */
@@ -87,6 +87,8 @@ export class AurebeshEditor implements ControlValueAccessor, AfterViewInit, OnCh
   @Output() suggestion = new EventEmitter<SuggestionEvent>();
   /** Suggestion mode was switched on or off. */
   @Output() suggesting = new EventEmitter<boolean>();
+  /** A file was opened in the editor (the `import` item, or `importFile`). */
+  @Output() imported = new EventEmitter<ImportResult>();
   @Output() pageChange = new EventEmitter<ResolvedPage | null>();
   @Output() layoutChange = new EventEmitter<Layout>();
   @Output() error = new EventEmitter<Error>();
@@ -207,6 +209,7 @@ export class AurebeshEditor implements ControlValueAccessor, AfterViewInit, OnCh
     listen<CommentThread[]>('comments', (threads) => emit(() => this.comments.emit(threads)));
     listen<SuggestionEvent>('suggestion', (event) => emit(() => this.suggestion.emit(event)));
     listen<boolean>('suggesting', (on) => emit(() => this.suggesting.emit(on)));
+    listen<ImportResult>('imported', (result) => emit(() => this.imported.emit(result)));
     listen<ResolvedPage | null>('page', (page) => emit(() => this.pageChange.emit(page)));
     listen<Layout>('layout', (layout) => emit(() => this.layoutChange.emit(layout)));
     listen<Error>('error', (error) => emit(() => this.error.emit(error)));

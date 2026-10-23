@@ -26,6 +26,9 @@ import { attachColumnResize } from './table-resize';
 import { attachTableHandles } from './table-handles';
 import { CALLOUT_ID, DEFAULT_CALLOUTS, calloutCss, currentCallout, handleCalloutKey, normalizeCallouts, setCallout } from './callouts';
 import type { CalloutDef } from './callouts';
+import { fromDocx } from './docx-import';
+import { MAX_IMPORT_SIZE, OWN_FORMATS, baseName, extensionOf, ownFormat } from './import';
+import type { ImportResult, ImportedDocument } from './import';
 import { Suggestions, finalHtml } from './suggestions';
 import type { Suggestion, SuggestionEvent, SuggestionsOptions } from './suggestions';
 import { Comments } from './comments';
@@ -221,6 +224,8 @@ export interface AurebeshEvents {
   suggestion: SuggestionEvent;
   /** Suggestion mode was switched on (true) or off (false). */
   suggesting: boolean;
+  /** A file was opened in the editor: through the `import` item or `importFile()`. */
+  imported: ImportResult;
   /** An upload failed or a link was rejected. */
   error: Error;
 }
@@ -236,6 +241,7 @@ export class Aurebesh {
   private mentionTrigger = '@';
   private comments: Comments | null = null;
   private suggestions: Suggestions | null = null;
+  private importInput: HTMLInputElement | null = null;
   private cleanup: Array<() => void> = [];
   private highlightTimer: ReturnType<typeof setTimeout> | undefined;
   private fonts: FontDef[];
@@ -1243,6 +1249,81 @@ export class Aurebesh {
     });
   }
 
+  /** The extensions of the files that can be opened, with a dot, for a file picker. */
+  private importExtensions(): string[] {
+    const own = Object.values(OWN_FORMATS).flat();
+    const more = this.plugins.flatMap((p) => Object.keys(p.inst.import ?? {}));
+    return [...new Set([...own, ...more])].map((e) => '.' + e);
+  }
+
+  /** The toolbar button that opens a file: it shows the file picker of the browser. */
+  private buildImportButton(cmd: CommandDef): HTMLButtonElement {
+    const doc = this.container.ownerDocument;
+    const input = doc.createElement('input');
+    input.type = 'file';
+    input.hidden = true;
+    input.tabIndex = -1;
+    input.className = 'aurebesh-import-input';
+    input.setAttribute('aria-hidden', 'true');
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      input.value = '';
+      if (file) this.importFile(file).catch((err) => this.fail(err));
+    });
+    this.root.appendChild(input);
+    this.importInput = input;
+    return this.makeButton(cmd, () => {
+      input.accept = this.importExtensions().join(',');
+      input.click();
+    });
+  }
+
+  /**
+   * Opens a file in the editor, in place of what is in it (one step for undo): a Word document (.docx, with its comments and tracked
+   * changes when the editor has those options), an HTML file, a Markdown file or a text file, and what a plugin reads (`import` of a plugin,
+   * for example `pdf`). The formatting that a format has and the editor has not is left out: `warnings` of the result says what. The name
+   * of the file becomes the name of the files that are exported. Rejects when the file cannot be read.
+   */
+  async importFile(file: Blob, options: { name?: string; page?: boolean } = {}): Promise<ImportResult> {
+    if (!this.content.isContentEditable) throw new Error('Aurebesh: the editor is read-only');
+    const name = options.name ?? (file as File).name ?? 'document';
+    if (file.size > MAX_IMPORT_SIZE) throw new Error(`${name} is too large to open (${Math.round(file.size / 1048576)} MB)`);
+    const ext = extensionOf(name);
+    const plugin = this.plugins.map((p) => p.inst.import?.[ext]).find(Boolean);
+    const own = plugin ? null : ownFormat(name, file.type);
+    if (!plugin && !own) {
+      if (ext === 'doc') throw new Error(this.t('ui.import.old', { name }));
+      throw new Error(this.t('ui.import.unsupported', { name, formats: this.importExtensions().join(' ') }));
+    }
+    const format = plugin ? ext : own!;
+    let read: ImportedDocument | string;
+    if (plugin) read = await plugin(file, name);
+    else if (format === 'docx') {
+      read = await fromDocx(file, { comments: !!this.comments, changes: this.suggestions ? 'mark' : 'accept' });
+    } else {
+      const text = await file.text();
+      read = format === 'html' ? this.clean(text) : format === 'markdown' ? this.toHtml(text, 'markdown') : textToHtml(text);
+    }
+    const doc: ImportedDocument = typeof read === 'string' ? { html: read } : read;
+
+    this.modeSwitch?.flush();
+    this.runChange(() => {
+      this.content.innerHTML = this.clean(doc.html);
+      markMentions(this.content);
+    });
+    this.comments?.setThreads(doc.comments ?? []);
+    if (doc.page && (options.page ?? !!this.pageSpec)) this.setPage({ width: doc.page.width, height: doc.page.height, margin: doc.page.margin });
+    this.exportName = safeFilename(baseName(name));
+    this.scheduleHighlight();
+    this.updateStats();
+    this.suggestions?.refresh();
+    this.content.scrollTop = 0;
+    const result: ImportResult = { name, format, warnings: doc.warnings ?? [] };
+    this.showStatus([this.t('ui.import.done', { name }), result.warnings[0]].filter(Boolean).join('. '));
+    this.emit('imported', result);
+    return result;
+  }
+
   /** The formats that `export()` has: the built-in ones and what the plugins write. */
   exportFormats(): string[] {
     const own = ['pdf', 'docx', 'html', 'markdown', 'text'];
@@ -1358,6 +1439,10 @@ export class Aurebesh {
     }
     const cmd = this.commands[name];
     if (!cmd) throw new Error(`Aurebesh: unknown command "${name}"`);
+    if (name === 'import') {
+      this.importInput?.click();
+      return;
+    }
     if (name === 'suggest') {
       this.suggestions?.setSuggesting(!this.suggestions.isSuggesting());
       return;
@@ -1486,7 +1571,17 @@ export class Aurebesh {
     bar.className = 'aurebesh-toolbar aurebesh-quickbar';
     bar.setAttribute('role', 'toolbar');
     bar.setAttribute('aria-label', this.t('ui.quickbar'));
+    const doc = this.container.ownerDocument;
     for (const item of items) {
+      // `|` is a thin line between two groups of buttons, and `>` a space that pushes what follows to the end of the strip
+      if (item === '|' || item === '>') {
+        const mark = doc.createElement('span');
+        mark.className = item === '|' ? 'aurebesh-quick-sep' : 'aurebesh-quick-spacer';
+        if (item === '|') mark.setAttribute('role', 'separator');
+        else mark.setAttribute('aria-hidden', 'true');
+        bar.appendChild(mark);
+        continue;
+      }
       const control = this.buildToolbarItem(item); // the same control as in the toolbar: a picker stays a picker
       if (control) bar.appendChild(control);
     }
@@ -1512,6 +1607,7 @@ export class Aurebesh {
     if (item === 'size') return this.buildSizeSelect();
     if (item === 'weight') return this.buildWeightSelect();
     if (item === 'export') return this.buildExportMenu(cmd);
+    if (item === 'import') return this.buildImportButton(cmd);
     if (item === 'codeLanguage') return this.buildCodeLanguageSelect();
     if (item === 'columns') return this.buildColumnsSelect();
     if (item === 'orientation') return this.buildOrientationButton();
