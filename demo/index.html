@@ -108,7 +108,7 @@
   </ul>
 
   <aurebesh-editor id="editor" placeholder="Start typing..." counter maxlength="5000" modes
-    toolbar="#Geschiedenis,undo,redo,/,find,export,|,#Tekst,bold,italic,underline,underlineStyle,strike,strikeStyle,|,#Lettertype,font,size,/,weight,color,highlight,clearStyle,|,#Structuur,h1,h2,/,quote,|,#Alinea,alignLeft,alignCenter,alignRight,indent,outdent,|,#Lijsten,ul,ol,/,task,|,#Invoegen,link,image,video,table,callout,hr,|,#Code,code,/,codeblock,|,#Review,comment,/,comments,>,#Weergave,sidebar,/,fullscreen"><h1>Try it</h1><p>This is <strong>Aurebesh</strong>. Select some text and use the toolbar, or type <code># </code> at the start of a line for a heading and <code>- </code> for a list. Paste something from <em>Word</em> or <em>Google Docs</em> to see it come in clean.</p><ul><li>Rich text, lists and quotes</li><li>Tables you can merge and resize</li><li>Code blocks with colours</li></ul><table><tbody><tr><th>Feature</th><th>Status</th></tr><tr><td>Tables</td><td>Merge cells, drag the borders</td></tr><tr><td>Languages</td><td>עברית and العربية work too</td></tr></tbody></table><pre>function hello(name) {
+    toolbar="#Geschiedenis,undo,redo,/,find,export,|,#Tekst,bold,italic,underline,underlineStyle,strike,strikeStyle,|,#Lettertype,font,size,/,weight,color,highlight,clearStyle,|,#Structuur,h1,h2,/,quote,|,#Alinea,alignLeft,alignCenter,alignRight,indent,outdent,|,#Lijsten,ul,ol,/,task,|,#Invoegen,link,image,video,table,callout,hr,|,#Code,code,/,codeblock,|,#Review,comment,suggest,/,comments,suggestions,>,#Weergave,sidebar,/,fullscreen"><h1>Try it</h1><p>This is <strong>Aurebesh</strong>. Select some text and use the toolbar, or type <code># </code> at the start of a line for a heading and <code>- </code> for a list. Paste something from <em>Word</em> or <em>Google Docs</em> to see it come in clean.</p><ul><li>Rich text, lists and quotes</li><li>Tables you can merge and resize</li><li>Code blocks with colours</li></ul><table><tbody><tr><th>Feature</th><th>Status</th></tr><tr><td>Tables</td><td>Merge cells, drag the borders</td></tr><tr><td>Languages</td><td>עברית and العربية work too</td></tr></tbody></table><pre>function hello(name) {
   return `Hello, ${name}!`;
 }</pre><p>שלום עולם</p></aurebesh-editor>
 
@@ -169,8 +169,10 @@
   // Comments: select text and choose the speech bubble. The author is who is writing; the threads are saved by the application
   // (the `comments` event has all of them after every change).
   const comments = { author: { id: 'demo', name: 'Demo gebruiker' } };
+  // Suggestions (tracked changes): switch on the pencil and edit; every change is marked, to accept or reject in the panel.
+  const suggestions = { author: { id: 'demo', name: 'Demo gebruiker' } };
   const mentions = { search: (q) => people.filter((p) => p.name.toLowerCase().includes(q.toLowerCase())) };
-  ed.options = { labels: LABELS_NL, layout: { textWidth: 800, padding: 48, lineHeight: 1.7 }, mentions, comments, plugins: [info] };
+  ed.options = { labels: LABELS_NL, layout: { textWidth: 800, padding: 48, lineHeight: 1.7 }, mentions, comments, suggestions, plugins: [info] };
   const out = document.getElementById('out');
   const tabs = document.getElementById('tabs');
   let format = 'markdown';

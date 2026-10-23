@@ -11,6 +11,8 @@ export { DEFAULT_CALLOUTS, calloutCss } from './callouts';
 export { mentionCss, mentionsIn } from './mentions';
 export type { MentionOptions, MentionUser } from './mentions';
 export { commentCss } from './comments';
+export { suggestionCss, suggestionsIn } from './suggestions';
+export type { Suggestion, SuggestionAuthor, SuggestionEvent, SuggestionsOptions } from './suggestions';
 export type { CommentAction, CommentAuthor, CommentEvent, CommentMessage, CommentsOptions, CommentThread } from './comments';
 export { taskListCss } from './tasks';
 export { toDocx } from './docx';

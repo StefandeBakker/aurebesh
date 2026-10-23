@@ -17,6 +17,7 @@ import type { ResolvedPage } from './page';
 import type { TextStats } from './stats';
 import type { MentionUser } from './mentions';
 import type { CommentEvent, CommentThread } from './comments';
+import type { SuggestionEvent } from './suggestions';
 
 export interface AurebeshEditorProps {
   /** Controlled HTML. Pair it with `onChange`. */
@@ -35,6 +36,10 @@ export interface AurebeshEditorProps {
   onComment?: (event: CommentEvent) => void;
   /** Called with all the threads of comments after every change: what to save next to the HTML. */
   onComments?: (threads: CommentThread[]) => void;
+  /** Called when a suggestion is accepted or rejected (see the `suggestions` option). */
+  onSuggestion?: (event: SuggestionEvent) => void;
+  /** Called when suggestion mode is switched on or off. */
+  onSuggesting?: (on: boolean) => void;
   options?: AurebeshOptions;
   /** The language of the texts of the editor: 'nl', 'de', 'fr', 'es', 'en'. Default: the `lang` of the page, or the language of the browser. */
   language?: string;
@@ -61,11 +66,11 @@ export interface AurebeshEditorProps {
 
 export const AurebeshEditor = forwardRef<AurebeshElement, AurebeshEditorProps>(function AurebeshEditor(props, ref) {
   defineAurebeshElement();
-  const { value, defaultValue, onChange, onError, onReady, onCount, onMention, onComment, onComments, onPageChange, options, language, page, pageOrientation, pageMargin, maxLength, counter, placeholder, readOnly, required, name, toolbar, id, className, style } = props;
+  const { value, defaultValue, onChange, onError, onReady, onCount, onMention, onComment, onComments, onSuggestion, onSuggesting, onPageChange, options, language, page, pageOrientation, pageMargin, maxLength, counter, placeholder, readOnly, required, name, toolbar, id, className, style } = props;
   const el = useRef<AurebeshElement | null>(null);
   useImperativeHandle(ref, () => el.current as AurebeshElement);
-  const handlers = useRef({ onChange, onError, onReady, onCount, onMention, onComment, onComments, onPageChange });
-  handlers.current = { onChange, onError, onReady, onCount, onMention, onComment, onComments, onPageChange };
+  const handlers = useRef({ onChange, onError, onReady, onCount, onMention, onComment, onComments, onSuggestion, onSuggesting, onPageChange });
+  handlers.current = { onChange, onError, onReady, onCount, onMention, onComment, onComments, onSuggestion, onSuggesting, onPageChange };
 
   // Layout effects run right after the element is inserted, before it creates its editor.
   useLayoutEffect(() => {
@@ -89,6 +94,8 @@ export const AurebeshEditor = forwardRef<AurebeshElement, AurebeshEditorProps>(f
     const mention = (e: Event) => handlers.current.onMention?.((e as CustomEvent<MentionUser>).detail);
     const comment = (e: Event) => handlers.current.onComment?.((e as CustomEvent<CommentEvent>).detail);
     const comments = (e: Event) => handlers.current.onComments?.((e as CustomEvent<CommentThread[]>).detail);
+    const suggestion = (e: Event) => handlers.current.onSuggestion?.((e as CustomEvent<SuggestionEvent>).detail);
+    const suggesting = (e: Event) => handlers.current.onSuggesting?.((e as CustomEvent<boolean>).detail);
     const pageChange = (e: Event) => handlers.current.onPageChange?.((e as CustomEvent<ResolvedPage | null>).detail);
     node.addEventListener('page', pageChange);
     node.addEventListener('change', change);
@@ -98,6 +105,8 @@ export const AurebeshEditor = forwardRef<AurebeshElement, AurebeshEditorProps>(f
     node.addEventListener('mention', mention);
     node.addEventListener('comment', comment);
     node.addEventListener('comments', comments);
+    node.addEventListener('suggestion', suggestion);
+    node.addEventListener('suggesting', suggesting);
     return () => {
       node.removeEventListener('page', pageChange);
       node.removeEventListener('change', change);
@@ -107,6 +116,8 @@ export const AurebeshEditor = forwardRef<AurebeshElement, AurebeshEditorProps>(f
       node.removeEventListener('mention', mention);
       node.removeEventListener('comment', comment);
       node.removeEventListener('comments', comments);
+      node.removeEventListener('suggestion', suggestion);
+      node.removeEventListener('suggesting', suggesting);
     };
   }, []);
 

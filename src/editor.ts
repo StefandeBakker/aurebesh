@@ -26,6 +26,8 @@ import { attachColumnResize } from './table-resize';
 import { attachTableHandles } from './table-handles';
 import { CALLOUT_ID, DEFAULT_CALLOUTS, calloutCss, currentCallout, handleCalloutKey, normalizeCallouts, setCallout } from './callouts';
 import type { CalloutDef } from './callouts';
+import { Suggestions, finalHtml } from './suggestions';
+import type { Suggestion, SuggestionEvent, SuggestionsOptions } from './suggestions';
 import { Comments } from './comments';
 import type { CommentEvent, CommentsOptions, CommentThread } from './comments';
 import { attachMentions, markMentions, mentionsIn } from './mentions';
@@ -125,6 +127,14 @@ export interface AurebeshOptions {
    */
   comments?: CommentsOptions;
   /**
+   * Suggestions (tracked changes): in suggestion mode what is typed is marked as an insertion and what is deleted stays in the text,
+   * marked as a deletion, for somebody to accept or reject in a panel of the sidebar. The marks are in the HTML
+   * (`<span data-suggestion="id" data-kind="insert|delete" ...>`), so there is nothing else to save. `author` is who is writing;
+   * `enabled` starts in suggestion mode. Line breaks, formatting, tables and pictures are not tracked. Default: off. Without a
+   * `toolbar` of your own, the items `suggest` (the switch) and `suggestions` (the panel) are added.
+   */
+  suggestions?: SuggestionsOptions;
+  /**
    * The format of `value`, of what `getValue()` and `setValue()` use without a format, and of the `change` event: 'html' (default),
    * 'markdown' (a Markdown-first editor: you give it Markdown and get Markdown back) or the name of a format that a plugin adds.
    * `getHTML()` and `getMarkdown()` stay what they say.
@@ -207,6 +217,10 @@ export interface AurebeshEvents {
   comment: CommentEvent;
   /** The threads of comments, after every change (see `comments`): what to save next to the HTML. */
   comments: CommentThread[];
+  /** A suggestion was accepted or rejected (see `suggestions`). */
+  suggestion: SuggestionEvent;
+  /** Suggestion mode was switched on (true) or off (false). */
+  suggesting: boolean;
   /** An upload failed or a link was rejected. */
   error: Error;
 }
@@ -221,6 +235,7 @@ export class Aurebesh {
   private listeners = new Map<string, Set<Listener<any>>>();
   private mentionTrigger = '@';
   private comments: Comments | null = null;
+  private suggestions: Suggestions | null = null;
   private cleanup: Array<() => void> = [];
   private highlightTimer: ReturnType<typeof setTimeout> | undefined;
   private fonts: FontDef[];
@@ -366,12 +381,13 @@ export class Aurebesh {
 
     const pluginToolbar = this.plugins.find((p) => p.inst.toolbar)?.inst.toolbar;
     const baseItems = options.toolbar ?? pluginToolbar ?? DEFAULT_TOOLBAR;
-    const own = options.comments && !options.toolbar && !pluginToolbar ? [{ items: ['|', 'comment', 'comments'] }] : [];
+    const review = [...(options.comments ? ['comment', 'comments'] : []), ...(options.suggestions ? ['suggest', 'suggestions'] : [])];
+    const own = review.length && !options.toolbar && !pluginToolbar ? [{ items: ['|', ...review] }] : [];
     const items = baseItems.length ? extendToolbar(baseItems, [...this.plugins.flatMap((p) => p.inst.toolbarExtend ?? []), ...own]) : baseItems;
     const quick = options.quickbar ?? (options.toolbar || pluginToolbar ? [] : DEFAULT_QUICKBAR);
     const commands = [...items, ...quick];
     // the panels there are: those with a button of their own in the toolbar, and with the `sidebar` item all of them
-    const known = ['layout', 'blocks', ...(options.comments ? ['comments'] : []), ...plugins.flatMap((p) => (p.panels ?? []).map((panel) => panel.id))];
+    const known = ['layout', 'blocks', ...(options.comments ? ['comments'] : []), ...(options.suggestions ? ['suggestions'] : []), ...plugins.flatMap((p) => (p.panels ?? []).map((panel) => panel.id))];
     this.panelIds = known.filter((id) => commands.includes('sidebar') || commands.includes(id));
     if (quick.length) this.buildQuickbar(quick);
     if (items.length) this.buildToolbar(items);
@@ -405,10 +421,39 @@ export class Aurebesh {
         options.comments,
       );
     }
+    if (options.suggestions) {
+      this.suggestions = new Suggestions(
+        {
+          content: this.content,
+          t: (key, vars) => this.t(key, vars),
+          lang: () => this.language,
+          canEdit: () => this.content.isContentEditable,
+          run: (change) => this.runChange(change),
+          commit: (before, selection, kind) => this.blockHistory.commit(before, selection, kind),
+          show: () => this.sidebar?.open('suggestions'),
+          changed: (event) => {
+            if (event) this.emit('suggestion', event);
+            else {
+              this.root.classList.toggle('aurebesh-suggesting', this.suggestions!.isSuggesting());
+              this.emit('suggesting', this.suggestions!.isSuggesting());
+            }
+            this.updateToolbar();
+          },
+          textChanged: () => {
+            this.syncEmpty();
+            this.emitChange();
+            this.updateToolbar();
+          },
+        },
+        options.suggestions,
+      );
+      this.root.classList.toggle('aurebesh-suggesting', this.suggestions.isSuggesting());
+    }
     const panels: PanelDef[] = [];
     if (this.panelIds.includes('layout')) panels.push({ id: 'layout', title: this.t('ui.layout'), build: () => this.buildLayoutPanel() });
     if (this.panelIds.includes('blocks')) panels.push({ id: 'blocks', title: this.t('ui.blocks'), build: () => this.buildBlocksPanel() });
     if (this.comments && this.panelIds.includes('comments')) panels.push({ id: 'comments', title: this.t('ui.comments'), build: () => this.comments!.build() });
+    if (this.suggestions && this.panelIds.includes('suggestions')) panels.push({ id: 'suggestions', title: this.t('ui.suggestions'), build: () => this.suggestions!.build() });
     for (const p of plugins) for (const panel of p.panels ?? []) if (this.panelIds.includes(panel.id)) panels.push(panel);
     if (panels.length) {
       // the text with the sidebar beside it
@@ -510,6 +555,7 @@ export class Aurebesh {
       normalizeLayouts(this.content);
       normalizeCallouts(this.content);
       markMentions(this.content);
+      this.suggestions?.afterInput(e as InputEvent);
       if (!(e as InputEvent).inputType?.startsWith('history')) this.blockHistory.edited();
       applyPendingSize();
       this.findBar?.refresh();
@@ -526,6 +572,7 @@ export class Aurebesh {
       toggleChecked(li);
       this.emitChange();
     });
+    this.listen(this.content, 'compositionend', () => this.suggestions?.compositionEnd());
     this.listen(this.content, 'focus', () => this.emit('focus', undefined));
     this.listen(this.content, 'blur', () => this.emit('blur', undefined));
     this.listen(this.content, 'keydown', (e) => this.onKeyDown(e as KeyboardEvent));
@@ -814,6 +861,7 @@ export class Aurebesh {
 
   /** Stops typing, dropping and replacing text at the limit; what is pasted is cut off in onPaste. Deleting is always allowed. */
   private onBeforeInput(e: InputEvent): void {
+    this.suggestions?.beforeInput(e);
     // the undo and redo of the browser (its keys and its menu): a change that the editor made itself goes first, when it is its turn
     if (e.inputType === 'historyUndo' && this.blockHistory.canUndo()) {
       e.preventDefault();
@@ -848,7 +896,40 @@ export class Aurebesh {
 
   /** The content as Markdown (GitHub flavour); '' when empty. Underline and sub/superscript stay inline HTML; colours, fonts and columns are dropped. */
   getMarkdown(): string {
-    return this.isEmpty() ? '' : toMarkdown(this.getHTML());
+    return this.isEmpty() ? '' : toMarkdown(finalHtml(this.getHTML()));
+  }
+
+  /** Whether suggestion mode is on: what is typed and deleted is tracked. */
+  isSuggesting(): boolean {
+    return this.suggestions?.isSuggesting() ?? false;
+  }
+
+  /** Switches suggestion mode on or off (the `suggestions` option has to be given). */
+  setSuggesting(on: boolean): void {
+    this.suggestions?.setSuggesting(on);
+  }
+
+  /** The suggestions that are in the text, in the order of the text. */
+  getSuggestions(): Suggestion[] {
+    return this.suggestions?.getSuggestions() ?? [];
+  }
+
+  /** Accepts a suggestion: what was deleted goes, what was inserted stays. */
+  acceptSuggestion(id: string): void {
+    this.suggestions?.accept(id);
+  }
+
+  /** Rejects a suggestion: what was inserted goes, what was deleted stays. */
+  rejectSuggestion(id: string): void {
+    this.suggestions?.reject(id);
+  }
+
+  acceptAllSuggestions(): void {
+    this.suggestions?.acceptAll();
+  }
+
+  rejectAllSuggestions(): void {
+    this.suggestions?.rejectAll();
   }
 
   /** The threads of comments (a copy), in the order they were made. Empty without the `comments` option. */
@@ -990,6 +1071,7 @@ export class Aurebesh {
     this.content.innerHTML = this.clean(html);
     markMentions(this.content);
     this.comments?.refresh();
+    this.suggestions?.refresh();
     this.syncEmpty();
     this.scheduleHighlight();
     this.updateStats();
@@ -1152,7 +1234,7 @@ export class Aurebesh {
     const family = style?.fontFamily?.split(',')[0]?.replace(/["']/g, '').trim();
     const generic = !family || /^(?:system-ui|ui-.*|-apple-system|sans-serif|serif|monospace|inherit)$/i.test(family);
     const size = style ? Math.round(parseFloat(style.fontSize) * 0.75 * 2) / 2 : 0;
-    return toDocx(this.getHTML(), {
+    return toDocx(finalHtml(this.getHTML()), {
       title: options.title ?? this.exportName,
       page: this.docxPage(),
       font: generic ? undefined : family,
@@ -1276,6 +1358,10 @@ export class Aurebesh {
     }
     const cmd = this.commands[name];
     if (!cmd) throw new Error(`Aurebesh: unknown command "${name}"`);
+    if (name === 'suggest') {
+      this.suggestions?.setSuggesting(!this.suggestions.isSuggesting());
+      return;
+    }
     if (name === 'comment') {
       this.comments?.begin();
       this.updateToolbar();
@@ -1317,6 +1403,7 @@ export class Aurebesh {
     clearHighlights(this.content);
     this.findBar?.destroy();
     this.comments?.destroy();
+    this.suggestions?.destroy();
     this.blockHandle?.destroy();
     this.cleanup.forEach((fn) => fn());
     this.cleanup = [];
@@ -2510,6 +2597,7 @@ export class Aurebesh {
     if (at) {
       if (!this.placeCaretAt(at.x, at.y)) return false;
     } else if (!hadFocus) this.restoreSelection();
+    this.suggestions?.begin();
     let html = content as string;
     if (typeof content !== 'string') {
       const box = doc.createElement('div');
@@ -3078,7 +3166,7 @@ export class Aurebesh {
     }
     this.buttons.forEach((list, name) => {
       if (name === 'sidebar' || name === 'callout' || name === 'export' || name === 'strikeStyle' || name === 'underlineStyle' || name === 'clearStyle') return; // aria-expanded says it, and the callout picker sets its own state
-      const active = name === 'fullscreen' ? this.fullscreen : inside && (this.commands[name].isActive?.() ?? false);
+      const active = name === 'fullscreen' ? this.fullscreen : name === 'suggest' ? !!this.suggestions?.isSuggesting() : inside && (this.commands[name].isActive?.() ?? false);
       const enabled = this.commands[name].isEnabled;
       for (const btn of list) {
         btn.setAttribute('aria-pressed', String(active));
@@ -3086,6 +3174,7 @@ export class Aurebesh {
       }
     });
     this.comments?.sync();
+    this.suggestions?.sync();
     this.emit('state', undefined);
   }
 
@@ -3100,6 +3189,7 @@ export class Aurebesh {
     const data = e.clipboardData;
     if (!data) return;
     e.preventDefault();
+    this.suggestions?.begin(); // the browser does not say what a paste does: the text as it is now is what the next change is compared with
     // A pasted screenshot or copied file has no text with it: upload it instead of pasting.
     if (data.files.length && !data.getData('text/plain')) {
       void this.uploadFiles(data.files);

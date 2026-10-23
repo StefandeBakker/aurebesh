@@ -152,6 +152,10 @@ export const COMMANDS: Record<string, CommandDef> = {
   blocks: { name: 'blocks', icon: 'blocks', label: '▦', title: 'Building blocks', run: () => {} },
   /** Takes the row that has the caret away (the tools of a row are built by the editor). */
   rowDelete: { name: 'rowDelete', icon: 'trash', label: 'Delete row', title: 'Delete row layout', run: () => {} },
+  /** Switches suggestion mode on and off (the `suggestions` option); handled by the editor. */
+  suggest: { name: 'suggest', icon: 'suggest', label: '✎', title: 'Suggest changes', run: () => {} },
+  /** Opens and closes the panel with the suggestions beside the text; handled by the editor. */
+  suggestions: { name: 'suggestions', icon: 'suggestions', label: '≡', title: 'Changes', run: () => {} },
   /** Starts a comment on the selected text (the `comments` option); handled by the editor. */
   comment: { name: 'comment', icon: 'comment', label: '💬', title: 'Add comment', run: () => {}, isEnabled: () => !!document.getSelection() && !document.getSelection()!.isCollapsed },
   /** Opens and closes the panel with the comments beside the text; handled by the editor. */

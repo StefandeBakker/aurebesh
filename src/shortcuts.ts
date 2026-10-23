@@ -28,6 +28,7 @@ export function shortcutFor(e: KeyboardEvent): string | null {
   }
   if (e.shiftKey && !e.altKey) {
     if (e.code === 'KeyX') return 'strike';
+    if (e.code === 'KeyE') return 'suggest';
     if (e.code === 'Digit7') return 'ol';
     if (e.code === 'Digit8') return 'ul';
     if (e.code === 'Digit9') return 'task';
@@ -55,6 +56,7 @@ const KEYS: Record<string, string> = {
   code: 'Mod+E',
   codeblock: 'Mod+Alt+C',
   comment: 'Mod+Alt+M',
+  suggest: 'Mod+Shift+E',
   h1: 'Mod+Alt+1',
   h2: 'Mod+Alt+2',
   h3: 'Mod+Alt+3',

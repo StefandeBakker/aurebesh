@@ -27,7 +27,7 @@ import {
   inject,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import type { Aurebesh, AurebeshOptions, CommentEvent, CommentThread, Layout, MentionUser, ResolvedPage, TextStats } from 'aurebesh';
+import type { Aurebesh, AurebeshOptions, CommentEvent, CommentThread, Layout, MentionUser, ResolvedPage, SuggestionEvent, TextStats } from 'aurebesh';
 import type { AurebeshElement } from 'aurebesh/element';
 
 /** The inputs that are attributes of the element, with the name of the attribute. */
@@ -83,6 +83,10 @@ export class AurebeshEditor implements ControlValueAccessor, AfterViewInit, OnCh
   @Output() comment = new EventEmitter<CommentEvent>();
   /** All the threads of comments after every change: what to save next to the HTML. */
   @Output() comments = new EventEmitter<CommentThread[]>();
+  /** A suggestion was accepted or rejected (see the `suggestions` option). */
+  @Output() suggestion = new EventEmitter<SuggestionEvent>();
+  /** Suggestion mode was switched on or off. */
+  @Output() suggesting = new EventEmitter<boolean>();
   @Output() pageChange = new EventEmitter<ResolvedPage | null>();
   @Output() layoutChange = new EventEmitter<Layout>();
   @Output() error = new EventEmitter<Error>();
@@ -201,6 +205,8 @@ export class AurebeshEditor implements ControlValueAccessor, AfterViewInit, OnCh
     listen<MentionUser>('mention', (user) => emit(() => this.mention.emit(user)));
     listen<CommentEvent>('comment', (event) => emit(() => this.comment.emit(event)));
     listen<CommentThread[]>('comments', (threads) => emit(() => this.comments.emit(threads)));
+    listen<SuggestionEvent>('suggestion', (event) => emit(() => this.suggestion.emit(event)));
+    listen<boolean>('suggesting', (on) => emit(() => this.suggesting.emit(on)));
     listen<ResolvedPage | null>('page', (page) => emit(() => this.pageChange.emit(page)));
     listen<Layout>('layout', (layout) => emit(() => this.layoutChange.emit(layout)));
     listen<Error>('error', (error) => emit(() => this.error.emit(error)));

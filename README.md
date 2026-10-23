@@ -127,6 +127,7 @@ import 'aurebesh/element'; // registers <aurebesh-editor>
 | `exportName` | The name of exported files, without the extension, and the title in them (default `document`) |
 | `mentions` | `@mentions`: the people to pick from, `{ search(query) }` (see *Mentions*; default off) |
 | `comments` | Comments on selected text: `{ author, threads }` (see *Comments*; default off) |
+| `suggestions` | Suggestion mode (tracked changes): `{ author, enabled? }` (see *Suggestions*; default off) |
 | `blockHandles` | The grip beside a block to move it and its menu (default on; `false` leaves it out) |
 | `fonts` | Font list for the font picker (default: 15 system font stacks, nothing to download) |
 | `colors` | Swatches for text/highlight colour (default: 40) |
@@ -495,6 +496,32 @@ editor.on('comment', ({ action, thread, message }) => notify(action, thread, mes
 - **A read-only editor** shows the comments, but cannot start one (a comment is a mark in the text).
 - **Markdown, plain text, Word and print**: the marks and the threads are not in them, only the text.
 - **Not yet**: comments in code blocks, mentions inside a comment, and tracked changes (the next step of the review features).
+
+## Suggestions (tracked changes)
+
+In suggestion mode what is typed is marked as an insertion, and what is deleted stays in the text, marked as a deletion. Somebody can then accept or reject each change, one at a time or all at once, in a panel of the sidebar. It is how a reviewer changes a text without losing the original.
+
+```js
+const editor = new Aurebesh(element, {
+  suggestions: {
+    author: { id: 'u42', name: 'Ann Smith' }, // who is writing in this editor
+    enabled: false, // start in suggestion mode (default: off)
+  },
+});
+editor.on('suggestion', ({ action, suggestion }) => notify(action, suggestion)); // accepted or rejected
+editor.on('suggesting', (on) => showMode(on)); // the mode was switched on or off
+```
+
+Without a `toolbar` of your own the toolbar gets two items: `suggest` (the switch, `Ctrl+Shift+E`) and `suggestions` (opens the panel); with your own toolbar, add them where you want them.
+
+- **In the text** a change is a mark: `<span data-suggestion="id" data-kind="insert" data-author="u42" data-name="Ann Smith" data-date="2026-10-22T09:30:00.000Z">text</span>`, with `data-kind="delete"` for a deletion. A replacement is a deletion and an insertion with the same id. The marks are in the HTML, so there is nothing else to save: the list is made from the text. The sanitizer keeps these attributes when they are valid and nothing else on the span. Typed text that follows other typed text of the same author is one insertion, and so is deleting a few characters in a row.
+- **What is tracked**: typing, Backspace and Delete, cutting, pasting (as text), dropping, an input method and a correction of the spelling. **Not tracked**: line breaks (Enter and Backspace between paragraphs), formatting, tables, pictures, mentions and everything that the toolbar does: those are done as they always are, also in suggestion mode.
+- **Your own insertion** that you delete is simply removed (it was never part of the text); text of somebody else's insertion that you delete is marked as deleted inside it.
+- **The panel** lists the changes in the order of the text, with the author and the date, a replacement as one card (*Deleted* and *Added*), *Accept* and *Reject* per change and *Accept all* and *Reject all*. A click on the text in a card selects it in the text, and the caret in a change makes its card the active one. Accepting or rejecting changes the text, so a read-only editor shows the list but cannot settle a change. The application decides who may accept: the editor does not know about roles, so only show the panel, or call the methods, to those who may.
+- **From code**: `isSuggesting()`, `setSuggesting(on)`, `getSuggestions()` (the list: `id`, `kind` `insert`, `delete` or `replace`, `author`, `date`, `inserted`, `deleted`), `acceptSuggestion(id)`, `rejectSuggestion(id)`, `acceptAllSuggestions()` and `rejectAllSuggestions()`. On `<aurebesh-editor>` the events are DOM events; in React they are `onSuggestion` and `onSuggesting`, in Vue `@suggestion` and `@suggesting`, in Angular `(suggestion)` and `(suggesting)`. `suggestionCss` is the look (green and underlined, red and struck through; `--aurebesh-insert`, `--aurebesh-delete`) for a page that shows the HTML.
+- **Undo**: each step of typing or deleting that follows another within a moment is part of it, so `Ctrl+Z` takes back a word and not a letter. Accepting and rejecting are steps too.
+- **Markdown and Word**: the text as it reads when everything is accepted (what was deleted is gone), because those formats have no marks for it. HTML and printing keep the marks, so a printout shows the changes.
+- **How it works**, because it explains the limits: the browser makes the edit, and in the `input` event what changed is worked out from the text before and after, and turned into marks. That is the same for every way of editing, and it is why only text is tracked. Pasted formatting is lost (the text goes in as an insertion).
 
 ## Callouts
 

@@ -370,7 +370,14 @@ export const CSS = `
 .aurebesh-find button,.aurebesh-find input{min-height:40px}
 .aurebesh-comment-btn{min-height:40px}
 }
-` + calloutCss(DEFAULT_CALLOUTS) + taskListCss() + mentionCss + `.aurebesh-comments{display:flex;flex-direction:column;gap:12px;font-size:13px}
+` + calloutCss(DEFAULT_CALLOUTS) + taskListCss() + mentionCss + `.aurebesh-content span[data-suggestion][data-kind="insert"]{color:var(--aurebesh-insert,#047857);background:color-mix(in srgb,var(--aurebesh-insert,#047857) 10%,transparent);text-decoration:underline}
+.aurebesh-content span[data-suggestion][data-kind="delete"]{color:var(--aurebesh-delete,#b42318);background:color-mix(in srgb,var(--aurebesh-delete,#b42318) 8%,transparent);text-decoration:line-through}
+.aurebesh-suggesting{box-shadow:inset 0 3px 0 var(--aurebesh-insert,#047857)}
+.aurebesh-suggestions{display:flex;flex-direction:column;gap:12px;font-size:13px}
+.aurebesh-suggestions [hidden]{display:none}
+.aurebesh-suggestion-delete strong{color:var(--aurebesh-delete,#b42318)}
+.aurebesh-suggestion-insert strong{color:var(--aurebesh-insert,#047857)}
+.aurebesh-comments{display:flex;flex-direction:column;gap:12px;font-size:13px}
 .aurebesh-comment-list{display:flex;flex-direction:column;gap:12px}
 .aurebesh-comment-thread{display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:8px;background:var(--aurebesh-bg,#fff)}
 .aurebesh-comment-thread.is-active{border-color:var(--aurebesh-accent,#2563eb)}
