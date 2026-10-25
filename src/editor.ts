@@ -29,7 +29,7 @@ import type { CalloutDef } from './callouts';
 import { fromDocx } from './docx-import';
 import { MAX_IMPORT_SIZE, OWN_FORMATS, baseName, extensionOf, ownFormat } from './import';
 import type { ImportResult, ImportedDocument } from './import';
-import { Suggestions, finalHtml } from './suggestions';
+import { Suggestions, finalNode } from './suggestions';
 import type { Suggestion, SuggestionEvent, SuggestionsOptions } from './suggestions';
 import { Comments } from './comments';
 import type { CommentEvent, CommentsOptions, CommentThread } from './comments';
@@ -70,7 +70,7 @@ import type { ViewMode } from './modes';
 import type { OutputFormat } from './export';
 import { MARKER, preparePaste } from './paste';
 import type { PasteImagePolicy, PendingImage } from './paste';
-import { sanitize } from './sanitize';
+import { sanitize, sanitizeNodes } from './sanitize';
 import { CSS, HEADLESS_CSS } from './styles';
 
 export interface MediaOptions {
@@ -897,12 +897,13 @@ export class Aurebesh {
    */
   getHTML(): string {
     this.modeSwitch?.flush(); // what was typed in the HTML or Markdown view counts
-    return this.isEmpty() ? '' : this.clean(this.content.innerHTML);
+    return this.isEmpty() ? '' : this.cleanNodes().innerHTML;
   }
 
   /** The content as Markdown (GitHub flavour); '' when empty. Underline and sub/superscript stay inline HTML; colours, fonts and columns are dropped. */
   getMarkdown(): string {
-    return this.isEmpty() ? '' : toMarkdown(finalHtml(this.getHTML()));
+    this.modeSwitch?.flush();
+    return this.isEmpty() ? '' : toMarkdown(finalNode(this.cleanNodes()));
   }
 
   /** Whether suggestion mode is on: what is typed and deleted is tracked. */
@@ -1240,7 +1241,8 @@ export class Aurebesh {
     const family = style?.fontFamily?.split(',')[0]?.replace(/["']/g, '').trim();
     const generic = !family || /^(?:system-ui|ui-.*|-apple-system|sans-serif|serif|monospace|inherit)$/i.test(family);
     const size = style ? Math.round(parseFloat(style.fontSize) * 0.75 * 2) / 2 : 0;
-    return toDocx(finalHtml(this.getHTML()), {
+    this.modeSwitch?.flush();
+    return toDocx(finalNode(this.cleanNodes()), {
       title: options.title ?? this.exportName,
       page: this.docxPage(),
       font: generic ? undefined : family,
@@ -2174,6 +2176,11 @@ export class Aurebesh {
 
   private clean(html: string): string {
     return sanitize(html, this.sanitizers);
+  }
+
+  /** A clean copy of what is in the editor, as an element (see `sanitizeNodes`). */
+  private cleanNodes(): HTMLElement {
+    return sanitizeNodes(this.content, this.sanitizers);
   }
 
   private pluginContext(): PluginContext {

@@ -118,6 +118,14 @@ export function finalHtml(html: string): string {
   return body.innerHTML;
 }
 
+/** The same as `finalHtml`, on the content of an element, in place (use it on a copy). */
+export function finalNode(root: Element): Element {
+  root.querySelectorAll(DELETE).forEach((el) => el.remove());
+  root.querySelectorAll(SELECTOR).forEach(unwrap);
+  root.normalize();
+  return root;
+}
+
 /** Puts the pieces that follow each other, of one author and one kind, together into one suggestion (the first one's id and date). */
 function mergeAdjacent(root: Element): void {
   root.normalize();
