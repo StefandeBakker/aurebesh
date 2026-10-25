@@ -176,6 +176,7 @@ export const LABELS_ES: Labels = {
   'ui.import.done': '{name} abierto',
   'ui.import.unsupported': '{name} no se puede abrir aquí. Se pueden abrir: {formats}.',
   'ui.import.old': '{name} es un archivo antiguo de Word (.doc): guárdalo como .docx en Word y ábrelo.',
+  'ui.resize': 'Arrastra para cambiar la altura',
   'comment': 'Añadir comentario',
   'comments': 'Comentarios',
   'ui.comments': 'Comentarios',

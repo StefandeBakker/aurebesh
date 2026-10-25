@@ -29,6 +29,9 @@ import type { CalloutDef } from './callouts';
 import { fromDocx } from './docx-import';
 import { MAX_IMPORT_SIZE, OWN_FORMATS, baseName, extensionOf, ownFormat } from './import';
 import type { ImportResult, ImportedDocument } from './import';
+import { compactHtml, formatHtml } from './format-html';
+import { Resizer } from './resize';
+import type { ResizeOptions } from './resize';
 import { Suggestions, finalNode } from './suggestions';
 import type { Suggestion, SuggestionEvent, SuggestionsOptions } from './suggestions';
 import { Comments } from './comments';
@@ -138,6 +141,13 @@ export interface AurebeshOptions {
    */
   suggestions?: SuggestionsOptions;
   /**
+   * A bar under the text that the user drags to make the editor higher or lower (also with the arrow keys, and a double click goes
+   * back to the start). `true` is the default; `false` leaves the bar out; an object gives `height` (the height to start with, in
+   * pixels; default: as high as the text), `min` (default: the minimum height, 150) and `max` (default: the height of the window).
+   * The `resized` event gives the height; the editor does not keep it.
+   */
+  resizable?: boolean | ResizeOptions;
+  /**
    * The format of `value`, of what `getValue()` and `setValue()` use without a format, and of the `change` event: 'html' (default),
    * 'markdown' (a Markdown-first editor: you give it Markdown and get Markdown back) or the name of a format that a plugin adds.
    * `getHTML()` and `getMarkdown()` stay what they say.
@@ -222,6 +232,8 @@ export interface AurebeshEvents {
   comments: CommentThread[];
   /** A suggestion was accepted or rejected (see `suggestions`). */
   suggestion: SuggestionEvent;
+  /** The user changed the height of the editor (see `resizable`): the height in pixels, or null when it went back to as high as the text. */
+  resized: number | null;
   /** Suggestion mode was switched on (true) or off (false). */
   suggesting: boolean;
   /** A file was opened in the editor: through the `import` item or `importFile()`. */
@@ -242,6 +254,7 @@ export class Aurebesh {
   private comments: Comments | null = null;
   private suggestions: Suggestions | null = null;
   private importInput: HTMLInputElement | null = null;
+  private resizer: Resizer | null = null;
   private cleanup: Array<() => void> = [];
   private highlightTimer: ReturnType<typeof setTimeout> | undefined;
   private fonts: FontDef[];
@@ -503,8 +516,8 @@ export class Aurebesh {
           doc,
           stage: this.stage,
           content: this.content,
-          read: (mode) => (mode === 'html' ? this.getHTML() : this.getMarkdown()),
-          write: (mode, text) => (mode === 'html' ? this.setHTML(text) : this.setMarkdown(text)),
+          read: (mode) => (mode === 'html' ? formatHtml(this.getHTML()) : this.getMarkdown()),
+          write: (mode, text) => (mode === 'html' ? this.setHTML(compactHtml(text)) : this.setMarkdown(text)),
           changed: () => this.emitChange(),
           modeChanged: (mode) => this.emit('mode', mode),
           lossy: () => this.clean(markdownToHtml(this.getMarkdown())) !== this.getHTML(),
@@ -531,6 +544,22 @@ export class Aurebesh {
       });
     }
     this.root.appendChild(footer);
+    if (options.resizable !== false) {
+      this.resizer = new Resizer(
+        {
+          root: this.root,
+          target: () => this.root.querySelector<HTMLElement>('.aurebesh-body') ?? this.stage,
+          minimum: () => {
+            const value = parseFloat(doc.defaultView?.getComputedStyle(this.root).getPropertyValue('--aurebesh-min-height') ?? '');
+            return value > 0 ? value : 150;
+          },
+          t: (key) => this.t(key),
+          resized: (height) => this.emit('resized', height),
+        },
+        typeof options.resizable === 'object' ? options.resizable : {},
+      );
+      this.root.appendChild(this.resizer.el);
+    }
     this.floatPops();
     this.maxLength = options.maxLength && options.maxLength > 0 ? Math.floor(options.maxLength) : null;
     this.counterEl.hidden = !options.counter;
@@ -904,6 +933,16 @@ export class Aurebesh {
   getMarkdown(): string {
     this.modeSwitch?.flush();
     return this.isEmpty() ? '' : toMarkdown(finalNode(this.cleanNodes()));
+  }
+
+  /** The height of the editor in pixels when it has one of its own (the user dragged it, or `setHeight` was called), else null: as high as the text. */
+  getHeight(): number | null {
+    return this.resizer?.current ?? null;
+  }
+
+  /** Gives the editor a height in pixels (between the minimum and the maximum), or with null makes it as high as the text again. Needs `resizable` not to be false. */
+  setHeight(height: number | null): void {
+    this.resizer?.set(height);
   }
 
   /** Whether suggestion mode is on: what is typed and deleted is tracked. */
@@ -1491,6 +1530,7 @@ export class Aurebesh {
     this.findBar?.destroy();
     this.comments?.destroy();
     this.suggestions?.destroy();
+    this.resizer?.destroy();
     this.blockHandle?.destroy();
     this.cleanup.forEach((fn) => fn());
     this.cleanup = [];

@@ -176,6 +176,7 @@ export const LABELS_NL: Labels = {
   'ui.import.done': '{name} geopend',
   'ui.import.unsupported': '{name} kan hier niet geopend worden. Dit kan wel: {formats}.',
   'ui.import.old': '{name} is een oud Word-bestand (.doc): sla het in Word op als .docx en open dat.',
+  'ui.resize': 'Sleep om de hoogte aan te passen',
   'comment': 'Opmerking toevoegen',
   'comments': 'Opmerkingen',
   'ui.comments': 'Opmerkingen',

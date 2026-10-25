@@ -89,6 +89,8 @@ export class AurebeshEditor implements ControlValueAccessor, AfterViewInit, OnCh
   @Output() suggesting = new EventEmitter<boolean>();
   /** A file was opened in the editor (the `import` item, or `importFile`). */
   @Output() imported = new EventEmitter<ImportResult>();
+  /** The user changed the height of the editor (see the `resizable` option): the height in pixels, or null. */
+  @Output() resized = new EventEmitter<number | null>();
   @Output() pageChange = new EventEmitter<ResolvedPage | null>();
   @Output() layoutChange = new EventEmitter<Layout>();
   @Output() error = new EventEmitter<Error>();
@@ -210,6 +212,7 @@ export class AurebeshEditor implements ControlValueAccessor, AfterViewInit, OnCh
     listen<SuggestionEvent>('suggestion', (event) => emit(() => this.suggestion.emit(event)));
     listen<boolean>('suggesting', (on) => emit(() => this.suggesting.emit(on)));
     listen<ImportResult>('imported', (result) => emit(() => this.imported.emit(result)));
+    listen<number | null>('resized', (height) => emit(() => this.resized.emit(height)));
     listen<ResolvedPage | null>('page', (page) => emit(() => this.pageChange.emit(page)));
     listen<Layout>('layout', (layout) => emit(() => this.layoutChange.emit(layout)));
     listen<Error>('error', (error) => emit(() => this.error.emit(error)));

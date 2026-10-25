@@ -43,6 +43,8 @@ export interface AurebeshEditorProps {
   onSuggesting?: (on: boolean) => void;
   /** Called when a file was opened in the editor (the `import` item, or `importFile`). */
   onImported?: (result: ImportResult) => void;
+  /** Called when the user changed the height of the editor (see the `resizable` option): the height in pixels, or null. */
+  onResized?: (height: number | null) => void;
   options?: AurebeshOptions;
   /** The language of the texts of the editor: 'nl', 'de', 'fr', 'es', 'en'. Default: the `lang` of the page, or the language of the browser. */
   language?: string;
@@ -69,11 +71,11 @@ export interface AurebeshEditorProps {
 
 export const AurebeshEditor = forwardRef<AurebeshElement, AurebeshEditorProps>(function AurebeshEditor(props, ref) {
   defineAurebeshElement();
-  const { value, defaultValue, onChange, onError, onReady, onCount, onMention, onComment, onComments, onSuggestion, onSuggesting, onImported, onPageChange, options, language, page, pageOrientation, pageMargin, maxLength, counter, placeholder, readOnly, required, name, toolbar, id, className, style } = props;
+  const { value, defaultValue, onChange, onError, onReady, onCount, onMention, onComment, onComments, onSuggestion, onSuggesting, onImported, onResized, onPageChange, options, language, page, pageOrientation, pageMargin, maxLength, counter, placeholder, readOnly, required, name, toolbar, id, className, style } = props;
   const el = useRef<AurebeshElement | null>(null);
   useImperativeHandle(ref, () => el.current as AurebeshElement);
-  const handlers = useRef({ onChange, onError, onReady, onCount, onMention, onComment, onComments, onSuggestion, onSuggesting, onImported, onPageChange });
-  handlers.current = { onChange, onError, onReady, onCount, onMention, onComment, onComments, onSuggestion, onSuggesting, onImported, onPageChange };
+  const handlers = useRef({ onChange, onError, onReady, onCount, onMention, onComment, onComments, onSuggestion, onSuggesting, onImported, onResized, onPageChange });
+  handlers.current = { onChange, onError, onReady, onCount, onMention, onComment, onComments, onSuggestion, onSuggesting, onImported, onResized, onPageChange };
 
   // Layout effects run right after the element is inserted, before it creates its editor.
   useLayoutEffect(() => {
@@ -100,6 +102,7 @@ export const AurebeshEditor = forwardRef<AurebeshElement, AurebeshEditorProps>(f
     const suggestion = (e: Event) => handlers.current.onSuggestion?.((e as CustomEvent<SuggestionEvent>).detail);
     const imported = (e: Event) => handlers.current.onImported?.((e as CustomEvent<ImportResult>).detail);
     const suggesting = (e: Event) => handlers.current.onSuggesting?.((e as CustomEvent<boolean>).detail);
+    const resized = (e: Event) => handlers.current.onResized?.((e as CustomEvent<number | null>).detail);
     const pageChange = (e: Event) => handlers.current.onPageChange?.((e as CustomEvent<ResolvedPage | null>).detail);
     node.addEventListener('page', pageChange);
     node.addEventListener('change', change);
@@ -112,6 +115,7 @@ export const AurebeshEditor = forwardRef<AurebeshElement, AurebeshEditorProps>(f
     node.addEventListener('suggestion', suggestion);
     node.addEventListener('suggesting', suggesting);
     node.addEventListener('imported', imported);
+    node.addEventListener('resized', resized);
     return () => {
       node.removeEventListener('page', pageChange);
       node.removeEventListener('change', change);
@@ -124,6 +128,7 @@ export const AurebeshEditor = forwardRef<AurebeshElement, AurebeshEditorProps>(f
       node.removeEventListener('suggestion', suggestion);
       node.removeEventListener('suggesting', suggesting);
       node.removeEventListener('imported', imported);
+      node.removeEventListener('resized', resized);
     };
   }, []);
 

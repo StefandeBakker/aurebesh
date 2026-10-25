@@ -50,6 +50,7 @@ export const AurebeshEditor = defineComponent({
     suggestion: (event: SuggestionEvent) => !!event,
     suggesting: (on: boolean) => typeof on === 'boolean',
     imported: (result: ImportResult) => !!result,
+    resized: (height: number | null) => height === null || typeof height === 'number',
     pageChange: (page: ResolvedPage | null) => page === null || typeof page === 'object',
   },
   setup(props, { emit }) {
@@ -83,6 +84,7 @@ export const AurebeshEditor = defineComponent({
         onSuggestion: (e: CustomEvent<SuggestionEvent>) => emit('suggestion', e.detail),
         onSuggesting: (e: CustomEvent<boolean>) => emit('suggesting', e.detail),
         onImported: (e: CustomEvent<ImportResult>) => emit('imported', e.detail),
+        onResized: (e: CustomEvent<number | null>) => emit('resized', e.detail),
         onPage: (e: CustomEvent<ResolvedPage | null>) => emit('pageChange', e.detail),
       });
   },

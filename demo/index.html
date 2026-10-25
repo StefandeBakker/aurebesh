@@ -139,7 +139,7 @@
 
 <script type="module">
   import '../dist/element.js';
-  import { LABELS_NL, definePlugin } from '../dist/index.js';
+  import { LABELS_NL, definePlugin, formatHtml } from '../dist/index.js';
   // served as /demo (without the slash) the folder of the page is the one above it: the link has to say where the other page is
   if (/\/demo$/.test(location.pathname)) document.getElementById('parts-link').href = 'demo/parts.html';
   const ed = document.getElementById('editor');
@@ -257,7 +257,8 @@
   const tabs = document.getElementById('tabs');
   let format = 'markdown';
   const show = () => {
-    out.textContent = ed.instance ? ed.instance.getValue(format) : '';
+    const value = ed.instance ? ed.instance.getValue(format) : '';
+    out.textContent = format === 'html' ? formatHtml(value) : value;
     tabs.querySelectorAll('button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.f === format)));
   };
   tabs.addEventListener('click', (e) => {

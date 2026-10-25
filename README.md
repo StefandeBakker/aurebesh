@@ -128,6 +128,7 @@ import 'aurebesh/element'; // registers <aurebesh-editor>
 | `mentions` | `@mentions`: the people to pick from, `{ search(query) }` (see *Mentions*; default off) |
 | `comments` | Comments on selected text: `{ author, threads }` (see *Comments*; default off) |
 | `suggestions` | Suggestion mode (tracked changes): `{ author, enabled? }` (see *Suggestions*; default off) |
+| `resizable` | The bar under the text that the user drags to change the height: `true` (default), `false`, or `{ height, min, max }` (see *The height of the editor*) |
 | `blockHandles` | The grip beside a block to move it and its menu (default on; `false` leaves it out) |
 | `fonts` | Font list for the font picker (default: 15 system font stacks, nothing to download) |
 | `colors` | Swatches for text/highlight colour (default: 40) |
@@ -187,6 +188,21 @@ The editor works with a finger. Below a window width of 640 px:
 - the find bar goes over more lines instead of out of the window.
 
 On a screen with a touch pointer (`pointer: coarse`) the buttons, the menus and the handles of a table are at least 40 px, and the tip with the name of a button is not shown at every tap. The page needs `<meta name="viewport" content="width=device-width, initial-scale=1">`, as any page for a phone does; without it the phone shows a page of 980 px, scaled down.
+
+## The height of the editor
+
+Under the text there is a bar with a grip: drag it (with a mouse, a finger or a pen) to make the editor higher or lower. It is on by default; `resizable: false` leaves it out. Until it is used the editor is as high as the text (at least its minimum height, and not higher than `--aurebesh-max-height` when the page gives one); after that it has a height of its own, the text scrolls inside it and the toolbar stays in view. The height is the one of the text with the sidebar beside it, not of the toolbar.
+
+```js
+new Aurebesh(element, {
+  resizable: { height: 400, min: 200, max: 800 }, // all three are optional
+});
+```
+
+- `height` is the height to start with, in pixels (default: as high as the text), `min` the lowest (default: `--aurebesh-min-height`, 150) and `max` the highest (default: **the height of the window**, so that the bar cannot be dragged out of sight; a window that gets lower takes the editor along).
+- **Keyboard**: the bar is a separator that can be focused. `Arrow Up` and `Arrow Down` change the height by 24 px, `Page Up` and `Page Down` by 200 px, `Home` and `End` go to the lowest and the highest, and `Enter` (or a double click on the bar) goes back to the start: the `height` of the options, or as high as the text.
+- **From code**: `setHeight(px)` (or `null` for as high as the text) and `getHeight()` (the height, or `null` when the editor has none of its own). The `resized` event (`onResized` in React, `@resized` in Vue, `(resized)` in Angular, a DOM event on `<aurebesh-editor>`) gives the height when the user is done dragging, or a key changed it; the editor does not keep it, so save it where you want it and give it back as `height`.
+- A height of the user replaces `--aurebesh-max-height` while it is there. In full screen the bar is not shown and the editor fills the window; the height is back when it ends. On a page format the sheet scrolls inside the height. Headless editors have the bar too (its class is `aurebesh-resize`, the grip `aurebesh-resize-grip`) and style it themselves.
 
 ## Find and replace
 
@@ -681,7 +697,7 @@ import { toMarkdown, fromMarkdown, toText } from 'aurebesh'; // the same for any
 - two</aurebesh-editor>
 ```
 
-**Writing in Markdown or HTML: the views.** The `modes` option puts a small switch in the footer, on the right (the word and character counts stay on the left): **Editor**, **HTML** and **Markdown**. The HTML and Markdown views show the content as text that you can edit; what you type replaces the content of the editor (after a short pause, when the field loses the focus and when you switch back), and it is sanitized like any HTML. The toolbar is out of use while a source view shows, since it works on the text of the editor.
+**Writing in Markdown or HTML: the views.** The `modes` option puts a small switch in the footer, on the right (the word and character counts stay on the left): **Editor**, **HTML** and **Markdown**. The HTML and Markdown views show the content as text that you can edit; what you type replaces the content of the editor (after a short pause, when the field loses the focus and when you switch back), and it is sanitized like any HTML. The toolbar is out of use while a source view shows, since it works on the text of the editor. The HTML view is formatted to read: each block on a line, and the blocks in a block (a list, a table) indented; the text in a paragraph and what is in a code block are left as they are. Typing HTML with your own line breaks and indent is fine, the white space between blocks is taken out again, so `getHTML()` is the same as always. `formatHtml(html)` and `compactHtml(html)` are exported, to show or to tidy HTML in the same way elsewhere.
 
 ```js
 new Aurebesh(el, { modes: true });                      // Editor | HTML | Markdown

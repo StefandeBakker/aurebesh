@@ -19,7 +19,9 @@ test.describe('the views of the content', () => {
     expect(modes.x + modes.width).toBeGreaterThan(footer.x + footer.width - 40);
     expect(count.x + count.width).toBeLessThanOrEqual(modes.x);
     const root = (await page.locator('.aurebesh').boundingBox())!;
-    expect(footer.y + footer.height).toBeGreaterThan(root.y + root.height - 10); // at the bottom
+    const grip = (await page.locator('.aurebesh-resize').boundingBox())!;
+    expect(footer.y + footer.height).toBeLessThanOrEqual(grip.y + 1); // above the bar for the height
+    expect(grip.y + grip.height).toBeGreaterThan(root.y + root.height - 10); // which is at the bottom
   });
 
   test('Markdown can be typed, goes back to the editor as formatted text, and the toolbar stays out of use meanwhile', async ({ page }) => {
@@ -47,6 +49,48 @@ test.describe('the views of the content', () => {
     await page.locator('.aurebesh-source').fill('<p onclick="alert(1)">changed</p><script>alert(1)</script>');
     await radio(page, 'editor').click();
     expect(await html(page)).toBe('<p>changed</p>');
+  });
+
+  test('the HTML view is formatted: a block on each line, indented where blocks are in a block', async ({ page }) => {
+    await start(page, '<h2>Title</h2><p>Some <strong>bold</strong> text</p><ul><li>one</li><li>two</li></ul><table><tbody><tr><td>a</td></tr></tbody></table>');
+    await radio(page, 'html').click();
+    await expect(page.locator('.aurebesh-source')).toHaveValue(
+      [
+        '<h2>Title</h2>',
+        '<p>Some <strong>bold</strong> text</p>',
+        '<ul>',
+        '  <li>one</li>',
+        '  <li>two</li>',
+        '</ul>',
+        '<table>',
+        '  <tbody>',
+        '    <tr>',
+        '      <td>a</td>',
+        '    </tr>',
+        '  </tbody>',
+        '</table>',
+      ].join('\n'),
+    );
+  });
+
+  test('the formatting does not end up in the content: not when the view is left, and not when HTML is typed with line breaks', async ({ page }) => {
+    const initial = '<h2>Title</h2><ul><li>one</li><li>two<ul><li>in</li></ul></li></ul><pre>a\n  b</pre><p>x</p>';
+    await start(page, initial);
+    await radio(page, 'html').click();
+    const field = page.locator('.aurebesh-source');
+    const shown = await field.inputValue();
+    expect(shown).toContain('\n');
+    // nothing was typed: the content is as it was
+    await radio(page, 'editor').click();
+    expect(await html(page)).toBe(initial);
+    // typed with line breaks and an uneven indent
+    await radio(page, 'html').click();
+    await field.fill('\n<h2>Title</h2>\n\n  <ul>\n   <li>one</li>\n\t<li>two</li>\n  </ul>\n<p>y</p>\n');
+    await radio(page, 'editor').click();
+    expect(await html(page)).toBe('<h2>Title</h2><ul><li>one</li><li>two</li></ul><p>y</p>');
+    // and the view shows it formatted again
+    await radio(page, 'html').click();
+    expect(await field.inputValue()).toBe(['<h2>Title</h2>', '<ul>', '  <li>one</li>', '  <li>two</li>', '</ul>', '<p>y</p>'].join('\n'));
   });
 
   test('the arrow keys move between the views, and the form gets the value of the editor', async ({ page }) => {

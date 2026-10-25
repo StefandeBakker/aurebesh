@@ -180,6 +180,7 @@ export const LABELS_EN: Labels = {
   'ui.import.done': 'Opened {name}',
   'ui.import.unsupported': '{name} cannot be opened here. These can: {formats}.',
   'ui.import.old': '{name} is an old Word file (.doc): save it as .docx in Word and open that.',
+  'ui.resize': 'Drag to change the height',
   'comment': 'Add comment',
   'comments': 'Comments',
   'ui.comments': 'Comments',
