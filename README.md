@@ -947,6 +947,27 @@ const safeHtml = sanitize(untrustedHtml);
 You can also use another server-side sanitizer (DOMPurify with jsdom, `sanitize-html`) with a similar allow-list.
 Render the stored HTML only after sanitizing, and keep a Content-Security-Policy as a second line of defence.
 
+## Parts without the editor
+
+Some parts of the package are also worth having without the editor: converting a Word document, handling the tracked changes of a text on a server, or the texts of one language. Each has an entry of its own that loads only that part (and what it needs), also as CommonJS:
+
+| Import | What it has | Size (minified, gzip) |
+| --- | --- | --- |
+| `aurebesh` | everything: the editor, the element, all the options | 404 KB, 122 KB |
+| `aurebesh/docx` | `toDocx`, `toDocxBytes`, `fromDocx`, `zip`, `unzipAll` | 69 KB, 25 KB |
+| `aurebesh/suggestions` | `suggestionsIn`, `acceptIn`, `rejectIn`, `finalHtml`, `finalNode`, `suggestionCss` | 25 KB, 8 KB |
+| `aurebesh/comments` | `commentCss`, `cleanThreads`, `commentIdsIn`, `COMMENT_ID` | 14 KB, 5 KB |
+| `aurebesh/find` | `findRanges`, `replaceRanges` | 9 KB, 3 KB |
+| `aurebesh/mentions` | `mentionsIn`, `mentionCss`, `MENTION_ID` | 5 KB, 2 KB |
+| `aurebesh/locales/nl` (also `en`, `de`, `fr`, `es`) | the texts of that language, as the default export and as `LABELS_NL` | 9 KB, 3 KB |
+
+```js
+import { fromDocx, toDocx } from 'aurebesh/docx';
+import LABELS_NL from 'aurebesh/locales/nl'; // new Aurebesh(el, { labels: LABELS_NL })
+```
+
+The parts need a DOM only when they work on one (`fromDocx` and the suggestions read XML and HTML with the browser's parser; on a server give them jsdom): loading any of them does not touch the DOM, so importing them on the server is safe. The size of the editor (the first row) does not change with these entries: it still has these parts in it. The package has no dependencies; only `aurebesh/element` registers something when it is loaded (`sideEffects` in `package.json` says so), so a bundler can leave out whatever of the rest is not used.
+
 ## Browser support and SSR
 
 Modern evergreen browsers; the tests run in Chromium and WebKit (Safari's engine). Formatting uses `document.execCommand`
@@ -974,6 +995,7 @@ npm run demo      # build + serve the demo at http://localhost:5199/demo/
 npm run build     # tsup -> dist (minified, ESM + CJS + types), then the Angular entry with ng-packagr -> dist/angular
 npm test          # unit tests (Vitest)
 npm run test:e2e  # real-browser tests (Playwright: Chromium, Firefox, WebKit)
+npm run check:package # after a build: every export exists and loads as ESM and CommonJS without a browser
 ```
 
 The first time, install the test browsers with `npx playwright install chromium firefox webkit`.
