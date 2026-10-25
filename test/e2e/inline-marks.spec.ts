@@ -57,7 +57,7 @@ test.describe('inline code next to other formatting', () => {
     await code(page);
     const out = await html(page);
     expect(out).toMatch(/<code><strong>bold<\/strong><\/code><strong> text<\/strong>|<strong><code>bold<\/code> text<\/strong>/);
-    expect(out.replace(/<[^>]+>/g, '')).toBe('bold text');
+    expect(await page.evaluate(() => (window as any).ed.instance.getText())).toBe('bold text');
   });
 
   test('does not make code in code, and the same text stays selected (the button undoes it)', async ({ page }) => {

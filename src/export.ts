@@ -1,5 +1,6 @@
 /** Output formats besides HTML: Markdown and plain text. Both need a DOM (browser, or jsdom on the server). */
 import { plainText } from './stats';
+import { stripEnd } from './strings';
 import { modelOf } from './table';
 
 /** The built-in formats, and the name of a format that a plugin adds. */
@@ -231,10 +232,25 @@ function block(el: Element, indent = ''): string {
 }
 
 /**
+ * The white space at the end of a line goes, except a hard break (two spaces or more, then the line break), which is two spaces. Line by
+ * line: one regular expression for it is slow on a long run of spaces.
+ */
+function tidyLines(text: string): string {
+  const lines = text.split('\n');
+  return lines
+    .map((line, i) => {
+      if (i === lines.length - 1) return line; // no line break after it: the end of the text is trimmed anyway
+      const trimmed = stripEnd(line, ' \t');
+      return line.startsWith('  ', trimmed.length) ? trimmed + '  ' : trimmed;
+    })
+    .join('\n');
+}
+
+/**
  * Markdown (GitHub flavour) of HTML or an element. Formatting Markdown has no syntax for (underline, sub/superscript) stays as
  * inline HTML; colours, fonts, sizes, alignment and columns are dropped, because Markdown can't express them.
  */
 export function toMarkdown(input: string | Element): string {
   const root = toElement(input);
-  return blocks(root).join('\n\n').replace(/[ \t]+\n/g, (m) => (m.startsWith('  ') ? '  \n' : '\n')).replace(/\n{3,}/g, '\n\n').trim();
+  return tidyLines(blocks(root).join('\n\n')).replace(/\n{3,}/g, '\n\n').trim();
 }

@@ -139,6 +139,29 @@ function lines(block: Element): string[] {
   return [block.innerHTML.trim()];
 }
 
+/** The text of an element, with a line break for each <br>. Read from the nodes: no tags are taken out of a text with a regular expression. */
+function plainOf(el: Element): string {
+  const copy = el.cloneNode(true) as Element;
+  copy.querySelectorAll('br').forEach((br) => br.replaceWith('\n'));
+  return (copy.textContent ?? '').trim();
+}
+
+/** The same lines as `lines`, as plain text: for a code block. */
+function plainLines(block: Element): string[] {
+  if (block.matches('ul,ol')) {
+    return Array.from(block.querySelectorAll('li')).map((li) => {
+      const copy = li.cloneNode(true) as Element;
+      copy.querySelectorAll('ul,ol').forEach((n) => n.remove());
+      return plainOf(copy);
+    });
+  }
+  if (block.tagName === 'PRE') return (block.textContent ?? '').replace(/\n$/, '').split('\n');
+  if (block.matches('div[data-callout]') || (block.tagName === 'BLOCKQUOTE' && block.children.length && Array.from(block.children).every((c) => c.matches('p')))) {
+    return Array.from(block.children).map(plainOf);
+  }
+  return [plainOf(block)];
+}
+
 /** The HTML of a list as another kind of list (bullets, numbers or tasks), with its items and the lists in them. */
 function convertList(block: Element, kind: 'ul' | 'ol' | 'task'): string {
   const doc = block.ownerDocument;
@@ -193,7 +216,7 @@ export function turnInto(content: HTMLElement, block: HTMLElement, kind: BlockKi
         break;
       }
       case 'code':
-        html = `<pre>${items.map((i) => i.replace(/<br\s*\/?>/g, '\n').replace(/<[^>]+>/g, '')).join('\n')}</pre>`;
+        html = `<pre>${plainLines(block).map(esc).join('\n')}</pre>`;
         break;
       case 'callout':
         html = `<div data-callout="${calloutType}">${items.map(para).join('')}</div>`;

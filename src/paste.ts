@@ -227,12 +227,24 @@ const SHEET_PROPS = new Set([
   'text-decoration', 'text-decoration-line', 'vertical-align', 'text-align',
 ]);
 
-function readStyleSheet(doc: Document): SheetRule[] {
-  const css = Array.from(doc.querySelectorAll('style'))
+/**
+ * The css of the <style> elements of a pasted page, without its comments: those in css, and the `<!--` and `-->` that old pages put around
+ * it (`--!>` ends an html comment too). The marks go until none is left, so that taking one out cannot make a new one.
+ */
+function styleText(doc: Document): string {
+  let css = Array.from(doc.querySelectorAll('style'))
     .map((s) => s.textContent ?? '')
     .join('\n')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/<!--|-->/g, '');
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+  for (let before = ''; before !== css; ) {
+    before = css;
+    css = css.replace(/<!--|--!?>/g, '');
+  }
+  return css;
+}
+
+function readStyleSheet(doc: Document): SheetRule[] {
+  const css = styleText(doc);
   const rules: SheetRule[] = [];
   for (const m of css.matchAll(/([^{}@]+)\{([^}]*)\}/g)) {
     const decl = Object.fromEntries(Object.entries(parseStyle(m[2])).filter(([k]) => SHEET_PROPS.has(k)));
@@ -737,11 +749,7 @@ function toGap(value: string | undefined): string | undefined {
  * Plain CSS (`.cols { column-count: 2 }`) is read as well. Returns the column settings per class name.
  */
 function readColumnRules(doc: Document): Map<string, Columns> {
-  const css = Array.from(doc.querySelectorAll('style'))
-    .map((s) => s.textContent ?? '')
-    .join('\n')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/<!--|-->/g, '');
+  const css = styleText(doc);
 
   const pages = new Map<string, Columns>();
   for (const m of css.matchAll(/@page\s+([\w-]+)\s*\{([^}]*)\}/gi)) {
