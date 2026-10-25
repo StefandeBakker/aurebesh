@@ -42,7 +42,7 @@ function inlineCode(code: string): string {
 function wrap(content: string, open: string, close = open): string {
   if (!content.trim()) return content;
   const lead = content.match(/^\s*/)![0];
-  const trail = content.match(/\s*$/)![0];
+  const trail = content.slice(content.trimEnd().length);
   return `${lead}${open}${content.trim()}${close}${trail}`;
 }
 
@@ -158,9 +158,17 @@ function list(el: Element, ordered: boolean, indent: string): string {
     .join('\n');
 }
 
+/** Some lines as one: the white space around a line break is one space. By hand, since a regular expression for it is slow on a long run of spaces. */
+const oneLine = (s: string): string =>
+  s
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(' ');
+
 function cell(el: Element): string {
   // a line break in a cell is written as HTML, as Markdown has no other way; `|` is already escaped as text
-  return Array.from(el.childNodes).map(inline).join('').replace(/ {2}\n/g, '<br>').replace(/\s*\n\s*/g, ' ').trim();
+  return oneLine(Array.from(el.childNodes).map(inline).join('').replace(/ {2}\n/g, '<br>')).trim();
 }
 
 function table(el: Element): string {

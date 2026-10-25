@@ -180,11 +180,11 @@ test.describe('opening a file', () => {
   test('HTML, Markdown and text files', async ({ page }) => {
     await start(page);
     await pick(page, 'page.html', '<h2>From html</h2><p onclick="x()">safe</p><script>alert(1)</script>', 'text/html');
-    expect(await html(page)).toBe('<h2>From html</h2><p>safe</p>');
+    await expect.poll(() => html(page)).toBe('<h2>From html</h2><p>safe</p>');
     await pick(page, 'notes.md', '# From markdown\n\nSome **bold** text', 'text/markdown');
-    expect(await html(page)).toBe('<h1>From markdown</h1><p>Some <strong>bold</strong> text</p>');
+    await expect.poll(() => html(page)).toBe('<h1>From markdown</h1><p>Some <strong>bold</strong> text</p>');
     await pick(page, 'plain.txt', 'first line\nsecond line\n\nnew <paragraph>', 'text/plain');
-    expect(await html(page)).toBe('<p>first line<br>second line</p><p>new &lt;paragraph&gt;</p>');
+    await expect.poll(() => html(page)).toBe('<p>first line<br>second line</p><p>new &lt;paragraph&gt;</p>');
     const formats = await page.evaluate(() => (window as any).imported.map((i: any) => i.format));
     expect(formats).toEqual(['html', 'markdown', 'text']);
   });

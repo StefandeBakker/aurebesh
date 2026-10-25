@@ -6,6 +6,7 @@
  * changes. What does not: styles as such (what they look like comes over, their names do not), headers and footers, footnotes, fields
  * other than links, charts, drawings, and the exact layout. The result is HTML for the sanitizer of the editor, which has the last word.
  */
+import { strip } from './strings';
 import { unzipAll } from './zip';
 import type { UnzipLimits } from './zip';
 import type { CommentThread } from './comments';
@@ -306,7 +307,7 @@ class Writer {
   }
 }
 
-const slug = (s: string): string => 'a-' + (s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'unknown');
+const slug = (s: string): string => 'a-' + (strip(s.toLowerCase().replace(/[^a-z0-9]+/g, '-'), '-').slice(0, 40) || 'unknown');
 
 function isoDate(v: string | null): string {
   const t = v ? Date.parse(v) : NaN;
@@ -867,7 +868,8 @@ export async function fromDocx(input: Blob | ArrayBuffer | Uint8Array, options: 
   ctx.threadOf = read.threadOf;
 
   // Word wants a paragraph after a table, and often ends with empty ones: they are not text
-  const html = renderBlocks(ctx, body).replace(/(?:<p><br><\/p>)+$/, '');
+  let html = renderBlocks(ctx, body);
+  while (html.endsWith('<p><br></p>')) html = html.slice(0, -'<p><br></p>'.length);
   const comments = read.threads.filter((t) => ctx.usedThreads.has(t.id));
   if (ctx.skippedImages) ctx.warnings.add(`${ctx.skippedImages} picture${ctx.skippedImages > 1 ? 's' : ''} could not be imported (a format that a browser does not show, or too large).`);
 

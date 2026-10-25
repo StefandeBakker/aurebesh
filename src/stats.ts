@@ -1,3 +1,5 @@
+import { stripEnd } from './strings';
+
 /** Plain text of the content, and character / word counts. */
 
 export interface TextStats {
@@ -38,7 +40,7 @@ export function plainText(root: Node): string {
     if (block) lineBreak();
   };
   root.childNodes.forEach(walk);
-  return parts.join('').replace(/ /g, ' ').replace(/\t\n/g, '\n').replace(/\n+$/, '');
+  return stripEnd(parts.join('').replace(/ /g, ' ').replace(/\t\n/g, '\n'), '\n');
 }
 
 type Segmenter = { segment(input: string): Iterable<{ segment: string; isWordLike?: boolean }> };
