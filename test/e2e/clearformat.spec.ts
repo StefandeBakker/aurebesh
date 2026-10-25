@@ -54,7 +54,7 @@ test.describe('clearing one kind of formatting', () => {
     await choose(page, 'Bold');
     const out = await html(page);
     expect(out).toMatch(/<strong>[^<]*<\/strong>/);
-    expect(out.replace(/<[^>]+>/g, '')).toBe('one two');
+    expect(await page.evaluate(() => (window as any).ed.instance.getText())).toBe('one two');
   });
 
   test('takes colour and highlight away on their own', async ({ page }) => {

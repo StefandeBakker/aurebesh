@@ -1,5 +1,4 @@
 import { Aurebesh } from './editor';
-import { toMarkdown } from './export';
 import { markdownToHtml } from './from-markdown';
 import { parseModes } from './modes';
 import type { ViewMode } from './modes';
@@ -138,11 +137,10 @@ export class AurebeshElement extends BaseElement {
     return this.valueFormat() === 'html' ? this.innerHTML : this.textContent ?? '';
   }
 
-  /** Builds the editor. `initial` is in the format of `value`, or HTML (`isHtml`: from the editor that is being replaced). */
-  private create(initial: string, isHtml = false): void {
+  /** Builds the editor. `initial` is in the format of `value`. */
+  private create(initial: string): void {
     const toolbarAttr = this.getAttribute('toolbar');
     const valueFormat = this.valueFormat();
-    if (isHtml && valueFormat === 'markdown') initial = toMarkdown(initial);
     // The light-DOM content was only the initial value; the editor renders its own UI.
     this.textContent = '';
     this.editor = new Aurebesh(this, {
@@ -173,6 +171,7 @@ export class AurebeshElement extends BaseElement {
     this.editor.on('error', (error) => this.dispatchEvent(new CustomEvent('error', { detail: error, bubbles: true })));
     this.editor.on('page', (page) => this.dispatchEvent(new CustomEvent('page', { detail: page, bubbles: true })));
     this.editor.on('suggestion', (detail) => this.dispatchEvent(new CustomEvent('suggestion', { detail, bubbles: true })));
+    this.editor.on('imported', (detail) => this.dispatchEvent(new CustomEvent('imported', { detail, bubbles: true })));
     this.editor.on('suggesting', (detail) => this.dispatchEvent(new CustomEvent('suggesting', { detail, bubbles: true })));
     this.editor.on('comment', (detail) => this.dispatchEvent(new CustomEvent('comment', { detail, bubbles: true })));
     this.editor.on('comments', (detail) => this.dispatchEvent(new CustomEvent('comments', { detail, bubbles: true })));
@@ -224,10 +223,11 @@ export class AurebeshElement extends BaseElement {
   /** Builds the editor again with the content it has. */
   private rebuild(): void {
     if (!this.editor) return;
-    const html = this.editor.getHTML();
+    // the content, in the format of `value` (a Markdown editor gets Markdown, which is made from the content and not from text)
+    const value = this.valueFormat() === 'markdown' ? this.editor.getMarkdown() : this.editor.getHTML();
     this.editor.destroy();
     this.editor = null;
-    this.create(html, true);
+    this.create(value);
   }
 
   /** What is submitted with a form: the `format` attribute, "html", "markdown", "text" or a format that a plugin adds; by default the format of `value`. */

@@ -1,6 +1,7 @@
 /** Keyboard behaviour inside <pre> code blocks. Works on the current selection. */
 
 import { normalizeLanguage } from './languages';
+import { stripEnd } from './strings';
 
 const ROOT = '.aurebesh-content';
 const INDENT = '  ';
@@ -53,7 +54,7 @@ function exitBlock(pre: HTMLElement): void {
     if (last.nodeName === 'BR') {
       last.remove();
     } else if (last.nodeType === Node.TEXT_NODE && /\n$/.test(last.textContent ?? '')) {
-      const trimmed = (last.textContent ?? '').replace(/\n+$/, '');
+      const trimmed = stripEnd(last.textContent ?? '', '\n');
       if (trimmed) {
         last.textContent = trimmed;
         break;

@@ -17,6 +17,7 @@ import type { TextStats } from './stats';
 import type { MentionUser } from './mentions';
 import type { CommentEvent, CommentThread } from './comments';
 import type { SuggestionEvent } from './suggestions';
+import type { ImportResult } from './import';
 
 export const AurebeshEditor = defineComponent({
   name: 'AurebeshEditor',
@@ -48,6 +49,7 @@ export const AurebeshEditor = defineComponent({
     comments: (threads: CommentThread[]) => Array.isArray(threads),
     suggestion: (event: SuggestionEvent) => !!event,
     suggesting: (on: boolean) => typeof on === 'boolean',
+    imported: (result: ImportResult) => !!result,
     pageChange: (page: ResolvedPage | null) => page === null || typeof page === 'object',
   },
   setup(props, { emit }) {
@@ -80,6 +82,7 @@ export const AurebeshEditor = defineComponent({
         onComments: (e: CustomEvent<CommentThread[]>) => emit('comments', e.detail),
         onSuggestion: (e: CustomEvent<SuggestionEvent>) => emit('suggestion', e.detail),
         onSuggesting: (e: CustomEvent<boolean>) => emit('suggesting', e.detail),
+        onImported: (e: CustomEvent<ImportResult>) => emit('imported', e.detail),
         onPage: (e: CustomEvent<ResolvedPage | null>) => emit('pageChange', e.detail),
       });
   },

@@ -36,11 +36,11 @@ export interface SanitizeExtension {
   clean?(el: Element): void;
 }
 
-export function sanitize(html: string, extensions: SanitizeExtension[] = []): string {
-  const doc = new DOMParser().parseFromString(html, 'text/html');
+/** The rules, on the content of an element that is part of a document that does nothing (not the page): the elements in it are cleaned in place. */
+function sanitizeBody(body: Element, extensions: SanitizeExtension[]): void {
   // the empty paragraphs the editor keeps beside a callout, to be able to type there, are not content
-  doc.body.querySelectorAll('p[data-guard]').forEach((p) => p.innerHTML === '<br>' && p.remove());
-  doc.body.querySelectorAll('li > input[type="checkbox" i]').forEach((box) => {
+  body.querySelectorAll('p[data-guard]').forEach((p) => p.innerHTML === '<br>' && p.remove());
+  body.querySelectorAll('li > input[type="checkbox" i]').forEach((box) => {
     const li = box.parentElement!;
     if (li.parentElement?.tagName === 'UL') {
       li.parentElement.setAttribute('data-task', '');
@@ -48,12 +48,29 @@ export function sanitize(html: string, extensions: SanitizeExtension[] = []): st
     }
     box.remove();
   });
-  clean(doc.body, extensions);
+  clean(body, extensions);
   // the break a browser keeps at the end of a line that ends in a break, to show the caret there, says nothing
-  doc.body.querySelectorAll('br').forEach((br) => {
+  body.querySelectorAll('br').forEach((br) => {
     if (!br.nextSibling && br.previousSibling?.nodeName === 'BR' && !br.closest('pre')) br.remove();
   });
+}
+
+export function sanitize(html: string, extensions: SanitizeExtension[] = []): string {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  sanitizeBody(doc.body, extensions);
   return doc.body.innerHTML;
+}
+
+/**
+ * A sanitized copy of what is in an element, as an element: the same rules as `sanitize`, without writing the content as text and
+ * reading it again. The copy is made in a document that does nothing (no pictures are loaded, no script runs), so what is in the
+ * element, clean or not, does no harm while it is cleaned. The element itself is not changed.
+ */
+export function sanitizeNodes(source: Node, extensions: SanitizeExtension[] = []): HTMLElement {
+  const doc = (source.ownerDocument ?? (source as Document)).implementation.createHTMLDocument('');
+  for (const child of Array.from(source.childNodes)) doc.body.appendChild(doc.importNode(child, true));
+  sanitizeBody(doc.body, extensions);
+  return doc.body;
 }
 
 const SUGGESTION_ATTRS = ['data-suggestion', 'data-kind', 'data-author', 'data-name', 'data-date'];

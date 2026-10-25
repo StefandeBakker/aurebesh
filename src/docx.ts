@@ -830,7 +830,7 @@ async function loadPictures(root: Element, images: DocxOptions['images']): Promi
 
 /** The bytes of a Word document for some HTML (or an element). */
 export async function toDocxBytes(input: string | Element, options: DocxOptions = {}): Promise<Uint8Array> {
-  const root = typeof input === 'string' ? new DOMParser().parseFromString(`<body>${input}</body>`, 'text/html').body : input;
+  const root = typeof input === 'string' ? new DOMParser().parseFromString(input, 'text/html').body : input;
   const page: DocxPage = { width: 210, height: 297, margin: 25.4, ...(options.page ?? {}) };
   const margin = twipsOfMm(page.margin);
   const width = Math.max(1440, twipsOfMm(page.width) - 2 * margin);

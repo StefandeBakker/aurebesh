@@ -78,7 +78,7 @@ test.describe('the weight of text', () => {
     await weight(page, '600');
     const out = await html(page);
     expect(out).toMatch(/^<p>one (<span style="font-weight: 600">two ?<\/span>|<span style="font-weight: 600">two<\/span> ?)three<\/p>$|font-weight: 600/);
-    expect(out.replace(/<[^>]+>/g, '')).toBe('one two three');
+    expect(await page.evaluate(() => (window as any).ed.instance.getText())).toBe('one two three');
   });
 
   test('works in a heading, which is bold by itself', async ({ page }) => {

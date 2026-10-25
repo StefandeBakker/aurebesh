@@ -75,6 +75,8 @@ export const ICONS: Record<string, Shape[]> = {
   // two sliders
   layout: [['path', { d: 'M4 8h9M19 8h1M4 16h1M11 16h9' }], ['circle', { cx: 16, cy: 8, r: 2.6 }], ['circle', { cx: 8, cy: 16, r: 2.6 }]],
   close: [['path', { d: 'M6 6l12 12M18 6 6 18' }]],
+  // an open folder
+  import: [['path', { d: 'M3 19V6h6l2 2h9v3' }], ['path', { d: 'M3 19l3-8h17l-3 8z' }]],
   // a pencil, and a list with a mark in front of the lines
   suggest: [['path', { d: 'M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19z' }], ['path', { d: 'M14.5 6.5l3 3' }]],
   suggestions: [['path', { d: 'M4 6.5l1.6 1.6L8.5 5M4 14.5l1.6 1.6 2.9-3.1' }], ['path', { d: 'M12 7h8M12 15h8' }]],

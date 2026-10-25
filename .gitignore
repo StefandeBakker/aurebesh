@@ -5,7 +5,6 @@ dist
 test/e2e/.build
 test-results
 playwright-report
-.claude/
 captures/
 _site
 

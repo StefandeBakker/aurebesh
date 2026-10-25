@@ -37,6 +37,7 @@ export const HEADLESS_CSS = `
 .aurebesh-table-grid button,.aurebesh-color-grid button{width:var(--aurebesh-cell,18px);height:var(--aurebesh-cell,18px);min-width:0;padding:0}
 .aurebesh-tip{position:absolute;z-index:30;pointer-events:none;white-space:nowrap}
 .aurebesh-slash{position:fixed;z-index:2147483000;max-height:260px;overflow:auto}
+.aurebesh-quick-spacer{flex:1 1 auto}
 .aurebesh-blockdrop{position:fixed;z-index:2147483000;height:3px;pointer-events:none;background:currentColor}
 .aurebesh-link-tools{position:absolute;z-index:20;flex-wrap:nowrap;width:max-content}
 .aurebesh-fullscreen{position:fixed!important;inset:0;z-index:2147483000;display:flex;flex-direction:column}
@@ -81,6 +82,8 @@ export const CSS = `
 .aurebesh-quickbar button{min-width:26px;height:26px}
 .aurebesh-quickbar .aurebesh-icon{width:16px;height:16px}
 .aurebesh-quickbar+.aurebesh-toolbar{border-top:1px solid var(--aurebesh-border,#d0d5dd)}
+.aurebesh-quick-sep{flex:none;align-self:stretch;width:1px;margin:4px 6px;background:var(--aurebesh-border,#d0d5dd)}
+.aurebesh-quick-spacer{flex:1 1 auto}
 /* icons: line drawings in the colour of the text, so they follow the theme and the pressed state */
 .aurebesh-icon{display:block;width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
 .aurebesh-toolbar button:has(>.aurebesh-icon){display:inline-flex;align-items:center;justify-content:center;padding:0 5px}

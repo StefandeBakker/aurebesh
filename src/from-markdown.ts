@@ -9,6 +9,7 @@
  */
 import { normalizeLanguage } from './languages';
 import { sanitize } from './sanitize';
+import { strip, stripEnd } from './strings';
 
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const PUNCT = /[!-/:-@[-`{-~‐-‧‰-⁞]/;
@@ -230,8 +231,9 @@ function parseInline(src: string, refs: Refs): string {
       }
       i = j;
     } else if (c === '\n') {
-      const hard = / {2,}$/.test(text);
-      text = text.replace(/ +$/, '');
+      const trimmed = stripEnd(text, ' ');
+      const hard = text.length - trimmed.length >= 2;
+      text = trimmed;
       if (hard) {
         flush();
         push('<br>');
@@ -252,7 +254,7 @@ function parseInline(src: string, refs: Refs): string {
       }
     } else if ((c === 'h' || c === 'w') && /^(?:https?:\/\/|www\.)[^\s<]+/i.test(s.slice(i)) && !/[A-Za-z0-9]/.test(s[i - 1] ?? '')) {
       let url = /^[^\s<]+/.exec(s.slice(i))![0];
-      url = url.replace(/[?!.,:*_~'";]+$/, '');
+      url = stripEnd(url, '?!.,:*_~\'";');
       while (url.endsWith(')') && url.split(')').length > url.split('(').length) url = url.slice(0, -1);
       if (/^www\./i.test(url) && !/\./.test(url.slice(4))) {
         text += c;
@@ -307,13 +309,59 @@ function parseInline(src: string, refs: Refs): string {
 // ---- blocks ----------------------------------------------------------------------------------------------------------
 
 const BLANK = /^\s*$/;
-const FENCE = /^( {0,3})(`{3,}|~{3,})\s*([^`]*)$/;
-const ATX = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/;
-const HR = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
+const FENCE = /^( {0,3})(`{3,}|~{3,})([^`]*)$/;
+const ATX_OPEN = /^ {0,3}(#{1,6})(?=[ \t]|$)/;
+const DELIM_CELL = /^[ \t]*:?-+:?[ \t]*$/;
+
+const blank = (ch: string | undefined): boolean => ch === ' ' || ch === '\t';
+
+/**
+ * A heading with # (ATX): its level and its text, without the spaces around it and without the closing hashes (which have to follow a
+ * space). Done by hand instead of with one regular expression, which would be slow (it checks the same spaces again and again) on a line
+ * of many spaces or tabs.
+ */
+function atxHeading(line: string): { level: number; text: string } | null {
+  const open = ATX_OPEN.exec(line);
+  if (!open) return null;
+  const text = line.slice(open[0].length);
+  let end = text.length;
+  while (end > 0 && blank(text[end - 1])) end--;
+  let hashes = end;
+  while (hashes > 0 && text[hashes - 1] === '#') hashes--;
+  if (hashes < end && (hashes === 0 || blank(text[hashes - 1]))) end = hashes;
+  while (end > 0 && blank(text[end - 1])) end--;
+  let start = 0;
+  while (start < end && blank(text[start])) start++;
+  return { level: open[1].length, text: text.slice(start, end) };
+}
+
+/** A line of three or more -, * or _ (the same one), with spaces and tabs between them. */
+function isHr(line: string): boolean {
+  const m = /^ {0,3}([-*_])/.exec(line);
+  if (!m) return false;
+  let count = 0;
+  for (let i = m[0].length - 1; i < line.length; i++) {
+    if (line[i] === m[1]) count++;
+    else if (!blank(line[i])) return false;
+  }
+  return count >= 3;
+}
+
+/** The line under the heads of a table: cells of dashes, with a colon at either end for the alignment, between bars. */
+function isTableDelim(line: string): boolean {
+  const lead = /^ */.exec(line)![0].length;
+  if (lead > 3) return false;
+  let s = line.slice(lead);
+  let end = s.length;
+  while (end > 0 && blank(s[end - 1])) end--;
+  s = s.slice(0, end);
+  if (s.startsWith('|')) s = s.slice(1);
+  if (s.endsWith('|')) s = s.slice(0, -1);
+  return s.split('|').every((cell) => DELIM_CELL.test(cell));
+}
 const QUOTE = /^ {0,3}>/;
 const LIST = /^( {0,3})([-*+]|\d{1,9}[.)])( +|$)(.*)$/;
 const SETEXT = /^ {0,3}(=+|-+)[ \t]*$/;
-const TABLE_DELIM = /^ {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
 const HTML_BLOCK = /^ {0,3}<\/?(?:address|article|aside|blockquote|details|div|dl|fieldset|figure|footer|form|h[1-6]|header|hr|li|main|nav|ol|p|pre|section|summary|table|tbody|td|th|thead|tr|ul)(?:\s|\/?>|$)/i;
 
 const indentOf = (line: string): number => /^ */.exec(line)![0].length;
@@ -339,10 +387,10 @@ function splitCells(line: string): string[] {
 
 /** Whether a line starts something that ends a paragraph. */
 function interrupts(line: string, next: string | undefined): boolean {
-  if (FENCE.test(line) || ATX.test(line) || HR.test(line) || QUOTE.test(line) || HTML_BLOCK.test(line)) return true;
+  if (FENCE.test(line) || ATX_OPEN.test(line) || isHr(line) || QUOTE.test(line) || HTML_BLOCK.test(line)) return true;
   const list = LIST.exec(line);
   if (list && list[4].trim() !== '' && (/^[-*+]$/.test(list[2]) || list[2].startsWith('1'))) return true;
-  if (next !== undefined && line.includes('|') && TABLE_DELIM.test(next) && next.includes('-') && splitCells(line).length === splitCells(next).length) return true;
+  if (next !== undefined && line.includes('|') && isTableDelim(next) && next.includes('-') && splitCells(line).length === splitCells(next).length) return true;
   return false;
 }
 
@@ -358,7 +406,8 @@ function parseBlocks(lines: string[], refs: Refs): string {
 
     const fence = FENCE.exec(line);
     if (fence) {
-      const [, indent, marks, info] = fence;
+      const [, indent, marks] = fence;
+      const info = fence[3].trim();
       const code: string[] = [];
       i++;
       while (i < lines.length) {
@@ -376,15 +425,15 @@ function parseBlocks(lines: string[], refs: Refs): string {
       continue;
     }
 
-    const atx = ATX.exec(line);
+    const atx = atxHeading(line);
     if (atx) {
-      const level = Math.min(3, atx[1].length);
-      out.push(`<h${level}>${parseInline((atx[2] ?? '').trim(), refs)}</h${level}>`);
+      const level = Math.min(3, atx.level);
+      out.push(`<h${level}>${parseInline(atx.text, refs)}</h${level}>`);
       i++;
       continue;
     }
 
-    if (HR.test(line)) {
+    if (isHr(line)) {
       out.push('<hr>');
       i++;
       continue;
@@ -422,7 +471,7 @@ function parseBlocks(lines: string[], refs: Refs): string {
       continue;
     }
 
-    if (line.includes('|') && i + 1 < lines.length && TABLE_DELIM.test(lines[i + 1]) && lines[i + 1].includes('-')) {
+    if (line.includes('|') && i + 1 < lines.length && isTableDelim(lines[i + 1]) && lines[i + 1].includes('-')) {
       const head = splitCells(line);
       const delim = splitCells(lines[i + 1]);
       if (head.length === delim.length) {
@@ -465,7 +514,7 @@ function parseBlocks(lines: string[], refs: Refs): string {
       para.push(lines[i]);
       i++;
     }
-    if (para.length) out.push(`<p>${parseInline(para.map((l) => l.replace(/^ +/, '')).join('\n').replace(/ +$/, ''), refs)}</p>`);
+    if (para.length) out.push(`<p>${parseInline(stripEnd(para.map((l) => l.replace(/^ +/, '')).join('\n'), ' '), refs)}</p>`);
   }
   return out.join('');
 }
@@ -546,7 +595,7 @@ function definitions(lines: string[], refs: Refs): string[] {
     const f = FENCE.exec(line);
     if (f) {
       if (!fence) fence = f[2];
-      else if (f[2][0] === fence[0] && f[2].length >= fence.length && !f[3]) fence = '';
+      else if (f[2][0] === fence[0] && f[2].length >= fence.length && !f[3].trim()) fence = '';
       rest.push(line);
       continue;
     }
@@ -580,7 +629,7 @@ export function textToHtml(text: string): string {
   return text
     .replace(/\r\n?/g, '\n')
     .split(/\n{2,}/)
-    .map((block) => block.replace(/^\n+|\n+$/g, ''))
+    .map((block) => strip(block, '\n'))
     .filter((block) => block.trim())
     .map((block) => `<p>${block.split('\n').map(esc).join('<br>')}</p>`)
     .join('');
