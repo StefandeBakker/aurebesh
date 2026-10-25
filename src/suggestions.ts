@@ -112,7 +112,7 @@ export function rejectIn(root: Element, id: string): void {
  */
 export function finalHtml(html: string): string {
   if (!html.includes('data-suggestion')) return html;
-  const body = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html').body;
+  const body = new DOMParser().parseFromString(html, 'text/html').body;
   body.querySelectorAll(DELETE).forEach((el) => el.remove());
   body.querySelectorAll(SELECTOR).forEach(unwrap);
   return body.innerHTML;

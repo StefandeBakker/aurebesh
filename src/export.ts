@@ -7,7 +7,7 @@ export type OutputFormat = 'html' | 'markdown' | 'text' | (string & {});
 
 function toElement(input: string | Element): Element {
   if (typeof input !== 'string') return input;
-  const root = new DOMParser().parseFromString(`<body>${input}</body>`, 'text/html').body;
+  const root = new DOMParser().parseFromString(input, 'text/html').body;
   return root;
 }
 
