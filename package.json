@@ -28,9 +28,31 @@
       ],
       "angular": [
         "./dist/angular/index.d.ts"
+      ],
+      "docx": [
+        "./dist/docx.d.ts"
+      ],
+      "comments": [
+        "./dist/comments.d.ts"
+      ],
+      "suggestions": [
+        "./dist/suggestions.d.ts"
+      ],
+      "mentions": [
+        "./dist/mentions.d.ts"
+      ],
+      "find": [
+        "./dist/find.d.ts"
+      ],
+      "locales/*": [
+        "./dist/locales/*.d.ts"
       ]
     }
   },
+  "sideEffects": [
+    "./dist/element.js",
+    "./dist/element.cjs"
+  ],
   "exports": {
     ".": {
       "import": {
@@ -72,6 +94,106 @@
         "default": "./dist/vue.cjs"
       }
     },
+    "./docx": {
+      "import": {
+        "types": "./dist/docx.d.ts",
+        "default": "./dist/docx.js"
+      },
+      "require": {
+        "types": "./dist/docx.d.cts",
+        "default": "./dist/docx.cjs"
+      }
+    },
+    "./comments": {
+      "import": {
+        "types": "./dist/comments.d.ts",
+        "default": "./dist/comments.js"
+      },
+      "require": {
+        "types": "./dist/comments.d.cts",
+        "default": "./dist/comments.cjs"
+      }
+    },
+    "./suggestions": {
+      "import": {
+        "types": "./dist/suggestions.d.ts",
+        "default": "./dist/suggestions.js"
+      },
+      "require": {
+        "types": "./dist/suggestions.d.cts",
+        "default": "./dist/suggestions.cjs"
+      }
+    },
+    "./mentions": {
+      "import": {
+        "types": "./dist/mentions.d.ts",
+        "default": "./dist/mentions.js"
+      },
+      "require": {
+        "types": "./dist/mentions.d.cts",
+        "default": "./dist/mentions.cjs"
+      }
+    },
+    "./find": {
+      "import": {
+        "types": "./dist/find.d.ts",
+        "default": "./dist/find.js"
+      },
+      "require": {
+        "types": "./dist/find.d.cts",
+        "default": "./dist/find.cjs"
+      }
+    },
+    "./locales/en": {
+      "import": {
+        "types": "./dist/locales/en.d.ts",
+        "default": "./dist/locales/en.js"
+      },
+      "require": {
+        "types": "./dist/locales/en.d.cts",
+        "default": "./dist/locales/en.cjs"
+      }
+    },
+    "./locales/nl": {
+      "import": {
+        "types": "./dist/locales/nl.d.ts",
+        "default": "./dist/locales/nl.js"
+      },
+      "require": {
+        "types": "./dist/locales/nl.d.cts",
+        "default": "./dist/locales/nl.cjs"
+      }
+    },
+    "./locales/de": {
+      "import": {
+        "types": "./dist/locales/de.d.ts",
+        "default": "./dist/locales/de.js"
+      },
+      "require": {
+        "types": "./dist/locales/de.d.cts",
+        "default": "./dist/locales/de.cjs"
+      }
+    },
+    "./locales/fr": {
+      "import": {
+        "types": "./dist/locales/fr.d.ts",
+        "default": "./dist/locales/fr.js"
+      },
+      "require": {
+        "types": "./dist/locales/fr.d.cts",
+        "default": "./dist/locales/fr.cjs"
+      }
+    },
+    "./locales/es": {
+      "import": {
+        "types": "./dist/locales/es.d.ts",
+        "default": "./dist/locales/es.js"
+      },
+      "require": {
+        "types": "./dist/locales/es.d.cts",
+        "default": "./dist/locales/es.cjs"
+      }
+    },
     "./angular": {
       "types": "./dist/angular/index.d.ts",
       "default": "./dist/angular/fesm2022/aurebesh-angular.mjs"
@@ -90,9 +212,10 @@
     "test": "vitest run",
     "test:e2e": "tsup && playwright test",
     "typecheck": "tsc --noEmit && tsc -p angular/tsconfig.json",
-    "prepublishOnly": "npm run typecheck && npm test && npm run build",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build && npm run check:package",
     "capture": "node scripts/capture-server.mjs",
-    "build:angular": "ng-packagr -p angular/ng-package.json -c angular/tsconfig.lib.json"
+    "build:angular": "ng-packagr -p angular/ng-package.json -c angular/tsconfig.lib.json",
+    "check:package": "node scripts/check-package.mjs"
   },
   "keywords": [
     "wysiwyg",

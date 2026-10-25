@@ -10,8 +10,8 @@
  */
 import { createElement, forwardRef, useImperativeHandle, useLayoutEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
-import { defineAurebeshElement } from './element';
-import type { AurebeshElement } from './element';
+import { defineAurebeshElement } from './element-class';
+import type { AurebeshElement } from './element-class';
 import type { Aurebesh, AurebeshOptions } from './editor';
 import type { ResolvedPage } from './page';
 import type { TextStats } from './stats';

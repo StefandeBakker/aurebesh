@@ -294,5 +294,3 @@ declare global {
 export function defineAurebeshElement(name = 'aurebesh-editor'): void {
   if (typeof customElements !== 'undefined' && !customElements.get(name)) customElements.define(name, AurebeshElement);
 }
-
-defineAurebeshElement();
