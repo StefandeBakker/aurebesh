@@ -86,6 +86,12 @@
   #out { min-height: 120px; max-height: 320px; margin: 0; padding: 12px; overflow: auto; border: 1px solid var(--line); border-radius: 0 6px 6px 6px; background: var(--card); font: .85rem/1.5 ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
   pre.install { padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); overflow-x: auto; font: .9rem ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace; }
   footer { margin-top: 40px; color: var(--muted); font-size: .85rem; }
+  .parts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 12px; padding: 0; border: 0; }
+  .parts legend { float: left; margin-right: 6px; padding: 0; color: var(--muted); font-size: .85rem; }
+  .parts label { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--muted); font-size: .85rem; cursor: pointer; user-select: none; }
+  .parts label:has(input:checked) { border-color: var(--accent); color: var(--page-color); }
+  .parts input { margin: 0; accent-color: var(--accent); }
+  .parts button { padding: 3px 10px; border: 0; background: transparent; color: var(--accent); font: inherit; font-size: .85rem; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -96,6 +102,7 @@
     <a href="https://github.com/StefandeBakker/aurebesh">GitHub</a>
     <a href="https://www.npmjs.com/package/aurebesh">npm</a>
     <a href="https://github.com/StefandeBakker/aurebesh#readme">Documentation</a>
+    <a href="parts.html" id="parts-link">Use only what you need</a>
   </nav>
   <ul class="points">
     <li>No dependencies</li>
@@ -107,8 +114,8 @@
     <li>Built-in sanitizing</li>
   </ul>
 
-  <aurebesh-editor id="editor" placeholder="Start typing..." counter maxlength="5000" modes
-    quickbar="undo,redo,|,find,|,import,export,|,comment,suggest,comments,suggestions,>,sidebar,fullscreen"
+  <fieldset class="parts" id="parts" aria-label="Parts of the editor"><legend>Parts of this editor</legend></fieldset>
+  <aurebesh-editor id="editor" placeholder="Start typing..." maxlength="5000"
     toolbar="#Tekst,bold,italic,underline,underlineStyle,strike,strikeStyle,|,#Lettertype,font,size,/,weight,color,highlight,clearStyle,|,#Structuur,h1,h2,/,quote,|,#Alinea,alignLeft,alignCenter,alignRight,indent,outdent,|,#Lijsten,ul,ol,/,task,|,#Invoegen,link,image,video,table,callout,hr,|,#Code,code,/,codeblock"><h1>Try it</h1><p>This is <strong>Aurebesh</strong>. Select some text and use the toolbar, or type <code># </code> at the start of a line for a heading and <code>- </code> for a list. Paste something from <em>Word</em> or <em>Google Docs</em> to see it come in clean. Type <code>@</code> to mention a teammate, like <span data-mention="bo">@Bo Jansen</span>, or <code>/</code> to insert something.</p><div data-callout="tip"><p>Everything in this editor is opt-in and has no dependencies. Hover a block and use the grip in the margin to move it, or press <code>Ctrl+F</code> to find and replace.</p></div><h2>What is in it</h2><ul><li>Rich text, lists and quotes</li><li>Tables you can merge and resize</li><li>Code blocks with colours</li></ul><ul data-task><li data-checked="true">Callouts, task lists and columns</li><li data-checked="true">Export to Word, PDF, HTML and Markdown</li><li>Comments, mentions and suggested changes (try the Review group)</li></ul><h2>Review</h2><p>The launch is planned for <span data-comment="demo-c1">the first week of March</span>, and the budget is <span data-suggestion="demo-s1" data-kind="delete" data-author="ann" data-name="Ann de Vries" data-date="2026-10-21T14:05:00.000Z">almost</span><span data-suggestion="demo-s1" data-kind="insert" data-author="ann" data-name="Ann de Vries" data-date="2026-10-21T14:05:00.000Z">fully</span> approved. <span data-mention="ann">@Ann de Vries</span> writes the announcement <span data-suggestion="demo-s2" data-kind="insert" data-author="bo" data-name="Bo Jansen" data-date="2026-10-22T09:30:00.000Z">before the launch </span>and <span data-mention="chen">@Chen Wei</span> answers the questions.</p><p>Open the comments and the changes in the sidebar to see them: accept or reject a change, answer the comment, or select your own text and add one. Switch on <em>Suggest changes</em> (the pencil) and what you type is marked instead of changed.</p><h2>Text</h2><p>Text can be <span style="font-weight: 300">light</span>, <strong>bold</strong>, <u>underlined</u>, <s>struck through</s>, <mark>marked</mark> or <code>inline code</code>, and sizes, colours and fonts are in the toolbar. Chemistry and maths work too: H<sub>2</sub>O and E = mc<sup>2</sup>.</p><blockquote><p>A good editor gets out of the way.</p></blockquote><table><tbody><tr><th>Feature</th><th>Status</th></tr><tr><td>Tables</td><td>Merge cells, drag the borders</td></tr><tr><td>Languages</td><td>עברית and العربية work too</td></tr></tbody></table><pre data-language="javascript">function hello(name) {
   return `Hello, ${name}!`;
 }</pre><p>שלום עולם</p></aurebesh-editor>
@@ -133,6 +140,8 @@
 <script type="module">
   import '../dist/element.js';
   import { LABELS_NL, definePlugin } from '../dist/index.js';
+  // served as /demo (without the slash) the folder of the page is the one above it: the link has to say where the other page is
+  if (/\/demo$/.test(location.pathname)) document.getElementById('parts-link').href = 'demo/parts.html';
   const ed = document.getElementById('editor');
 
   // A small plugin as an example: a panel "Info" in the sidebar (next to Layout, so the sidebar gets tabs) with the numbers of the text.
@@ -184,7 +193,66 @@
   // Suggestions (tracked changes): switch on the pencil and edit; every change is marked, to accept or reject in the panel.
   const suggestions = { author: { id: 'demo', name: 'Demo gebruiker' } };
   const mentions = { search: (q) => people.filter((p) => p.name.toLowerCase().includes(q.toLowerCase())) };
-  ed.options = { labels: LABELS_NL, layout: { textWidth: 800, padding: 48, lineHeight: 1.7 }, mentions, comments, suggestions, plugins: [info] };
+  // The parts of the demo: each one is a switch; the editor is built again with what is on (its text stays).
+  const PARTS = [
+    { id: 'mentions', label: 'Mentions' },
+    { id: 'comments', label: 'Comments' },
+    { id: 'suggestions', label: 'Suggestions' },
+    { id: 'find', label: 'Find and replace' },
+    { id: 'files', label: 'Import and export' },
+    { id: 'sidebar', label: 'Sidebar and fullscreen' },
+    { id: 'info', label: 'Info panel (plugin)' },
+    { id: 'modes', label: 'HTML and Markdown view' },
+    { id: 'counter', label: 'Counter' },
+    { id: 'handles', label: 'Block handles' },
+    { id: 'slash', label: 'Slash menu' },
+    { id: 'shortcuts', label: 'Markdown shortcuts' },
+    { id: 'readonly', label: 'Read only', off: true },
+  ];
+  const on = Object.fromEntries(PARTS.map((p) => [p.id, !p.off]));
+  const quickbar = () => {
+    const groups = [
+      ['undo', 'redo'],
+      on.find ? ['find'] : [],
+      on.files ? ['import', 'export'] : [],
+      [on.comments && 'comment', on.suggestions && 'suggest', on.comments && 'comments', on.suggestions && 'suggestions'].filter(Boolean),
+    ].filter((g) => g.length);
+    const items = groups.flatMap((g, i) => (i ? ['|', ...g] : g));
+    return on.sidebar ? [...items, '>', 'sidebar', 'fullscreen'] : items;
+  };
+  const apply = () => {
+    ed.options = {
+      labels: LABELS_NL,
+      layout: { textWidth: 800, padding: 48, lineHeight: 1.7 },
+      quickbar: quickbar(),
+      counter: on.counter,
+      modes: on.modes,
+      find: on.find,
+      blockHandles: on.handles,
+      slash: on.slash,
+      markdownShortcuts: on.shortcuts,
+      readOnly: on.readonly,
+      ...(on.mentions && { mentions }),
+      ...(on.comments && { comments }),
+      ...(on.suggestions && { suggestions }),
+      ...(on.info && { plugins: [info] }),
+    };
+  };
+  const panel = document.getElementById('parts');
+  for (const p of PARTS) {
+    const label = document.createElement('label');
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.checked = on[p.id];
+    box.dataset.part = p.id;
+    box.addEventListener('change', () => {
+      on[p.id] = box.checked;
+      apply();
+    });
+    label.append(box, p.label);
+    panel.append(label);
+  }
+  apply();
   const out = document.getElementById('out');
   const tabs = document.getElementById('tabs');
   let format = 'markdown';

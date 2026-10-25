@@ -1,6 +1,6 @@
 name: Deploy demo to GitHub Pages
 
-# Publishes the demo page (demo/index.html) with the freshly built editor as a small static site.
+# Publishes the demo pages (demo/index.html and demo/parts.html) with the freshly built package as a small static site.
 # One-time setup: in the repository go to Settings -> Pages and set Source to "GitHub Actions".
 on:
   push:
@@ -40,10 +40,12 @@ jobs:
 
       - name: Assemble the site
         run: |
-          mkdir -p _site/dist
+          mkdir -p _site/dist/locales
           cp dist/*.js _site/dist/
-          # the demo imports ../dist/ so it also works from the repository; on the site dist/ sits next to it
+          cp dist/locales/*.js _site/dist/locales/
+          # the demo pages import ../dist/ so they also work from the repository; on the site dist/ sits next to them
           sed 's#\.\./dist/#./dist/#' demo/index.html > _site/index.html
+          sed 's#\.\./dist/#./dist/#' demo/parts.html > _site/parts.html
           touch _site/.nojekyll
 
       - uses: actions/configure-pages@v5

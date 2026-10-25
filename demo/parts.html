@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aurebesh: use only what you need</title>
+<meta name="description" content="Aurebesh has no dependencies, and its parts can be used on their own: Word conversion, tracked changes, mentions, comments, search and the texts of a language. Load a part and see what it costs.">
+<style>
+  :root {
+    --page-bg: #f6f7f9;
+    --page-color: #111827;
+    --muted: #5b6472;
+    --card: #fff;
+    --line: #d0d5dd;
+    --accent: #2563eb;
+    --good: #047857;
+    --bad: #b42318;
+    --code-bg: #f3f4f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page-bg: #14161b;
+      --page-color: #e6e8ec;
+      --muted: #9aa3b2;
+      --card: #171b23;
+      --line: #2b3240;
+      --accent: #6ea0ff;
+      --good: #4ade80;
+      --bad: #f87171;
+      --code-bg: #1d222b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page-bg); color: var(--page-color); font: 16px/1.55 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 32px 16px 56px; }
+  h1 { margin: 0 0 4px; font-size: 2rem; }
+  h2 { margin: 40px 0 8px; font-size: 1.25rem; }
+  h3 { margin: 24px 0 6px; font-size: 1rem; }
+  .tagline { margin: 0 0 16px; color: var(--muted); font-size: 1.1rem; }
+  nav { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 24px; }
+  a { color: var(--accent); }
+  p { margin: 8px 0; }
+  .muted { color: var(--muted); }
+  code, pre { font: .88rem/1.5 ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace; }
+  code { padding: 1px 5px; border-radius: 4px; background: var(--code-bg); }
+  pre { margin: 8px 0; padding: 12px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--card); white-space: pre-wrap; word-break: break-word; }
+  .card { margin: 12px 0; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+  button, select { padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: inherit; font: inherit; font-size: .9rem; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+  button[aria-pressed="true"] { border-color: var(--accent); }
+  textarea { width: 100%; min-height: 110px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: inherit; font: .88rem/1.5 ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace; }
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: start; vertical-align: top; }
+  td.num, th.num { text-align: end; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tfoot td { font-weight: 600; }
+  .names { color: var(--muted); font-size: .82rem; }
+  .sample { padding: 10px 12px; border: 1px dashed var(--line); border-radius: 6px; }
+  iframe { width: 100%; height: 220px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+  .ok { color: var(--good); }
+  .no { color: var(--bad); }
+  footer { margin-top: 40px; color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Use only what you need</h1>
+  <p class="tagline">Aurebesh has no dependencies, and its parts can be used on their own.</p>
+  <nav>
+    <a href="index.html">The editor</a>
+    <a href="https://github.com/StefandeBakker/aurebesh#parts-without-the-editor">Documentation</a>
+    <a href="https://github.com/StefandeBakker/aurebesh">GitHub</a>
+  </nav>
+
+  <p>The converter for Word documents, the handling of tracked changes, the mentions, the comments, the search and the texts of a language each have an entry of their own. An entry loads that part and what it needs, nothing else: no editor, no toolbar, no styles. That is what a server wants, or a page that only shows or converts text.</p>
+
+  <h2>1. Load a part and see what it costs</h2>
+  <p>Each button loads one entry of the package, the way <code>import('aurebesh/…')</code> does in your code. The table lists the files that were fetched for it, and what you get. Shared code is fetched once, so a part that follows another can be smaller than it is alone.</p>
+  <div class="row" id="loaders" role="group" aria-label="Entries of the package"></div>
+  <div class="card" aria-live="polite">
+    <table>
+      <thead><tr><th>Entry</th><th>What you get</th><th class="num">Files</th><th class="num">Download</th><th class="num">Unpacked</th></tr></thead>
+      <tbody id="loaded"><tr><td colspan="5" class="muted">Nothing is loaded yet: this page is plain HTML.</td></tr></tbody>
+      <tfoot><tr><td colspan="2">Everything loaded</td><td class="num" id="total-files">0</td><td class="num" id="total-gz">0 KB</td><td class="num" id="total-raw">0 KB</td></tr></tfoot>
+    </table>
+    <p class="muted" style="margin-bottom:0">Download is what travels over the network (compressed, when the server compresses); unpacked is what the browser runs. <button type="button" id="reset" style="margin-left:8px">Start again</button></p>
+  </div>
+
+  <h2>2. Use them: no editor on this page</h2>
+
+  <h3>Word, without the editor <code>aurebesh/docx</code></h3>
+  <div class="card">
+    <p class="muted">Write HTML as a Word document, or read a Word document as HTML. The preview is a sandboxed frame: the HTML of a file is not trusted.</p>
+    <textarea id="docx-html" aria-label="HTML to write as a Word document">&lt;h1&gt;A report&lt;/h1&gt;
+&lt;p&gt;Some &lt;strong&gt;bold&lt;/strong&gt; text, a &lt;a href="https://example.com/"&gt;link&lt;/a&gt; and a list:&lt;/p&gt;
+&lt;ul&gt;&lt;li&gt;one&lt;/li&gt;&lt;li&gt;two&lt;/li&gt;&lt;/ul&gt;
+&lt;table&gt;&lt;tbody&gt;&lt;tr&gt;&lt;th&gt;Name&lt;/th&gt;&lt;th&gt;Value&lt;/th&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;A&lt;/td&gt;&lt;td&gt;1&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;</textarea>
+    <div class="row">
+      <button type="button" class="primary" id="docx-write">Download as .docx</button>
+      <label class="muted">or open a .docx: <input type="file" id="docx-read" accept=".docx"></label>
+    </div>
+    <p id="docx-status" class="muted" aria-live="polite"></p>
+    <div id="docx-frame"></div>
+    <pre id="docx-source" hidden></pre>
+  </div>
+
+  <h3>Tracked changes <code>aurebesh/suggestions</code></h3>
+  <div class="card">
+    <p class="muted">A text with changes of two people, in plain HTML. List them, accept or reject them, or get the text as it reads when all are accepted: on a server too.</p>
+    <div class="sample" id="sug-sample"></div>
+    <div class="row">
+      <button type="button" id="sug-accept">Accept all</button>
+      <button type="button" id="sug-reject">Reject all</button>
+      <button type="button" id="sug-reset">Reset</button>
+    </div>
+    <table><thead><tr><th>Kind</th><th>By</th><th>Added</th><th>Deleted</th></tr></thead><tbody id="sug-list"></tbody></table>
+    <p class="muted">The text as it reads when all are accepted (<code>finalHtml</code>):</p>
+    <pre id="sug-final"></pre>
+  </div>
+
+  <h3>Mentions and comments <code>aurebesh/mentions</code> <code>aurebesh/comments</code></h3>
+  <div class="card">
+    <p class="muted">Who is mentioned in a saved text, and which comments are on it, to send a notification or to check the data.</p>
+    <div class="sample" id="men-sample"></div>
+    <div class="row"><button type="button" id="men-run" class="primary">Read it</button></div>
+    <pre id="men-out" hidden></pre>
+  </div>
+
+  <h3>The texts of a language <code>aurebesh/locales/…</code></h3>
+  <div class="card">
+    <p class="muted">The texts of the editor, one small file for each language. Load one, and give it to the editor as <code>labels</code>. A language that you do not load costs nothing.</p>
+    <div class="row">
+      <label for="lang">Language</label>
+      <select id="lang"><option value="">Choose…</option><option value="en">English</option><option value="nl">Nederlands</option><option value="de">Deutsch</option><option value="fr">Français</option><option value="es">Español</option></select>
+    </div>
+    <table><tbody id="lang-out"><tr><td class="muted">Nothing chosen.</td></tr></tbody></table>
+  </div>
+
+  <h2>3. In your code</h2>
+<pre>import { toDocx, fromDocx } from 'aurebesh/docx';              // Word, 25 KB gzip
+import { suggestionsIn, finalHtml } from 'aurebesh/suggestions'; // tracked changes, 8 KB
+import { mentionsIn } from 'aurebesh/mentions';                  // 2 KB
+import { commentIdsIn } from 'aurebesh/comments';                // 5 KB
+import LABELS_NL from 'aurebesh/locales/nl';                     // 3 KB
+
+import { Aurebesh } from 'aurebesh';                             // the editor: all of it</pre>
+  <p class="muted">Loading these entries does nothing to the page and needs no browser: they can be imported on a server. Only <code>aurebesh/element</code> registers <code>&lt;aurebesh-editor&gt;</code> when it is loaded, and <code>package.json</code> says so (<code>sideEffects</code>), so that a bundler can leave out the rest when it is not used.</p>
+  <p class="muted">The editor itself, <code>aurebesh</code> (the last button above), still has all of these parts in it. A version of the editor without them, to which you add what you need, is the next step.</p>
+
+  <footer>MIT licensed. Made by <a href="https://github.com/StefandeBakker">Stefan de Bakker</a>.</footer>
+</main>
+
+<script type="module">
+  // The entries of the package, as files next to the page (../dist/ in the repository, ./dist/ on the site).
+  const BASE = '../dist/';
+  const ENTRIES = ['docx', 'suggestions', 'comments', 'mentions', 'find', 'locales/nl', 'index'];
+  const label = (entry) => (entry === 'index' ? 'aurebesh' : 'aurebesh/' + entry);
+
+  const $ = (id) => document.getElementById(id);
+  const kb = (bytes) => (bytes / 1024).toFixed(bytes < 10240 ? 1 : 0) + ' KB';
+
+  // ---- loading, and measuring what was fetched ------------------------------------------------------------
+  const modules = new Map();
+  const pending = new Map();
+  const seen = new Set(performance.getEntriesByType('resource').map((e) => e.name));
+  const rows = [];
+  let queue = Promise.resolve();
+
+  // One at a time, in the order they were asked for: the files that an entry fetched are then the files of that entry
+  function load(entry) {
+    if (modules.has(entry)) return Promise.resolve(modules.get(entry));
+    if (!pending.has(entry)) pending.set(entry, (queue = queue.then(() => fetchEntry(entry))));
+    return pending.get(entry);
+  }
+
+  async function fetchEntry(entry) {
+    const mod = await import(new URL(`${BASE}${entry}.js`, import.meta.url).href);
+    await new Promise((resolve) => setTimeout(resolve, 60)); // the browser adds the timing of the files a moment later
+    const fresh = performance.getEntriesByType('resource').filter((e) => /\/dist\/.+\.js$/.test(e.name) && !seen.has(e.name));
+    fresh.forEach((e) => seen.add(e.name));
+    const gz = fresh.reduce((n, e) => n + (e.encodedBodySize || e.transferSize || 0), 0);
+    const raw = fresh.reduce((n, e) => n + (e.decodedBodySize || 0), 0);
+    modules.set(entry, mod);
+    rows.push({ entry, files: fresh.length, gz, raw, names: Object.keys(mod).filter((n) => n !== 'default') });
+    draw();
+    return mod;
+  }
+
+  function draw() {
+    const body = $('loaded');
+    body.replaceChildren();
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="5" class="muted">Nothing is loaded yet: this page is plain HTML.</td></tr>';
+    }
+    for (const r of rows) {
+      const tr = document.createElement('tr');
+      const code = document.createElement('code');
+      code.textContent = label(r.entry);
+      const first = document.createElement('td');
+      first.append(code);
+      const names = document.createElement('td');
+      const list = r.entry.startsWith('locales/') ? 'the texts of the language' : r.entry === 'index' ? 'the editor, and everything else' : r.names.join(', ');
+      names.append(Object.assign(document.createElement('span'), { className: 'names', textContent: list }));
+      const files = Object.assign(document.createElement('td'), { className: 'num', textContent: r.files ? String(r.files) : 'shared' });
+      const gz = Object.assign(document.createElement('td'), { className: 'num', textContent: r.files ? kb(r.gz) : '0 KB' });
+      const raw = Object.assign(document.createElement('td'), { className: 'num', textContent: r.files ? kb(r.raw) : '0 KB' });
+      tr.append(first, names, files, gz, raw);
+      body.append(tr);
+    }
+    $('total-files').textContent = String(rows.reduce((n, r) => n + r.files, 0));
+    $('total-gz').textContent = kb(rows.reduce((n, r) => n + r.gz, 0));
+    $('total-raw').textContent = kb(rows.reduce((n, r) => n + r.raw, 0));
+    for (const b of $('loaders').querySelectorAll('button')) b.setAttribute('aria-pressed', String(modules.has(b.dataset.entry)));
+  }
+
+  for (const entry of ENTRIES) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.entry = entry;
+    b.setAttribute('aria-pressed', 'false');
+    b.textContent = label(entry);
+    b.addEventListener('click', () => load(entry));
+    $('loaders').append(b);
+  }
+  $('reset').addEventListener('click', () => location.reload());
+
+  // ---- Word ------------------------------------------------------------------------------------------------
+  function download(blob, name) {
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: name });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+  }
+
+  $('docx-write').addEventListener('click', async () => {
+    const { toDocx } = await load('docx');
+    const blob = await toDocx($('docx-html').value, { title: 'From HTML' });
+    download(blob, 'from-html.docx');
+    $('docx-status').textContent = `Written: from-html.docx, ${kb(blob.size)}.`;
+  });
+
+  $('docx-read').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const { fromDocx } = await load('docx');
+    try {
+      const doc = await fromDocx(file);
+      const bits = [`${file.name}: read.`];
+      if (doc.title) bits.push(`Title: ${doc.title}.`);
+      if (doc.page) bits.push(`Page: ${doc.page.width} × ${doc.page.height}.`);
+      if (doc.comments.length) bits.push(`${doc.comments.length} comment thread(s).`);
+      if (doc.warnings.length) bits.push('Left out: ' + doc.warnings.join(' '));
+      $('docx-status').textContent = bits.join(' ');
+      // a frame that runs no script (sandbox), made when there is something to show
+      const frame = Object.assign(document.createElement('iframe'), { id: 'docx-preview', title: 'Preview of the document that was read' });
+      frame.setAttribute('sandbox', '');
+      frame.srcdoc = `<meta charset="utf-8"><base target="_blank"><style>body{font:15px/1.5 system-ui,sans-serif;margin:12px;color:#111}table{border-collapse:collapse}td,th{border:1px solid #bbb;padding:4px 8px}img{max-width:100%}</style>${doc.html}`;
+      $('docx-frame').replaceChildren(frame);
+      $('docx-source').textContent = doc.html;
+      $('docx-source').hidden = false;
+    } catch (err) {
+      $('docx-status').textContent = err.message;
+      $('docx-frame').replaceChildren();
+      $('docx-source').hidden = true;
+    }
+    e.target.value = '';
+  });
+
+  // ---- tracked changes -------------------------------------------------------------------------------------
+  const SUGGESTED =
+    '<p>The launch is planned for ' +
+    '<span data-suggestion="s1" data-kind="delete" data-author="ann" data-name="Ann" data-date="2026-10-21T10:00:00.000Z">March</span>' +
+    '<span data-suggestion="s1" data-kind="insert" data-author="ann" data-name="Ann" data-date="2026-10-21T10:00:00.000Z">April</span>, ' +
+    'and <span data-suggestion="s2" data-kind="insert" data-author="bo" data-name="Bo" data-date="2026-10-22T09:30:00.000Z">Ann and Bo </span>' +
+    'will write the <span data-suggestion="s3" data-kind="delete" data-author="bo" data-name="Bo" data-date="2026-10-22T09:31:00.000Z">long </span>announcement.</p>';
+  const sug = $('sug-sample');
+  let suggestions;
+
+  async function drawSuggestions() {
+    suggestions ??= await load('suggestions');
+    const { suggestionsIn, finalHtml, suggestionCss } = suggestions;
+    if (!document.getElementById('sug-style')) document.head.append(Object.assign(document.createElement('style'), { id: 'sug-style', textContent: suggestionCss }));
+    const list = $('sug-list');
+    list.replaceChildren();
+    const found = suggestionsIn(sug);
+    for (const s of found) {
+      const tr = document.createElement('tr');
+      for (const value of [s.kind, s.author.name, s.inserted, s.deleted]) tr.append(Object.assign(document.createElement('td'), { textContent: value }));
+      list.append(tr);
+    }
+    if (!found.length) list.innerHTML = '<tr><td colspan="4" class="muted">None left.</td></tr>';
+    $('sug-final').textContent = finalHtml(sug.innerHTML);
+  }
+
+  const resetSuggestions = () => {
+    sug.innerHTML = SUGGESTED;
+    return drawSuggestions();
+  };
+  $('sug-accept').addEventListener('click', async () => {
+    suggestions ??= await load('suggestions');
+    for (const s of suggestions.suggestionsIn(sug)) suggestions.acceptIn(sug, s.id);
+    drawSuggestions();
+  });
+  $('sug-reject').addEventListener('click', async () => {
+    suggestions ??= await load('suggestions');
+    for (const s of suggestions.suggestionsIn(sug)) suggestions.rejectIn(sug, s.id);
+    drawSuggestions();
+  });
+  $('sug-reset').addEventListener('click', resetSuggestions);
+  sug.innerHTML = SUGGESTED; // shown from the start; the entry is loaded when something is done with it
+
+  // ---- mentions and comments -------------------------------------------------------------------------------
+  const men = $('men-sample');
+  men.innerHTML =
+    '<p>Thanks <span data-mention="bo">@Bo Jansen</span> and <span data-mention="chen">@Chen Wei</span> for <span data-comment="c1">the first draft</span>; ' +
+    '<span data-mention="bo">@Bo Jansen</span> will answer <span data-comment="c2">the budget question</span>.</p>';
+  $('men-run').addEventListener('click', async () => {
+    const { mentionsIn, mentionCss } = await load('mentions');
+    const { commentIdsIn, commentCss } = await load('comments');
+    if (!document.getElementById('men-style')) document.head.append(Object.assign(document.createElement('style'), { id: 'men-style', textContent: mentionCss + commentCss }));
+    const out = $('men-out');
+    out.textContent = JSON.stringify({ mentionsIn: mentionsIn(men), commentIdsIn: commentIdsIn(men) }, null, 2);
+    out.hidden = false;
+  });
+
+  // ---- a language ------------------------------------------------------------------------------------------
+  $('lang').addEventListener('change', async (e) => {
+    const code = e.target.value;
+    if (!code) return;
+    const labels = (await load('locales/' + code)).default;
+    const out = $('lang-out');
+    out.replaceChildren();
+    for (const key of ['bold', 'italic', 'underline', 'link', 'table', 'export', 'comment', 'suggest']) {
+      const tr = document.createElement('tr');
+      tr.append(Object.assign(document.createElement('td'), { className: 'names', textContent: key }), Object.assign(document.createElement('td'), { textContent: labels[key] }));
+      out.append(tr);
+    }
+    const count = document.createElement('tr');
+    count.append(Object.assign(document.createElement('td'), { className: 'names', textContent: 'texts in all' }), Object.assign(document.createElement('td'), { textContent: String(Object.keys(labels).length) }));
+    out.append(count);
+  });
+</script>
+</body>
+</html>

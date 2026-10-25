@@ -739,6 +739,8 @@ function blocks(parent: Element, ctx: Context, pkg: Package): string {
       const xml = block(el, ctx, pkg);
       if (xml) out.push(xml);
       lastTable = isTable && !!xml;
+    } else if (!runs && node.nodeType === Node.TEXT_NODE && !node.textContent?.trim()) {
+      continue; // the line breaks and the indent between the blocks of formatted HTML are not text: they are not a paragraph
     } else {
       runs += inline(node, ctx.base, ctx, pkg);
     }

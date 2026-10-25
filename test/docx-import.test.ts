@@ -174,6 +174,14 @@ describe('a document of the exporter, read back', () => {
   });
 });
 
+describe('HTML with line breaks and an indent between the blocks, written as a Word document', () => {
+  it('has no empty paragraphs from them, and keeps the space between words', async () => {
+    const html = '<h1>Title</h1>\n  <p>One <b>two</b> <i>three</i></p>\n\n  <ul>\n    <li>a</li>\n  </ul>\n  <p>End</p>\n';
+    const out = await fromDocx(await toDocxBytes(html));
+    expect(out.html).toBe('<h1>Title</h1><p>One <strong>two</strong> <em>three</em></p><ul><li>a</li></ul><p>End</p>');
+  });
+});
+
 describe('a document of a word processor', () => {
   it('turns the styles of headings into headings, with the levels beyond three as the third', async () => {
     const out = await fromDocx(docx({ styles: STYLES, body: p('One', '<w:pStyle w:val="Heading1"/>') + p('Two', '<w:pStyle w:val="Heading2"/>') + p('Five', '<w:pStyle w:val="Heading5"/>') + p('Text') }));
