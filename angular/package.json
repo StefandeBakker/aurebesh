@@ -4,9 +4,9 @@
   "private": true,
   "description": "Build manifest of the Angular entry (aurebesh/angular): ng-packagr reads it. It is not published on its own; the entry ships inside the aurebesh package.",
   "peerDependencies": {
-    "@angular/core": ">=17",
-    "@angular/common": ">=17",
-    "@angular/forms": ">=17",
+    "@angular/core": ">=17.2",
+    "@angular/common": ">=17.2",
+    "@angular/forms": ">=17.2",
     "aurebesh": "*"
   },
   "sideEffects": false
