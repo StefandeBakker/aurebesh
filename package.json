@@ -234,9 +234,9 @@
     "angular"
   ],
   "peerDependencies": {
-    "@angular/common": ">=17",
-    "@angular/core": ">=17",
-    "@angular/forms": ">=17",
+    "@angular/common": ">=17.2",
+    "@angular/core": ">=17.2",
+    "@angular/forms": ">=17.2",
     "react": ">=17",
     "vue": ">=3.3"
   },

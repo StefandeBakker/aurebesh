@@ -65,7 +65,7 @@ Props: `v-model`, `options`, `placeholder`, `readOnly`, `required`, `name`, `too
 
 ## Angular
 
-A standalone component with forms support, like the React and Vue wrappers. Angular 17 or newer; `@angular/core`, `@angular/common` and `@angular/forms` are peer dependencies.
+A standalone component with forms support, like the React and Vue wrappers. Angular 17.2 or newer; `@angular/core`, `@angular/common` and `@angular/forms` are peer dependencies. For signal forms (Angular 21+) see [Signal forms](#signal-forms) below.
 
 ```ts
 import { Component } from '@angular/core';
@@ -97,6 +97,30 @@ That is all: no schema, no directive to write, no `import 'aurebesh/element'`. I
 | `toolbar`, `quickbar` | arrays of toolbar items; a change builds the editor again and keeps the text |
 
 Outputs: `valueChange` (the HTML), `ready` (the editor), `count` (words and characters), `pageChange`, `layoutChange` and `error`. The component has `editor` (the `Aurebesh` instance, once it exists) and `editorElement` for what the inputs do not cover, for example `@ViewChild(AurebeshEditor) editor`.
+
+### Signal forms
+
+`<aurebesh-field>` (`AurebeshField`) is the same editor as a `FormValueControl<string>`, for the `FormField` directive of `@angular/forms/signals`:
+
+```ts
+import { Component, signal } from '@angular/core';
+import { FormField, form, required } from '@angular/forms/signals';
+import { AurebeshField } from 'aurebesh/angular';
+
+@Component({
+  selector: 'app-note',
+  imports: [AurebeshField, FormField],
+  template: `<aurebesh-field [formField]="noteForm.body" placeholder="Start typing..." />`,
+})
+export class NoteComponent {
+  note = signal({ body: '<p>Hello</p>' });
+  noteForm = form(this.note, (note) => required(note.body));
+}
+```
+
+The form gives the value and the state: `disabled()` and `readonly()` make the editor read-only, and `required()`, `maxLength()` and the name of the field become the attributes of the element. The field is marked as touched when the focus leaves the editor, and `focusBoundControl()` puts the focus in the text. With `[formField]` Angular does not allow binding those inputs (`value`, `disabled`, `readonly`, `required`, `name`, `maxLength`) yourself; the other inputs and the outputs are the same as those of `aurebesh-angular`. Without a form, `[(value)]` works too.
+
+`aurebesh-angular` also works with `[formField]` (Angular falls back to its `ControlValueAccessor`), but without `focusBoundControl()`; `aurebesh-field` is the native signal-forms control.
 
 The editor is built in the browser only. With server-side rendering the component renders an empty element, so nothing runs on the server, and the editor appears when the page is hydrated. The package contains the Angular code in the format that the Angular CLI links when your application is built (partial compilation), so it works with AOT.
 
