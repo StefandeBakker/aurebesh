@@ -151,5 +151,22 @@ export function extendToolbar(items: string[], extensions: ToolbarExtension[]): 
   return out;
 }
 
+/**
+ * The toolbar (or the quickbar) with only the items in `visible`: the others, and names that are not items at all, are left out.
+ * The blocks, rows, names of blocks and their order stay as they were; a separator that has nothing left on one side goes too.
+ */
+export function onlyVisible(items: string[], visible: readonly string[]): string[] {
+  const keep = new Set(visible);
+  const out: string[] = [];
+  for (const item of items) {
+    if (SEPARATORS.has(item) || item.startsWith('#')) {
+      if (item === '|' && (!out.length || out[out.length - 1] === '|')) continue; // nothing before it since the last one
+      out.push(item);
+    } else if (keep.has(item)) out.push(item);
+  }
+  while (out.length && (SEPARATORS.has(out[out.length - 1]) || out[out.length - 1].startsWith('#'))) out.pop();
+  return out.some((i) => !SEPARATORS.has(i) && !i.startsWith('#')) ? out : [];
+}
+
 /** Gives a plugin its type checking. It returns the plugin as it is. */
 export const definePlugin = <T extends AurebeshPlugin>(plugin: T): T => plugin;

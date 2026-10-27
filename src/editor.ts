@@ -8,7 +8,7 @@ import { CELL_TOOLS, COMMANDS, DEFAULT_QUICKBAR, DEFAULT_TOOLBAR, TABLE_TOOLS } 
 import { cellBorder, currentTable } from './table';
 import { Sidebar } from './sidebar';
 import type { PanelDef } from './sidebar';
-import { extendToolbar } from './plugin';
+import { extendToolbar, onlyVisible } from './plugin';
 import type { AurebeshPlugin, PluginContext, PluginInstance } from './plugin';
 import type { SanitizeExtension } from './sanitize';
 import type { Shape } from './icons';
@@ -198,6 +198,11 @@ export interface AurebeshOptions {
    * toolbar is used, nothing when you give a `toolbar` of your own (so they are not there twice). Pass [] for no strip.
    */
   quickbar?: string[];
+  /**
+   * Only these items of the toolbar and the quickbar are shown, where they would be anyway; the others are left out, and so are
+   * names that are not items. Without it (the default) everything is shown. `[]` shows none. See *Showing only some items*.
+   */
+  visibleItems?: string[];
   /**
    * Page format: the editor shows a sheet of that width (and height, with page breaks marked). A preset
    * ('a4', 'a5', 'a6', 'a3', 'letter', 'legal', 'ticket-80', 'ticket-58', 'responsive'), a width (a number of px, or
@@ -402,8 +407,10 @@ export class Aurebesh {
     const baseItems = options.toolbar ?? pluginToolbar ?? DEFAULT_TOOLBAR;
     const review = [...(options.comments ? ['comment', 'comments'] : []), ...(options.suggestions ? ['suggest', 'suggestions'] : [])];
     const own = review.length && !options.toolbar && !pluginToolbar ? [{ items: ['|', ...review] }] : [];
-    const items = baseItems.length ? extendToolbar(baseItems, [...this.plugins.flatMap((p) => p.inst.toolbarExtend ?? []), ...own]) : baseItems;
-    const quick = options.quickbar ?? (options.toolbar || pluginToolbar ? [] : DEFAULT_QUICKBAR);
+    const allItems = baseItems.length ? extendToolbar(baseItems, [...this.plugins.flatMap((p) => p.inst.toolbarExtend ?? []), ...own]) : baseItems;
+    const allQuick = options.quickbar ?? (options.toolbar || pluginToolbar ? [] : DEFAULT_QUICKBAR);
+    const items = options.visibleItems ? onlyVisible(allItems, options.visibleItems) : allItems;
+    const quick = options.visibleItems ? onlyVisible(allQuick, options.visibleItems) : allQuick;
     const commands = [...items, ...quick];
     // the panels there are: those with a button of their own in the toolbar, and with the `sidebar` item all of them
     const known = ['layout', 'blocks', ...(options.comments ? ['comments'] : []), ...(options.suggestions ? ['suggestions'] : []), ...plugins.flatMap((p) => (p.panels ?? []).map((panel) => panel.id))];

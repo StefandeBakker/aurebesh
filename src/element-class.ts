@@ -160,6 +160,7 @@ export class AurebeshElement extends BaseElement {
       language: this.getAttribute('language') ?? undefined,
       headless: this.hasAttribute('headless'),
       quickbar: this.hasAttribute('quickbar') ? (this.getAttribute('quickbar') ?? '').split(',').map((s) => s.trim()).filter(Boolean) : undefined,
+      visibleItems: this.hasAttribute('visible-items') ? (this.getAttribute('visible-items') ?? '').split(',').map((s) => s.trim()).filter(Boolean) : undefined,
       ...this.extraOptions,
     });
     this.initialHtml = this.editor.getValue();

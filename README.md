@@ -147,6 +147,7 @@ import 'aurebesh/element'; // registers <aurebesh-editor>
 | `placeholder` | Placeholder text |
 | `readOnly` | Disable editing |
 | `toolbar` | Items, e.g. `['bold','italic','|','link']`; `[]` hides it |
+| `visibleItems` | Show only these items of the toolbar and the strip above it, e.g. `['bold','italic','link']` (default: all; see *Showing only some items*) |
 | `headless` | No look of its own: the page styles everything (see *Your own look*) |
 | `exportName` | The name of exported files, without the extension, and the title in them (default `document`) |
 | `mentions` | `@mentions`: the people to pick from, `{ search(query) }` (see *Mentions*; default off) |
@@ -191,6 +192,38 @@ The colours of this look are variables too: `--aurebesh-icon`, `--aurebesh-label
 **Layout panel.** The `layout` item is a button that opens a panel beside the text (and closes it again): the page width (the same choice as the `page` item), the maximum width of the text, the space around it and the line spacing. The last three are only about how the text is shown: they are variables on the editor (`--aurebesh-text-width`, `--aurebesh-pad-x`, `--aurebesh-pad-y`, `--aurebesh-line`) and are not part of the HTML. Set them from code with `layout: { textWidth: 800, padding: 48, lineHeight: 1.7 }` (option) or `editor.setLayout({ padding: 24 })`, read them with `getLayout()`, and listen to the `layout` event (the element fires a `layout` event with the settings as `detail`). `null` is the default of the editor. On a page format the width and the space belong to the sheet, so those two fields are off.
 
 Theme via CSS variables: `--aurebesh-border`, `--aurebesh-bg`, `--aurebesh-color`, `--aurebesh-accent`, `--aurebesh-toolbar-bg`, `--aurebesh-code-bg`, `--aurebesh-min-height`, `--aurebesh-max-height` (a fixed maximum height of the text area: the text then scrolls inside the editor while the toolbar stays in view; without it the editor grows with the text and the toolbar scrolls along with the page), and `--aurebesh-hl-keyword|string|comment|number|function|type|tag` for code colours.
+
+### Showing only some items
+
+`visibleItems` lists the items that are shown; everything else is left out. Without it every item is shown, as always. Unlike `toolbar`, it does not change the layout: the items keep their own block, row and order in the toolbar (and in the strip above it), and a block that has nothing left goes away. It works on what would be shown anyway, so it also applies to a `toolbar`, `quickbar` or plugin items of your own; to add an item that is not in the default (say `h3`), put it in `toolbar`.
+
+```json
+{
+  "visibleItems": ["bold", "italic", "h1", "h2", "link", "image", "undo", "redo"]
+}
+```
+
+It is a plain option, so a configuration kept as JSON can be passed as it is: `new Aurebesh(el, JSON.parse(config))`. It works the same way in React (`options={{ visibleItems }}`), Vue (`:options`) and Angular (`[options]`). On the element it is a list with commas: `<aurebesh-editor visible-items="bold,italic,link">`.
+
+- A name that is not an item (a typing error, or `heading` instead of `h1`) is ignored, so the editor always works. `[]` shows no toolbar at all.
+- Hiding an item hides what belongs to it, as leaving it out of `toolbar` does: without `table` there are no table tools, without `image` no tools on a picture, without `link` no bar on a link, and without `callout` no slash menu.
+- Keyboard shortcuts keep working (`Mod+B` still makes text bold), and so do Markdown shortcuts; turn those off with `markdownShortcuts: false`.
+- Other parts of the editor have options of their own: `blockHandles`, `find`, `slash`, `counter`, `resizable`, `modes`.
+
+The items:
+
+| Group | Items |
+| --- | --- |
+| History and document | `undo` `redo` `find` `import` `export` `fullscreen` |
+| Font | `font` `size` `weight` `clear` `clearStyle` |
+| Character styles | `bold` `italic` `underline` `underlineStyle` `strike` `strikeStyle` `sub` `sup` `code` `highlight` `color` |
+| Paragraph | `ul` `ol` `task` `indent` `outdent` `alignLeft` `alignCenter` `alignRight` `alignJustify` `ltr` `rtl` |
+| Styles | `h1` `h2` `h3` `quote` `codeblock` `codeLanguage` `callout` |
+| Insert | `link` `image` `video` `table` `hr` |
+| Layout | `columns` `page` `orientation` `layout` `blocks` `sidebar` |
+| Comments and suggestions (with those options) | `comment` `comments` `suggest` `suggestions` |
+
+The items that plugins add (with `toolbarExtend`) can be listed by their names too. `COMMANDS` (exported) has every command, including the table and picture tools that appear on their own.
 
 ## The handle of a block: move, copy, delete, turn into
 
