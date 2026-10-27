@@ -263,6 +263,69 @@ describe('the default toolbar', () => {
     expect(count({ toolbar: [], quickbar: ['undo'] })).toEqual({ strip: 1, undo: 1 }); // a strip without a toolbar
   });
 
+  describe('visibleItems', () => {
+    const titles = (el: Element | null) => Array.from(el?.querySelectorAll('button, select') ?? []).filter((e) => !e.closest('.aurebesh-table-pop, .aurebesh-pop')).map((e) => e.getAttribute('title'));
+
+    it('shows everything without it, as before', () => {
+      const plain = build();
+      const all = build({ visibleItems: undefined });
+      expect(all.innerHTML).toBe(plain.innerHTML);
+      plain.remove();
+      all.remove();
+    });
+
+    it('shows only the items listed, in their own blocks and order, in the toolbar and in the strip', () => {
+      const el = build({ visibleItems: ['redo', 'link', 'bold', 'italic', 'h2', 'image'] });
+      expect(shape(el)).toEqual([[['Bold', 'Italic']], [['Heading 2']], [['Link', 'Image']]]);
+      expect(titles(el.querySelector('.aurebesh-quickbar'))).toEqual(['Redo']);
+      el.remove();
+    });
+
+    it('ignores names that are not items, and removes the strip and the toolbar when nothing is left in them', () => {
+      const el = build({ visibleItems: ['bold', 'heading', 'nope', '|'] });
+      expect(shape(el)).toEqual([[['Bold']]]);
+      expect(el.querySelector('.aurebesh-quickbar')).toBeNull();
+      el.remove();
+      const none = build({ visibleItems: [] });
+      expect(none.querySelector('.aurebesh-toolbar')).toBeNull();
+      none.remove();
+    });
+
+    it('filters a toolbar and a strip of your own, keeping their separators tidy', () => {
+      const el = build({ toolbar: ['bold', '|', 'italic', '|', 'link'], quickbar: ['undo', '|', 'find', '|', 'export'], visibleItems: ['bold', 'link', 'undo', 'export'] });
+      expect(shape(el).map((block) => block.flat())).toEqual([['Bold'], ['Link']]);
+      const strip = el.querySelector('.aurebesh-quickbar')!;
+      expect(strip.querySelectorAll('.aurebesh-quick-sep')).toHaveLength(1);
+      el.remove();
+    });
+
+    it('leaves out the tools of a hidden item, as a toolbar without it does', () => {
+      const el = build({ visibleItems: ['bold'] });
+      expect(el.querySelector('.aurebesh-table-tools, .aurebesh-link-tools')).toBeNull();
+      el.remove();
+    });
+
+    it('is the visible-items attribute of the element', async () => {
+      const { defineAurebeshElement } = await import('../src/element');
+      defineAurebeshElement();
+      const attach = HTMLElement.prototype.attachInternals;
+      HTMLElement.prototype.attachInternals = function (this: HTMLElement) {
+        const internals = (attach ? attach.call(this) : {}) as Record<string, unknown>;
+        internals['setFormValue'] ??= () => {};
+        internals['setValidity'] ??= () => {};
+        return internals as unknown as ElementInternals;
+      };
+      const el = document.createElement('aurebesh-editor');
+      el.setAttribute('visible-items', 'bold, italic,undo');
+      document.body.appendChild(el);
+      await new Promise((r) => setTimeout(r, 5));
+      expect(shape(el)).toEqual([[['Bold', 'Italic']]]);
+      expect(titles(el.querySelector('.aurebesh-quickbar'))).toEqual(['Undo']);
+      el.remove();
+      HTMLElement.prototype.attachInternals = attach;
+    });
+  });
+
   it('keeps a command that is in the strip and in the toolbar in step: both are disabled when read-only', () => {
     const el = document.createElement('div');
     document.body.appendChild(el);
