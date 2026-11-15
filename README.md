@@ -263,6 +263,23 @@ The editor works with a finger. Below a window width of 640 px:
 
 On a screen with a touch pointer (`pointer: coarse`) the buttons, the menus and the handles of a table are at least 40 px, and the tip with the name of a button is not shown at every tap. The page needs `<meta name="viewport" content="width=device-width, initial-scale=1">`, as any page for a phone does; without it the phone shows a page of 980 px, scaled down.
 
+## The size of pictures and videos
+
+Click a picture, a video or an embedded video (YouTube, Vimeo) and a frame with a square on each corner and in the middle of each side appears. Drag one to change the size, with a mouse, a finger or a pen:
+
+- a **corner** scales the picture and keeps its shape; hold **Shift** to change both sides freely;
+- a **side** changes that side, and the other follows to keep the shape; with **Shift** only that side changes.
+
+In the tools row above the text the **width** and the **height** are fields in pixels, with a lock that keeps the shape (on by default). Give two pictures the same height and they are as high as each other, also next to each other: a picture and a video stand in the line, so two of them share a line when they fit. The buttons 25, 50, 75 and 100% and the alignment are still there. **Delete** removes a picked video.
+
+The size is **in the HTML itself**, in the style of the element, so it looks the same wherever the HTML is shown:
+
+```html
+<img src="…" style="width: 300px; height: auto; aspect-ratio: 300 / 150; max-width: 100%">
+```
+
+The width is in pixels (or percent), the shape is an aspect ratio so that the height follows when the box is narrower, and it is never wider than the box it is in. An embedded video that has no size gets the usual 16:9 (560 px wide, at most as wide as its box), instead of the 300 by 150 pixels that a browser makes of an iframe where the page has no CSS for it. The sizes pass the sanitizer; anything else in a `style` is still dropped.
+
 ## The height of the editor
 
 Under the text there is a bar with a grip: drag it (with a mouse, a finger or a pen) to make the editor higher or lower. It is on by default; `resizable: false` leaves it out. Until it is used the editor is as high as the text (at least its minimum height, and not higher than `--aurebesh-max-height` when the page gives one); after that it has a height of its own, the text scrolls inside it and the toolbar stays in view. The height is the one of the text with the sidebar beside it, not of the toolbar.

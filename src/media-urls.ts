@@ -25,6 +25,9 @@ export const IFRAME_ATTRS: Record<string, string> = {
   referrerpolicy: 'strict-origin-when-cross-origin',
 };
 
+/** The size of an embedded video that has none: the usual 16:9 of an embed (560 wide, and not wider than its box). */
+export const DEFAULT_EMBED_STYLE = 'width:560px;max-width:100%;aspect-ratio:16 / 9';
+
 export type VideoSource = { kind: 'embed'; src: string } | { kind: 'file'; src: string };
 
 /**

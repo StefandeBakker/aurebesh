@@ -43,7 +43,8 @@ describe('styles per tag', () => {
     expect(out).toContain('display: block');
     expect(out).toContain('margin-left: auto');
     expect(out).not.toContain('position');
-    expect(sanitize('<img src="https://x.dev/a.png" style="width: 1000px">')).not.toContain('style');
+    expect(sanitize('<img src="https://x.dev/a.png" style="width: 99999px">')).not.toContain('style');
+    expect(sanitize('<img src="https://x.dev/a.png" style="width: 320px; height: auto; aspect-ratio: 16 / 9; max-width: 100%">')).toContain('width: 320px; height: auto; aspect-ratio: 16 / 9; max-width: 100%');
   });
   it('allows superscript and subscript', () => {
     expect(sanitize('x<sup>2</sup><sub>i</sub>')).toBe('x<sup>2</sup><sub>i</sub>');

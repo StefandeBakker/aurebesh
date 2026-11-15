@@ -20,7 +20,9 @@ import { clearHighlights, highlightCode } from './highlight';
 import { canOpenLink, currentLink, normalizeLink, openLink } from './inline';
 import { DEFAULT_LABELS, LANGUAGES, resolveLanguage } from './labels';
 import type { Labels } from './labels';
-import { selectedImage } from './media';
+import { mediaAt, mediaSize, pickMedia, pickedMedia, selectedImage, selectedMedia, setMediaSize } from './media';
+import type { MediaElement } from './media';
+import { MIN_HEIGHT, MIN_WIDTH, MediaFrame } from './media-frame';
 import { currentCell, handleCellArrow, handleTab, trackCellDrag } from './table';
 import { attachColumnResize } from './table-resize';
 import { attachTableHandles } from './table-handles';
@@ -297,7 +299,10 @@ export class Aurebesh {
   private tip: HTMLElement | null = null;
   private fullscreen = false;
   private formLink: HTMLAnchorElement | null = null;
-  private lastImage: HTMLImageElement | null = null;
+  private lastMedia: MediaElement | null = null;
+  private mediaFrame: MediaFrame | null = null;
+  private sizeInputs: { width: HTMLInputElement; height: HTMLInputElement; lock: HTMLButtonElement } | null = null;
+  private keepRatio = true;
   private sizeSelects: HTMLSelectElement[] = [];
   private sizes: number[] = DEFAULT_SIZES;
   private weightSelects: HTMLSelectElement[] = [];
@@ -672,6 +677,47 @@ export class Aurebesh {
       this.pointerHeld = false;
       this.updateToolbar();
     });
+    if (this.imageTools) {
+      this.mediaFrame = new MediaFrame({
+        root: this.root,
+        view: () => (this.root.hasAttribute('data-page') ? this.stage : this.content).getBoundingClientRect(),
+        canEdit: () => this.content.isContentEditable,
+        run: (change) => this.runChange(change),
+        limit: () => this.content.clientWidth,
+        sized: (el) => this.showMediaSize(el),
+      });
+      this.cleanup.push(() => this.mediaFrame?.destroy());
+      // a picture is selected by a click, a video or an embed (which lets the pointer through) is picked by its box
+      this.listen(this.content, 'pointerdown', (e) => {
+        const p = e as PointerEvent;
+        const hit = mediaAt(this.content, p.clientX, p.clientY);
+        pickMedia(hit);
+        if (!hit) return;
+        this.lastMedia = hit;
+        this.updateToolbar();
+      });
+      // what was picked is let go when the focus leaves the editor
+      this.listen(this.root, 'focusout', (e) => {
+        const next = (e as FocusEvent).relatedTarget as Node | null;
+        if (next && this.root.contains(next)) return;
+        pickMedia(null);
+        this.updateToolbar();
+      });
+      this.listen(this.content, 'keydown', (e) => {
+        const k = e as KeyboardEvent;
+        const media = selectedMedia();
+        if (!media || media instanceof HTMLImageElement || !this.content.contains(media)) return;
+        if (k.key === 'Delete' || k.key === 'Backspace') {
+          k.preventDefault();
+          this.runChange(() => media.remove());
+          pickMedia(null);
+          this.mediaFrame?.show(null);
+          if (this.imageTools) this.imageTools.hidden = true;
+        } else if (k.key.length === 1 || k.key === 'Enter') {
+          pickMedia(null); // typing goes on in the text
+        }
+      });
+    }
     this.cleanup.push(
       attachColumnResize(
         this.content,
@@ -1857,7 +1903,7 @@ export class Aurebesh {
     }
 
     if (this.panelIds.includes('blocks')) this.buildRowTools();
-    if (commands.includes('image')) this.buildImageTools();
+    if (commands.includes('image') || commands.includes('video')) this.buildImageTools();
     // the language of a code block: a row of its own while the caret is in one, unless the toolbar has the box itself
     if (commands.includes('codeblock') && !commands.includes('codeLanguage')) this.buildCodeTools();
     if (commands.includes('link')) this.buildLinkTools();
@@ -2006,6 +2052,7 @@ export class Aurebesh {
     };
     for (const pct of ['25', '50', '75', '100']) add(`${pct}%`, `${pct}%`, () => this.exec('imageWidth', pct));
     add({ icon: 'fullWidth', label: '↔' }, this.t('ui.fullWidth'), () => this.exec('imageWidth', ''));
+    tools.appendChild(this.buildSizeFields());
     for (const [where, cmd] of [['left', 'alignLeft'], ['center', 'alignCenter'], ['right', 'alignRight']] as const) {
       add(COMMANDS[cmd], this.labels[cmd] ?? COMMANDS[cmd].title, () => this.exec('imageAlign', where));
     }
@@ -2016,30 +2063,101 @@ export class Aurebesh {
     alt.setAttribute('aria-label', this.t('ui.altText'));
     // The input takes focus (and the selection with it), so the image is remembered while typing.
     alt.addEventListener('change', () => {
-      if (this.lastImage) {
-        if (alt.value) this.lastImage.setAttribute('alt', alt.value);
-        else this.lastImage.removeAttribute('alt');
+      if (this.lastMedia instanceof HTMLImageElement) {
+        if (alt.value) this.lastMedia.setAttribute('alt', alt.value);
+        else this.lastMedia.removeAttribute('alt');
         this.emitChange();
       }
     });
     this.imageAltInput = alt;
     tools.appendChild(alt);
     add({ icon: 'trash', label: '✕' }, this.t('ui.removeImage'), () => {
-      if (!this.lastImage) return;
+      if (!this.lastMedia) return;
       const range = doc.createRange();
-      range.selectNode(this.lastImage);
+      range.selectNode(this.lastMedia);
       const sel = doc.getSelection();
       sel?.removeAllRanges();
       sel?.addRange(range);
       this.content.focus();
       doc.execCommand('delete');
-      this.lastImage = null;
+      this.lastMedia = null;
+      pickMedia(null);
+      this.mediaFrame?.show(null);
       tools.hidden = true;
       this.emitChange();
     });
     this.imageTools = tools;
     this.root.appendChild(tools);
     rovingToolbar(tools, () => this.content.focus());
+  }
+
+  /** The fields of the width and the height in pixels, and the lock that keeps the shape: for two pictures of the same height, give both the same. */
+  private buildSizeFields(): HTMLElement {
+    const doc = this.container.ownerDocument;
+    const wrap = doc.createElement('span');
+    wrap.className = 'aurebesh-size-fields';
+    const field = (name: 'width' | 'height'): HTMLInputElement => {
+      const input = doc.createElement('input');
+      input.type = 'number';
+      input.className = `aurebesh-size aurebesh-size-${name}`;
+      input.min = String(name === 'width' ? MIN_WIDTH : MIN_HEIGHT);
+      input.step = '1';
+      input.inputMode = 'numeric';
+      input.title = this.t(name === 'width' ? 'ui.mediaWidth' : 'ui.mediaHeight');
+      input.setAttribute('aria-label', input.title);
+      input.addEventListener('change', () => this.applyMediaSize(name, Number(input.value)));
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          input.dispatchEvent(new Event('change'));
+        }
+      });
+      return input;
+    };
+    const width = field('width');
+    const height = field('height');
+    const times = doc.createElement('span');
+    times.textContent = '×';
+    times.setAttribute('aria-hidden', 'true');
+    const lock = doc.createElement('button');
+    lock.type = 'button';
+    lock.className = 'aurebesh-size-lock';
+    this.face(lock, { icon: 'link', label: '🔗' });
+    lock.title = this.t('ui.keepShape');
+    lock.setAttribute('aria-label', lock.title);
+    lock.setAttribute('aria-pressed', 'true');
+    lock.addEventListener('mousedown', (e) => e.preventDefault());
+    lock.addEventListener('click', () => {
+      this.keepRatio = !this.keepRatio;
+      lock.setAttribute('aria-pressed', String(this.keepRatio));
+    });
+    this.sizeInputs = { width, height, lock };
+    wrap.append(width, times, height, lock);
+    return wrap;
+  }
+
+  /** What the size fields show: how big the picture or the video is now. */
+  private showMediaSize(el: MediaElement): void {
+    if (!this.sizeInputs) return;
+    const { width, height } = mediaSize(el);
+    this.sizeInputs.width.value = String(width);
+    this.sizeInputs.height.value = String(height);
+  }
+
+  /** A size typed in a field: the other side follows when the shape is kept. */
+  private applyMediaSize(side: 'width' | 'height', value: number): void {
+    const el = this.lastMedia;
+    if (!el || !this.content.contains(el) || !Number.isFinite(value) || value <= 0) return;
+    const now = mediaSize(el);
+    const ratio = now.width / Math.max(1, now.height);
+    let width = side === 'width' ? value : this.keepRatio ? value * ratio : now.width;
+    let height = side === 'height' ? value : this.keepRatio ? value / ratio : now.height;
+    width = Math.min(Math.max(MIN_WIDTH, width), Math.max(MIN_WIDTH, this.content.clientWidth));
+    if (this.keepRatio) height = width / ratio;
+    height = Math.max(MIN_HEIGHT, height);
+    this.runChange(() => setMediaSize(el, width, height));
+    this.showMediaSize(el);
+    this.mediaFrame?.place();
   }
 
   /** What a button shows: its icon, or its text when it has none. */
@@ -3374,13 +3492,21 @@ export class Aurebesh {
       this.placeLinkTools();
     }
     if (this.imageTools) {
-      const img = inside ? selectedImage() : null;
-      if (img) {
-        this.lastImage = img;
-        if (this.imageAltInput) this.imageAltInput.value = img.getAttribute('alt') ?? '';
+      // a picture that is selected, or what was picked with the pointer (the selection is not always in the text yet then)
+      const media = inside ? selectedMedia() : pickedMedia();
+      // Stay visible while a field of the tools has focus (it takes the selection with it), and leave what is typed in it alone.
+      const keeping = this.imageTools.contains(this.container.ownerDocument.activeElement);
+      if (media && this.content.contains(media)) {
+        this.lastMedia = media;
+        if (this.imageAltInput) {
+          if (!keeping) this.imageAltInput.value = media.getAttribute('alt') ?? '';
+          this.imageAltInput.hidden = !(media instanceof HTMLImageElement);
+        }
       }
-      // Stay visible while the alt-text field has focus (it takes the selection with it).
-      this.imageTools.hidden = !img && !this.imageTools.contains(this.container.ownerDocument.activeElement);
+      this.imageTools.hidden = !media && !keeping;
+      const current = media ?? (keeping ? this.lastMedia : null);
+      this.mediaFrame?.show(current && this.content.contains(current) ? current : null);
+      if (current && !keeping) this.showMediaSize(current);
     }
     if (inside) {
       const n = currentColumns();

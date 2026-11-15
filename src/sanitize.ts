@@ -3,7 +3,7 @@ import { SAFE_FAMILY } from './fonts';
 import { COMMENT_ID } from './comments';
 import { SUGGESTION_ID } from './suggestions';
 import { MENTION_ID } from './mentions';
-import { IFRAME_ATTRS, isEmbedSrc, isSafeImageSrc, isSafeVideoSrc } from './media-urls';
+import { DEFAULT_EMBED_STYLE, IFRAME_ATTRS, isEmbedSrc, isSafeImageSrc, isSafeVideoSrc } from './media-urls';
 
 const ALLOWED_TAGS = new Set([
   'p', 'br', 'div', 'span', 'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del',
@@ -146,12 +146,21 @@ const BUTTON_STYLES: StyleRules = {
 };
 /** A row can be made taller by dragging its lower border: its height in pixels. */
 const ROW_STYLES: StyleRules = { height: /^(?:[2-9]\d|[1-9]\d{2}|1\d{3})(?:\.\d)?px$/ };
-const IMG_STYLES: StyleRules = {
-  width: /^\d{1,3}%$/,
-  display: /^block$/,
+/**
+ * The size of a picture or a video (see media-size.ts): a width in px or percent, the shape as an aspect ratio (so the height follows
+ * the width, also where the box is narrower than the width), and no more than the box it is in.
+ */
+const MEDIA_STYLES: StyleRules = {
+  width: /^(?:\d{1,4}(?:\.\d{1,2})?px|\d{1,3}%)$/,
+  height: /^auto$/,
+  'aspect-ratio': /^\d{1,5}(?:\.\d{1,4})? ?\/ ?\d{1,5}(?:\.\d{1,4})?$/,
+  'max-width': /^100%$/,
+  display: /^(?:block|inline-block)$/,
+  'vertical-align': /^top$/,
   'margin-left': /^(?:auto|0|0px)$/,
   'margin-right': /^(?:auto|0|0px)$/,
 };
+const IMG_STYLES = MEDIA_STYLES;
 /** A <div> may also be a newspaper-style column block: 2-4 columns with an optional gap. */
 const COLUMN_STYLES: StyleRules = {
   ...BLOCK_STYLES,
@@ -181,6 +190,7 @@ const STYLES_BY_TAG: Record<string, StyleRules> = {
   aside: ASIDE_STYLES,
   span: SPAN_STYLES,
   img: IMG_STYLES,
+  video: MEDIA_STYLES,
   ...Object.fromEntries(['p', 'h1', 'h2', 'h3', 'li', 'blockquote', 'caption'].map((t) => [t, BLOCK_STYLES])),
   td: CELL_STYLES,
   th: CELL_STYLES,
@@ -221,10 +231,14 @@ function clean(parent: Node, ext: SanitizeExtension[]): void {
     if (tag === 'iframe') {
       const src = el.getAttribute('src') ?? '';
       if (isEmbedSrc(src)) {
+        // the size is the one thing of the iframe that is its own; without one it gets the usual 16:9 of an embed, so it is not the
+        // 300 by 150 that a browser makes of an iframe where the page has no CSS for it
+        const style = safeStyle(el.getAttribute('style'), MEDIA_STYLES);
         for (const attr of Array.from(el.attributes)) el.removeAttribute(attr.name);
         el.textContent = '';
         el.setAttribute('src', src);
         for (const [name, value] of Object.entries(IFRAME_ATTRS)) el.setAttribute(name, value);
+        el.setAttribute('style', style && /(?:^|;) ?width:/.test(style) ? style : DEFAULT_EMBED_STYLE);
       } else {
         parent.removeChild(el);
       }
