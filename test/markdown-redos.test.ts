@@ -8,7 +8,7 @@ describe('headings with #', () => {
     expect(html('# One')).toBe('<h1>One</h1>');
     expect(html('## Two')).toBe('<h2>Two</h2>');
     expect(html('### Three')).toBe('<h3>Three</h3>');
-    expect(html('#### Four')).toBe('<h3>Four</h3>'); // the editor has three levels
+    expect(html('#### Four')).toBe('<h4>Four</h4>');
     expect(html('# Closed #')).toBe('<h1>Closed</h1>');
     expect(html('## Closed ####   ')).toBe('<h2>Closed</h2>');
     expect(html('# foo#')).toBe('<h1>foo#</h1>');

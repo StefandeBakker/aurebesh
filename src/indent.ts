@@ -6,7 +6,7 @@
 const ROOT = '.aurebesh-content';
 const STEP = 24;
 const MAX = 8 * STEP;
-const BLOCKS = 'p,h1,h2,h3,blockquote';
+const BLOCKS = 'p,h1,h2,h3,h4,h5,h6,blockquote';
 
 function selectedBlocks(): { items: HTMLLIElement[]; blocks: HTMLElement[] } {
   const sel = document.getSelection();

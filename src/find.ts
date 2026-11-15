@@ -3,7 +3,7 @@
  * to search and replace, and the replacing itself. A match stays inside one block (a paragraph, a list item, a table cell...) but can
  * go over the formatting in it: "hello world" is found when "hello" is bold.
  */
-const BLOCK = 'p,h1,h2,h3,li,td,th,blockquote,pre,div,caption,aside';
+const BLOCK = 'p,h1,h2,h3,h4,h5,h6,li,td,th,blockquote,pre,div,caption,aside';
 const MAX_MATCHES = 5000;
 
 export interface FindOptions {

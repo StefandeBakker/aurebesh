@@ -22,6 +22,8 @@ import { DEFAULT_LABELS, LANGUAGES, resolveLanguage } from './labels';
 import type { Labels } from './labels';
 import { mediaAt, mediaSize, pickMedia, pickedMedia, selectedImage, selectedMedia, setMediaSize } from './media';
 import type { MediaElement } from './media';
+import { BULLET_STYLES, LIST_SAMPLES, NUMBER_STYLES, currentListStyle } from './lists';
+import type { ListKind } from './lists';
 import type { EmojiApi } from './emoji';
 import { MIN_HEIGHT, MIN_WIDTH, MediaFrame } from './media-frame';
 import { currentCell, handleCellArrow, handleTab, trackCellDrag } from './table';
@@ -105,6 +107,10 @@ export interface Layout {
   /** Line height as a multiple of the font size. */
   lineHeight: number | null;
 }
+
+/** Items that are one button with an arrow when the second follows the first in the toolbar: the item, and the one whose dropdown the arrow opens. */
+const HEADING_ITEMS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+const SPLIT_ITEMS: Record<string, string> = { underline: 'underlineStyle', strike: 'strikeStyle', clear: 'clearStyle', ul: 'ulStyle', ol: 'olStyle' };
 
 /** A group of the toolbar, for folding it away when the toolbar is too wide (see `foldToolbar`). */
 interface FoldableGroup {
@@ -346,6 +352,8 @@ export class Aurebesh {
   private calloutTypes: CalloutDef[] = DEFAULT_CALLOUTS;
   private calloutOptions: HTMLButtonElement[] = [];
   private clearOptions: { kind: string; button: HTMLButtonElement }[] = [];
+  private headingOptions: { level: string; button: HTMLButtonElement }[] = [];
+  private listOptions: { kind: ListKind; style: string; button: HTMLButtonElement }[] = [];
   private lineOptions: { kind: DecorationKind; style: string; button: HTMLButtonElement }[] = [];
   private readOnlyState = false;
   private colors: string[];
@@ -1548,7 +1556,7 @@ export class Aurebesh {
 
   /** The name of a kind of block, in the menu of the handle. */
   private blockLabel(kind: BlockKind): string {
-    const names: Record<BlockKind, string> = { p: this.t('ui.block.paragraph'), h1: 'h1', h2: 'h2', h3: 'h3', ul: 'ul', ol: 'ol', task: 'task', quote: 'quote', code: 'codeblock', callout: 'callout' };
+    const names: Record<BlockKind, string> = { p: this.t('ui.block.paragraph'), h1: 'h1', h2: 'h2', h3: 'h3', h4: 'h4', h5: 'h5', h6: 'h6', ul: 'ul', ol: 'ol', task: 'task', quote: 'quote', code: 'codeblock', callout: 'callout' };
     return kind === 'p' ? names.p : this.title(this.commands[names[kind]]);
   }
 
@@ -1736,6 +1744,7 @@ export class Aurebesh {
     if (item === 'callout') return this.buildCalloutPicker(cmd);
     if (item === 'strikeStyle') return this.buildLinePicker(cmd, 'strike');
     if (item === 'underlineStyle') return this.buildLinePicker(cmd, 'underline');
+    if (item === 'ulStyle' || item === 'olStyle') return this.buildListStylePicker(cmd, item === 'ulStyle' ? 'ul' : 'ol');
     if (item === 'clearStyle') return this.buildClearPicker(cmd);
     if (item === 'sidebar') return this.buildSidebarToggle(cmd);
     if (this.panelIds.includes(item)) return this.buildPanelButton(cmd);
@@ -1753,6 +1762,7 @@ export class Aurebesh {
     if (item === 'color') return this.buildColorPicker(cmd, 'inherit', this.t('ui.automatic'));
     if (item === 'highlight') return this.buildColorPicker(cmd, 'transparent', this.t('ui.noHighlight'));
     if (item === 'table') return this.buildTablePicker();
+    if (item === 'heading') return this.buildHeadingPicker(HEADING_ITEMS);
     if (item === 'emoji') return this.buildEmojiPicker(cmd);
     if (item === 'image' || item === 'video') return this.buildMediaPicker(item, cmd);
     return this.makeButton(cmd);
@@ -1772,7 +1782,10 @@ export class Aurebesh {
     const labels = new Map<HTMLElement[][], string>(); // the name above a block
     const atEnd = new Set<HTMLElement[][]>(); // blocks that go to the far end of the toolbar
     const named = new Map<HTMLElement, string>(); // the item that made each element
-    for (const item of items) {
+    let skipTo = 0;
+    for (const [at, item] of items.entries()) {
+      if (items[at - 1] && SPLIT_ITEMS[items[at - 1]] === item) continue; // it is the arrow of the button before it
+      if (at < skipTo) continue; // it is in the dropdown of the headings before it
       const group = groups[groups.length - 1];
       if (item === '|' || item === '>') {
         if (item === '>') atEnd.add(group.some((row) => row.length) ? (groups.push([[]]), groups[groups.length - 1]) : group);
@@ -1787,10 +1800,17 @@ export class Aurebesh {
         if (group[group.length - 1].length) group.push([]);
         continue;
       }
-      const el = this.buildToolbarItem(item);
+      let el: HTMLElement | null;
+      if (HEADING_ITEMS.includes(item) && HEADING_ITEMS.includes(items[at + 1])) {
+        // two or more headings in a row (H1 H2) are one button with the list of them
+        let end = at;
+        while (HEADING_ITEMS.includes(items[end + 1])) end++;
+        skipTo = end + 1;
+        el = this.buildHeadingPicker(items.slice(at, end + 1));
+      } else el = SPLIT_ITEMS[item] && items[at + 1] === SPLIT_ITEMS[item] ? this.buildSplitButton(item, SPLIT_ITEMS[item]) : this.buildToolbarItem(item);
       if (el) {
         group[group.length - 1].push(el);
-        named.set(el, item);
+        named.set(el, HEADING_ITEMS.includes(item) && skipTo > at ? 'heading' : item);
       }
     }
     const folding: FoldableGroup[] = [];
@@ -2320,6 +2340,106 @@ export class Aurebesh {
     return btn;
   }
 
+  /** The dropdown with the looks of a list: what the marker is, for a bullet list or for a numbered one. */
+  private buildListStylePicker(cmd: CommandDef, kind: ListKind): HTMLElement {
+    const doc = this.container.ownerDocument;
+    const wrap = doc.createElement('span');
+    wrap.className = 'aurebesh-table-picker';
+    const toggle = this.makeButton(cmd, (e) => {
+      pop.hidden = !pop.hidden;
+      if (!pop.hidden && e.detail === 0) (pop.querySelector('button') as HTMLElement | null)?.focus();
+    });
+    toggle.classList.add('aurebesh-swatch-btn');
+    const pop = doc.createElement('div');
+    pop.className = 'aurebesh-table-pop aurebesh-strike-pop aurebesh-list-pop';
+    pop.hidden = true;
+    pop.setAttribute('role', 'group');
+    pop.setAttribute('aria-label', this.title(cmd));
+    for (const style of kind === 'ul' ? BULLET_STYLES : NUMBER_STYLES) {
+      const b = doc.createElement('button');
+      b.type = 'button';
+      b.className = 'aurebesh-strike-option aurebesh-list-option';
+      b.setAttribute('aria-pressed', 'false');
+      const sample = doc.createElement('span');
+      sample.className = 'aurebesh-list-sample';
+      sample.textContent = LIST_SAMPLES[style];
+      const name = kind === 'ul' ? this.t(`ui.list.${style}`) : LIST_SAMPLES[style];
+      b.title = name;
+      b.setAttribute('aria-label', name);
+      b.appendChild(sample);
+      b.addEventListener('mousedown', (e) => e.preventDefault());
+      b.addEventListener('click', () => {
+        pop.hidden = true;
+        this.exec(cmd.name, style);
+      });
+      pop.appendChild(b);
+      this.listOptions.push({ kind, style, button: b });
+    }
+    this.closeOnOutside(wrap, pop, toggle);
+    wrap.append(toggle, pop);
+    return wrap;
+  }
+
+  /** The button with the list of headings: normal text and the levels that were asked for, each shown the size it will be. */
+  private buildHeadingPicker(levels: string[]): HTMLElement {
+    const doc = this.container.ownerDocument;
+    const cmd = this.commands.heading;
+    const wrap = doc.createElement('span');
+    wrap.className = 'aurebesh-table-picker';
+    const toggle = this.makeButton(cmd, (e) => {
+      pop.hidden = !pop.hidden;
+      if (!pop.hidden && e.detail === 0) (pop.querySelector('button') as HTMLElement | null)?.focus();
+    });
+    toggle.classList.add('aurebesh-swatch-btn');
+    const pop = doc.createElement('div');
+    pop.className = 'aurebesh-table-pop aurebesh-strike-pop aurebesh-heading-pop';
+    pop.hidden = true;
+    pop.setAttribute('role', 'group');
+    pop.setAttribute('aria-label', this.title(cmd));
+    for (const level of ['p', ...levels]) {
+      const b = doc.createElement('button');
+      b.type = 'button';
+      b.className = 'aurebesh-strike-option aurebesh-heading-option';
+      b.setAttribute('aria-pressed', 'false');
+      const sample = doc.createElement('span');
+      sample.className = `aurebesh-heading-sample aurebesh-heading-${level}`;
+      sample.textContent = level === 'p' ? this.t('ui.normalText') : this.title(this.commands[level]);
+      b.appendChild(sample);
+      b.addEventListener('mousedown', (e) => e.preventDefault());
+      b.addEventListener('click', () => {
+        pop.hidden = true;
+        this.exec('heading', level);
+      });
+      pop.appendChild(b);
+      this.headingOptions.push({ level, button: b });
+    }
+    this.closeOnOutside(wrap, pop, toggle);
+    wrap.append(toggle, pop);
+    return wrap;
+  }
+
+  /**
+   * One button where there were two: the item (underline) with an arrow beside it that opens the dropdown of the item that follows it
+   * (its style and colour). The button does what it did, the arrow opens what the second button opened.
+   */
+  private buildSplitButton(main: string, more: string): HTMLElement | null {
+    const doc = this.container.ownerDocument;
+    const button = this.buildToolbarItem(main);
+    const picker = this.buildToolbarItem(more);
+    if (!button || !picker) return button ?? picker;
+    const split = doc.createElement('span');
+    split.className = 'aurebesh-split';
+    split.setAttribute('role', 'group');
+    split.setAttribute('aria-label', this.title(this.commands[main]));
+    const arrow = picker.querySelector<HTMLButtonElement>('button');
+    if (arrow) {
+      arrow.classList.add('aurebesh-split-arrow');
+      arrow.replaceChildren(); // the arrow is drawn by the style of the button
+    }
+    split.append(button, picker);
+    return split;
+  }
+
   /** The button with the list of what can be taken away from the selected text, without the rest of its formatting. */
   private buildClearPicker(cmd: CommandDef): HTMLElement {
     const doc = this.container.ownerDocument;
@@ -2485,7 +2605,7 @@ export class Aurebesh {
       keywords: 'callout alert admonition',
       run: () => this.applyCallout(def.id),
     }));
-    for (const name of ['h1', 'h2', 'h3', 'ul', 'ol', 'task', 'quote', 'codeblock', 'hr']) {
+    for (const name of ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'task', 'quote', 'codeblock', 'hr']) {
       items.push({ id: name, label: this.title(this.commands[name]), run: () => this.exec(name) });
     }
     if (this.emojiOn) items.push({ id: 'emoji', label: this.title(this.commands.emoji), keywords: 'smiley emoticon', run: () => void this.loadEmoji().then((api) => api.start(), () => {}) });
@@ -3534,6 +3654,8 @@ export class Aurebesh {
     if (inside) this.lastRange = sel!.getRangeAt(0).cloneRange();
     if (this.tableTools && !this.pointerHeld) this.tableTools.hidden = !(inside && currentTable());
     // the kinds that the selected text does not have cannot be taken away
+    for (const { kind, style, button } of this.listOptions) button.setAttribute('aria-pressed', String(inside && currentListStyle(kind) === style));
+    for (const { level, button } of this.headingOptions) button.setAttribute('aria-pressed', String(inside && (level === 'p' ? !this.commands.heading.isActive?.() : (this.commands[level].isActive?.() ?? false))));
     for (const { kind, button } of this.clearOptions) {
       const has = kind === 'all' || kind === 'color' || kind === 'highlight' || (inside && hasInline(kind as InlineKind));
       button.disabled = !has;
@@ -3633,7 +3755,7 @@ export class Aurebesh {
       this.fontSelects.forEach((select) => (select.value = match ? match.family : ''));
     }
     this.buttons.forEach((list, name) => {
-      if (name === 'sidebar' || name === 'callout' || name === 'export' || name === 'strikeStyle' || name === 'underlineStyle' || name === 'clearStyle') return; // aria-expanded says it, and the callout picker sets its own state
+      if (name === 'sidebar' || name === 'callout' || name === 'export' || name === 'strikeStyle' || name === 'underlineStyle' || name === 'clearStyle' || name === 'ulStyle' || name === 'olStyle') return; // aria-expanded says it, and the callout picker sets its own state
       const active = name === 'fullscreen' ? this.fullscreen : name === 'suggest' ? !!this.suggestions?.isSuggesting() : inside && (this.commands[name].isActive?.() ?? false);
       const enabled = this.commands[name].isEnabled;
       for (const btn of list) {

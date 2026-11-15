@@ -54,7 +54,7 @@ function overlaps(range: Range, el: Element): boolean {
 
 /** The size of the block that a piece of text is in, in points: what text without a size of its own has. */
 function blockSize(el: Element | null): number {
-  const block = el?.closest('p,h1,h2,h3,li,td,th,blockquote,div,caption,aside') ?? el;
+  const block = el?.closest('p,h1,h2,h3,h4,h5,h6,li,td,th,blockquote,div,caption,aside') ?? el;
   const px = block ? parseFloat(getComputedStyle(block).fontSize) : 16;
   return Math.round((px || 16) * 75) / 100;
 }

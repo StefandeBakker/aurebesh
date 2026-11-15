@@ -7,7 +7,7 @@ import { DEFAULT_EMBED_STYLE, IFRAME_ATTRS, isEmbedSrc, isSafeImageSrc, isSafeVi
 
 const ALLOWED_TAGS = new Set([
   'p', 'br', 'div', 'span', 'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del',
-  'h1', 'h2', 'h3', 'blockquote', 'ul', 'ol', 'li', 'a', 'code', 'pre', 'hr',
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'ul', 'ol', 'li', 'a', 'code', 'pre', 'hr',
   'table', 'caption', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'colgroup', 'col',
   'img', 'video', 'sup', 'sub', 'aside',
 ]);
@@ -24,7 +24,7 @@ const ALLOWED_ATTRS: Record<string, string[]> = {
   img: ['src', 'alt', 'title', 'width', 'height'],
   video: ['src', 'width'],
 };
-const DIR_TAGS = new Set(['p', 'h1', 'h2', 'h3', 'blockquote', 'pre', 'ul', 'ol', 'li', 'table', 'td', 'th', 'div', 'aside']);
+const DIR_TAGS = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre', 'ul', 'ol', 'li', 'table', 'td', 'th', 'div', 'aside']);
 const SAFE_URL =/^(https?:|mailto:|tel:|#|\/)/i;
 
 /** Strips everything outside a small allow-list (scripts, event handlers, javascript: urls...). */
@@ -161,6 +161,8 @@ const MEDIA_STYLES: StyleRules = {
   'margin-right': /^(?:auto|0|0px)$/,
 };
 const IMG_STYLES = MEDIA_STYLES;
+/** The look of the marker of a list (see lists.ts). */
+const LIST_STYLES: StyleRules = { 'list-style-type': /^(?:disc|circle|square|decimal|lower-alpha|upper-alpha|lower-roman|upper-roman)$/ };
 /** A <div> may also be a newspaper-style column block: 2-4 columns with an optional gap. */
 const COLUMN_STYLES: StyleRules = {
   ...BLOCK_STYLES,
@@ -191,7 +193,9 @@ const STYLES_BY_TAG: Record<string, StyleRules> = {
   span: SPAN_STYLES,
   img: IMG_STYLES,
   video: MEDIA_STYLES,
-  ...Object.fromEntries(['p', 'h1', 'h2', 'h3', 'li', 'blockquote', 'caption'].map((t) => [t, BLOCK_STYLES])),
+  ul: LIST_STYLES,
+  ol: LIST_STYLES,
+  ...Object.fromEntries(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote', 'caption'].map((t) => [t, BLOCK_STYLES])),
   td: CELL_STYLES,
   th: CELL_STYLES,
   tr: ROW_STYLES,

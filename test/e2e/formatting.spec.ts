@@ -518,7 +518,8 @@ test.describe('the toolbar layout', () => {
     await selectAll(page);
     await button(page, 'Italic').click();
     await button(page, 'Align center').click();
-    await button(page, 'Heading 2').click();
+    await button(page, 'Heading').click(); // the headings are one dropdown
+    await page.locator('.aurebesh-heading-option', { hasText: 'Heading 2' }).click();
     const out = await html(page);
     expect(out).toMatch(/<h2[^>]*text-align:\s*center[^>]*>.*<(i|em)>hello<\/(i|em)>/);
   });

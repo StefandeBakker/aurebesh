@@ -198,7 +198,7 @@ class Package {
   rels: { id: string; type: string; target: string; external?: boolean }[] = [];
   pictures: Picture[] = [];
   /** The numbered lists: for each, the number it starts with. */
-  numbered: { id: number; start: number }[] = [];
+  numbered: { id: number; start: number; kind: string }[] = [];
   private relId = 3; // 1 is the styles, 2 the numbering
   private shapeId = 1;
   private numId = 2; // 1 is the bullets
@@ -223,9 +223,9 @@ class Package {
   }
 
   /** A new numbered list, which starts again at its start. */
-  numbering(start: number): number {
+  numbering(start: number, kind = 'decimal'): number {
     const id = ++this.numId;
-    this.numbered.push({ id, start });
+    this.numbered.push({ id, start, kind });
     return id;
   }
 }
@@ -465,15 +465,28 @@ function paragraphOf(el: Element, ctx: Context, pkg: Package, props: ParaProps =
 }
 
 function heading(el: Element, ctx: Context, pkg: Package): string {
-  const level = Math.min(3, parseInt(el.tagName.slice(1), 10) || 1);
+  const level = Math.min(6, parseInt(el.tagName.slice(1), 10) || 1);
   return paragraphOf(el, ctx, pkg, { style: `Heading${level}`, keepNext: true });
 }
+
+/** The look of the marker of a list (its `list-style-type`) as the kind of numbering Word has for it. */
+const WORD_LIST: Record<string, string> = {
+  disc: 'disc',
+  circle: 'circle',
+  square: 'square',
+  decimal: 'decimal',
+  'lower-alpha': 'lowerLetter',
+  'upper-alpha': 'upperLetter',
+  'lower-roman': 'lowerRoman',
+  'upper-roman': 'upperRoman',
+};
 
 /** A list: the numbering is Word's own, so that the numbers go on and restart as they should. */
 function list(el: Element, ctx: Context, pkg: Package, level = 0, task = false): string {
   const ordered = el.tagName === 'OL';
   const isTask = el.hasAttribute('data-task');
-  const numId = ordered ? pkg.numbering(Math.max(1, parseInt(el.getAttribute('start') ?? '1', 10) || 1)) : 1;
+  const look = WORD_LIST[/list-style-type:\s*([a-z-]+)/.exec(el.getAttribute('style') ?? '')?.[1] ?? ''] ?? (ordered ? 'decimal' : 'disc');
+  const numId = ordered ? pkg.numbering(Math.max(1, parseInt(el.getAttribute('start') ?? '1', 10) || 1), look) : look === 'disc' ? 1 : pkg.numbering(1, look);
   const out: string[] = [];
   void task;
   const items = Array.from(el.children).filter((c) => c.tagName === 'LI' || c.tagName === 'UL' || c.tagName === 'OL');
@@ -766,17 +779,26 @@ function stylesXml(font: string, size: number): string {
     heading(1, 40, 360) +
     heading(2, 32, 280) +
     heading(3, 28, 240) +
+    heading(4, 26, 200) +
+    heading(5, 24, 200) +
+    heading(6, 22, 200) +
     '<w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:basedOn w:val="DefaultParagraphFont"/><w:uiPriority w:val="99"/><w:unhideWhenUsed/><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/></w:rPr></w:style>' +
     '<w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:uiPriority w:val="99"/><w:semiHidden/><w:unhideWhenUsed/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style>' +
     '</w:styles>'
   );
 }
 
+/** The kinds of numbering, each with the id of its definition: the bullets (1) and the numbers (2) were there first. */
+const NUMBERING_KINDS = ['disc', 'decimal', 'lowerLetter', 'upperLetter', 'lowerRoman', 'upperRoman', 'circle', 'square'];
+const BULLET_GLYPH: Record<string, string> = { disc: '•', circle: '◦', square: '▪' };
+
 function numberingXml(pkg: Package): string {
-  const levels = (bullet: boolean) =>
+  /** The nine levels of a kind: the first level looks as asked, the ones inside it as they always did. */
+  const levels = (kind: string) =>
     Array.from({ length: 9 }, (_, i) => {
-      const fmt = bullet ? 'bullet' : ['decimal', 'lowerLetter', 'lowerRoman'][i % 3];
-      const text = bullet ? ['•', '◦', '▪'][i % 3] : `%${i + 1}.`;
+      const bullet = kind in BULLET_GLYPH;
+      const fmt = bullet ? 'bullet' : i === 0 ? kind : ['decimal', 'lowerLetter', 'lowerRoman'][i % 3];
+      const text = bullet ? (i === 0 ? BULLET_GLYPH[kind] : ['•', '◦', '▪'][i % 3]) : `%${i + 1}.`;
       return (
         `<w:lvl w:ilvl="${i}"><w:start w:val="1"/><w:numFmt w:val="${fmt}"/><w:lvlText w:val="${text}"/><w:lvlJc w:val="left"/>` +
         `<w:pPr><w:ind w:left="${720 * (i + 1)}" w:hanging="360"/></w:pPr></w:lvl>`
@@ -784,11 +806,14 @@ function numberingXml(pkg: Package): string {
     }).join('');
   return (
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering ${W}>` +
-    `<w:abstractNum w:abstractNumId="1"><w:multiLevelType w:val="hybridMultilevel"/>${levels(true)}</w:abstractNum>` +
-    `<w:abstractNum w:abstractNumId="2"><w:multiLevelType w:val="hybridMultilevel"/>${levels(false)}</w:abstractNum>` +
+    NUMBERING_KINDS.map((kind, i) => `<w:abstractNum w:abstractNumId="${i + 1}"><w:multiLevelType w:val="hybridMultilevel"/>${levels(kind)}</w:abstractNum>`).join('') +
     '<w:num w:numId="1"><w:abstractNumId w:val="1"/></w:num>' +
     pkg.numbered
-      .map((n) => `<w:num w:numId="${n.id}"><w:abstractNumId w:val="2"/><w:lvlOverride w:ilvl="0"><w:startOverride w:val="${n.start}"/></w:lvlOverride></w:num>`)
+      .map((n) => {
+        const abstract = NUMBERING_KINDS.indexOf(n.kind) + 1 || 2;
+        const start = n.kind in BULLET_GLYPH ? '' : `<w:lvlOverride w:ilvl="0"><w:startOverride w:val="${n.start}"/></w:lvlOverride>`;
+        return `<w:num w:numId="${n.id}"><w:abstractNumId w:val="${abstract}"/>${start}</w:num>`;
+      })
       .join('') +
     '</w:numbering>'
   );

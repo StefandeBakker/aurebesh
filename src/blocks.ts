@@ -118,7 +118,7 @@ export function spotLine(spot: Spot): { left: number; width: number; top: number
 /** Selects the text of the first element that has some, or puts the caret in the first one that can have it: where to carry on typing. */
 function focusIn(el: Element): void {
   const sel = el.ownerDocument.getSelection();
-  const target = el.matches('h1,h2,h3,p,a,li') ? el : el.querySelector('h1,h2,h3,p,li');
+  const target = el.matches('h1,h2,h3,h4,h5,h6,p,a,li') ? el : el.querySelector('h1,h2,h3,h4,h5,h6,p,li');
   if (!sel || !target) return;
   const range = el.ownerDocument.createRange();
   range.selectNodeContents(target);

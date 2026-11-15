@@ -72,7 +72,7 @@ export const isInlineCode = (): boolean => {
   return !!code && !code.closest('pre');
 };
 
-const BLOCK = 'p,h1,h2,h3,li,td,th,blockquote,div,caption,aside';
+const BLOCK = 'p,h1,h2,h3,h4,h5,h6,li,td,th,blockquote,div,caption,aside';
 
 /** The selected text, in runs: the text of each block that the selection reaches, from its first to its last character. */
 export function textRuns(root: Element, range: Range): Range[] {

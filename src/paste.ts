@@ -204,9 +204,8 @@ function normalizeHeadings(root: HTMLElement): void {
     if (align) h.setAttribute('style', align);
     el.replaceWith(h);
   };
-  root.querySelectorAll('h4,h5,h6').forEach((h) => rename(h, 'h3'));
   root.querySelectorAll('p').forEach((p) => {
-    const m = /^(?:Mso)?(?:Heading\s?([1-3])|(Title)|(Subtitle))$/i.exec(p.className.trim());
+    const m = /^(?:Mso)?(?:Heading\s?([1-6])|(Title)|(Subtitle))$/i.exec(p.className.trim());
     if (m) rename(p, m[2] ? 'h1' : m[3] ? 'h2' : `h${m[1]}`);
   });
 }

@@ -38,6 +38,9 @@ export function shortcutFor(e: KeyboardEvent): string | null {
     if (e.code === 'Digit1') return 'h1';
     if (e.code === 'Digit2') return 'h2';
     if (e.code === 'Digit3') return 'h3';
+    if (e.code === 'Digit4') return 'h4';
+    if (e.code === 'Digit5') return 'h5';
+    if (e.code === 'Digit6') return 'h6';
     if (e.code === 'KeyC') return 'codeblock';
     if (e.code === 'KeyM') return 'comment';
   }
@@ -60,6 +63,9 @@ const KEYS: Record<string, string> = {
   h1: 'Mod+Alt+1',
   h2: 'Mod+Alt+2',
   h3: 'Mod+Alt+3',
+  h4: 'Mod+Alt+4',
+  h5: 'Mod+Alt+5',
+  h6: 'Mod+Alt+6',
   ol: 'Mod+Shift+7',
   ul: 'Mod+Shift+8',
   task: 'Mod+Shift+9',
