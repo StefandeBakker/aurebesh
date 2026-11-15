@@ -71,6 +71,7 @@ export const LABELS_EN: Labels = {
   'ui.imagesDropped': '{count} image(s) in the pasted content could not be brought along.',
   'ui.toolbar': 'Formatting',
   'ui.quickbar': 'Quick access',
+  'ui.more': 'More',
   'ui.tableTools': 'Table tools',
   'ui.imageTools': 'Image tools',
   page: 'Page format',

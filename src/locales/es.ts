@@ -67,6 +67,7 @@ export const LABELS_ES: Labels = {
   'ui.imagesDropped': '{count} imagen(es) del contenido pegado no se pudieron incluir.',
   'ui.toolbar': 'Formato',
   'ui.quickbar': 'Acceso rápido',
+  'ui.more': 'Más',
   'ui.tableTools': 'Herramientas de tabla',
   'ui.imageTools': 'Herramientas de imagen',
   page: 'Formato de página',

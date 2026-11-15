@@ -147,6 +147,7 @@ import 'aurebesh/element'; // registers <aurebesh-editor>
 | `placeholder` | Placeholder text |
 | `readOnly` | Disable editing |
 | `toolbar` | Items, e.g. `['bold','italic','|','link']`; `[]` hides it |
+| `collapse` | Which groups of the toolbar fold into a dropdown first when it does not fit on one row, e.g. `['Insert', 'table']`; default: from the last group to the first; `false` lets the toolbar wrap (see *A toolbar that does not fit*) |
 | `visibleItems` | Show only these items of the toolbar and the strip above it, e.g. `['bold','italic','link']` (default: all; see *Showing only some items*) |
 | `headless` | No look of its own: the page styles everything (see *Your own look*) |
 | `exportName` | The name of exported files, without the extension, and the title in them (default `document`) |
@@ -236,6 +237,22 @@ When the pointer is over a block, a grip (six dots) shows in the margin beside i
 The grip is not shown in the HTML and Markdown views or in a read-only editor. On a screen that has no hover (a phone, a tablet) it stays with the block that has the caret instead, and a tap on it opens the menu (there is nothing to drag with there, and *Move up* and *Move down* do the same). Everything it does is also in the keyboard and the menu. `blockHandles: false` leaves it out. The grip stands in a margin of its own beside the text (28 px, `--aurebesh-handle-gutter`; in a page format it is beside the sheet), so that it does not cover the first letters, a task box or a table's grips; a headless editor has no margin of its own, so there the page makes room for it. A table with the caret in it has grips of its own on its edge, so its handle is left out then (the menu is still there with `Alt+Shift+M`).
 
 A browser has no undo for blocks that are moved, and puts blocks that are inserted as HTML together with the ones beside them, so the editor does these changes itself and keeps them in a history of its own. `Ctrl+Z` and `Ctrl+Y` (and the buttons, and the menu of the browser) take them back and do them again, **in the order of what was done**: typing after a move is undone first, then the move. Replace all (see below) is in that history too. What was done before a move by the browser's own undo stack stays undoable as long as the text is as it was, but undo after a move and several changes of the text in other blocks can take the browser's own history with it: a change made by the handle is the one to undo right after you made it.
+
+## A toolbar that does not fit
+
+When the toolbar is too wide for one row, its groups do not drop to a second row: they **fold away one by one**, each into a single button (its icon and an arrow) that opens what was in the group in a dropdown. A group stays where it was, so the toolbar keeps its order. The groups come back when there is room again, and the editor follows its own width, not the window's.
+
+- Which group folds first: by default **the last one**, then the one before it, so what is at the front stays in view the longest.
+- `collapse` changes that: a list of the names of groups (`#Insert` in the toolbar is `'Insert'`) or of any item in a group (`'table'`), first the ones that may go first. Groups that are not in the list follow, last to first.
+- `collapse: false` leaves the toolbar as it was: it wraps onto more rows.
+- Below 640 px the toolbar is one row that scrolls sideways, and nothing folds (see *Phones and tablets*).
+
+```js
+new Aurebesh(element, {
+  toolbar: ['#Text', 'bold', 'italic', '|', '#Lists', 'ul', 'ol', '|', '#Insert', 'link', 'image', 'table'],
+  collapse: ['Insert', 'ul'], // Insert goes first, then the group with the bullet list
+});
+```
 
 ## Phones and tablets
 

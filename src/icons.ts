@@ -17,6 +17,9 @@ const LTR: Shape[] = [
 ];
 
 export const ICONS: Record<string, Shape[]> = {
+  // a group of the toolbar that was folded away (see `collapse`): the arrow that opens it, and three dots for a group without an icon of its own
+  chevronDown: [['path', { d: 'M6 9.5l6 6 6-6' }]],
+  more: [['circle', { cx: 5.5, cy: 12, r: 1.4, fill: 'currentColor', stroke: 'none' }], ['circle', { cx: 12, cy: 12, r: 1.4, fill: 'currentColor', stroke: 'none' }], ['circle', { cx: 18.5, cy: 12, r: 1.4, fill: 'currentColor', stroke: 'none' }]],
   // the bar under the letter and the pen shows the colour that was chosen last (see .aurebesh-icon-swatch in the styles)
   textColor: [['path', { d: 'M5 16 12 2.5 19 16M7.4 11.5h9.2' }], ['rect', { x: 3.5, y: 19.3, width: 17, height: 3, rx: 0.8, class: 'aurebesh-icon-swatch' }]],
   highlight: [

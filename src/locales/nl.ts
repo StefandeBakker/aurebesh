@@ -67,6 +67,7 @@ export const LABELS_NL: Labels = {
   'ui.imagesDropped': '{count} afbeelding(en) uit de geplakte inhoud konden niet worden meegenomen.',
   'ui.toolbar': 'Opmaak',
   'ui.quickbar': 'Snelle toegang',
+  'ui.more': 'Meer',
   'ui.tableTools': 'Tabelgereedschap',
   'ui.imageTools': 'Afbeeldingsgereedschap',
   page: 'Paginaformaat',
