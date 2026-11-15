@@ -67,6 +67,7 @@ export const LABELS_FR: Labels = {
   'ui.imagesDropped': '{count} image(s) du contenu collé n’ont pas pu être conservée(s).',
   'ui.toolbar': 'Mise en forme',
   'ui.quickbar': 'Accès rapide',
+  'ui.more': 'Plus',
   'ui.tableTools': 'Outils de tableau',
   'ui.imageTools': 'Outils d’image',
   page: 'Format de page',

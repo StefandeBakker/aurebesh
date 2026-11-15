@@ -67,6 +67,7 @@ export const LABELS_DE: Labels = {
   'ui.imagesDropped': '{count} Bild(er) im eingefügten Inhalt konnte(n) nicht übernommen werden.',
   'ui.toolbar': 'Formatierung',
   'ui.quickbar': 'Schnellzugriff',
+  'ui.more': 'Mehr',
   'ui.tableTools': 'Tabellenwerkzeuge',
   'ui.imageTools': 'Bildwerkzeuge',
   page: 'Seitenformat',

@@ -32,6 +32,10 @@ export const HEADLESS_CSS = `
 .aurebesh-find-row{display:flex;align-items:center}
 .aurebesh-table-picker{position:relative;display:inline-block}
 .aurebesh-table-pop{position:absolute;top:100%;inset-inline-start:0;z-index:10}
+/* an overlay on top of the page, under its button: it takes no room in the toolbar. What was in rows flows along in one line (more lines only when it is too wide) */
+.aurebesh-group-pop{position:absolute;top:100%;inset-inline-start:0;z-index:30;display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;width:max-content;max-width:min(420px,90vw)}
+.aurebesh-group-pop .aurebesh-row{display:contents}
+.aurebesh-group-pop[hidden]{display:none}
 .aurebesh-table-grid{display:grid;gap:2px}
 .aurebesh-color-grid{display:grid;grid-template-columns:repeat(10,var(--aurebesh-cell,18px));gap:2px}
 .aurebesh-table-grid button,.aurebesh-color-grid button{width:var(--aurebesh-cell,18px);height:var(--aurebesh-cell,18px);min-width:0;padding:0}
@@ -166,6 +170,11 @@ export const CSS = `
 .aurebesh-toolbar[hidden],.aurebesh-table-pop[hidden]{display:none}
 .aurebesh-table-tools{background:var(--aurebesh-table-tools-bg,#eef3ff)}
 .aurebesh-table-picker{position:relative;display:inline-block}
+.aurebesh-group-pop{position:absolute;top:100%;inset-inline-start:0;z-index:30;display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;width:max-content;max-width:min(420px,90vw);margin-top:4px;padding:4px;gap:2px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:6px;background:var(--aurebesh-bg,#fff);box-shadow:0 4px 14px rgba(0,0,0,.15)}
+.aurebesh-group-pop .aurebesh-row{display:contents}
+.aurebesh-group-pop[hidden]{display:none}
+.aurebesh-group-collapsed .aurebesh-group-toggle{gap:1px}
+.aurebesh-group-collapsed .aurebesh-group-toggle .aurebesh-icon+.aurebesh-icon{width:12px;height:12px}
 .aurebesh-table-pop{position:absolute;top:100%;inset-inline-start:0;z-index:10;margin-top:4px;padding:8px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:6px;background:var(--aurebesh-bg,#fff);box-shadow:0 4px 14px rgba(0,0,0,.15)}
 .aurebesh-table-grid{display:grid;gap:2px}
 .aurebesh-table-grid button{width:var(--aurebesh-cell,18px);height:var(--aurebesh-cell,18px);min-width:0;padding:0;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:0;background:transparent;cursor:pointer}

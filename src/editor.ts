@@ -12,7 +12,7 @@ import { extendToolbar, onlyVisible } from './plugin';
 import type { AurebeshPlugin, PluginContext, PluginInstance } from './plugin';
 import type { SanitizeExtension } from './sanitize';
 import type { Shape } from './icons';
-import { iconElement } from './icons';
+import { ICONS, iconElement } from './icons';
 import type { CommandDef } from './commands';
 import { currentCodeLanguage, currentPre, handleCodeKey, insertCode, setCodeLanguage } from './codeblock';
 import { CODE_LANGUAGES, isKnownLanguage } from './languages';
@@ -101,6 +101,16 @@ export interface Layout {
   padding: number | null;
   /** Line height as a multiple of the font size. */
   lineHeight: number | null;
+}
+
+/** A group of the toolbar, for folding it away when the toolbar is too wide (see `foldToolbar`). */
+interface FoldableGroup {
+  block: HTMLElement;
+  rows: HTMLElement[];
+  label: string;
+  items: string[];
+  wrap?: HTMLElement;
+  pop?: HTMLElement;
 }
 
 export interface AurebeshOptions {
@@ -193,6 +203,13 @@ export interface AurebeshOptions {
   readOnly?: boolean;
   /** Toolbar item names, '|' is a separator. Pass [] for no toolbar. */
   toolbar?: string[];
+  /**
+   * When the toolbar does not fit on one row its groups fold away one by one, each into a single button that opens a dropdown with what
+   * was in it; a group keeps its place. The list says which go first: the name of a group (`#Name`) or of any item in it (`'link'`).
+   * Default: from the last group to the first, so what is at the front stays in view longest. `false` leaves the toolbar to wrap onto
+   * more rows. (On a narrow screen the toolbar is one row that scrolls sideways and nothing folds.)
+   */
+  collapse?: string[] | false;
   /**
    * Items in a small strip above the toolbar. Default: undo and redo when the default
    * toolbar is used, nothing when you give a `toolbar` of your own (so they are not there twice). Pass [] for no strip.
@@ -416,7 +433,7 @@ export class Aurebesh {
     const known = ['layout', 'blocks', ...(options.comments ? ['comments'] : []), ...(options.suggestions ? ['suggestions'] : []), ...plugins.flatMap((p) => (p.panels ?? []).map((panel) => panel.id))];
     this.panelIds = known.filter((id) => commands.includes('sidebar') || commands.includes(id));
     if (quick.length) this.buildQuickbar(quick);
-    if (items.length) this.buildToolbar(items);
+    if (items.length) this.buildToolbar(items, options.collapse);
     this.buildContextualTools(commands);
 
     this.content = doc.createElement('div');
@@ -1675,7 +1692,7 @@ export class Aurebesh {
    * block can be two rows of buttons on top of each other. A block moves as a whole when the toolbar is narrow, it is never cut in two.
    * Without any `/` every block is a single row, which wraps like before.
    */
-  private buildToolbar(items: string[]): void {
+  private buildToolbar(items: string[], collapse?: string[] | false): void {
     const doc = this.container.ownerDocument;
     const bar = doc.createElement('div');
     bar.className = 'aurebesh-toolbar';
@@ -1683,6 +1700,7 @@ export class Aurebesh {
     const groups: HTMLElement[][][] = [[[]]]; // blocks of rows of elements
     const labels = new Map<HTMLElement[][], string>(); // the name above a block
     const atEnd = new Set<HTMLElement[][]>(); // blocks that go to the far end of the toolbar
+    const named = new Map<HTMLElement, string>(); // the item that made each element
     for (const item of items) {
       const group = groups[groups.length - 1];
       if (item === '|' || item === '>') {
@@ -1699,8 +1717,12 @@ export class Aurebesh {
         continue;
       }
       const el = this.buildToolbarItem(item);
-      if (el) group[group.length - 1].push(el);
+      if (el) {
+        group[group.length - 1].push(el);
+        named.set(el, item);
+      }
     }
+    const folding: FoldableGroup[] = [];
     for (const rows of groups) {
       let filled = rows.filter((row) => row.length);
       if (!filled.length) continue;
@@ -1724,17 +1746,95 @@ export class Aurebesh {
         this.root.classList.add('aurebesh-ribbon');
       }
       if (atEnd.has(rows)) block.classList.add('aurebesh-group-end');
+      const rowEls: HTMLElement[] = [];
       for (const nodes of filled) {
         const row = doc.createElement('div');
         row.className = 'aurebesh-row';
         row.append(...nodes);
         block.appendChild(row);
+        rowEls.push(row);
       }
       bar.appendChild(block);
+      folding.push({ block, rows: rowEls, label: label ?? '', items: filled.flat().map((el) => named.get(el) ?? '') });
     }
     bar.setAttribute('aria-label', this.t('ui.toolbar'));
     this.root.appendChild(bar);
     rovingToolbar(bar, () => this.content.focus());
+    if (collapse !== false) this.foldToolbar(bar, folding, collapse ?? []);
+  }
+
+  /**
+   * The groups of the toolbar fold away when it would wrap onto a second row: a group becomes one button (its icon and an arrow) that opens
+   * what was in it, and stays where it was. `order` says which go first (see `collapse`); the groups that are not in it follow, last to first.
+   */
+  private foldToolbar(bar: HTMLElement, groups: FoldableGroup[], order: string[]): void {
+    const win = this.root.ownerDocument.defaultView;
+    if (!win?.ResizeObserver || groups.length < 2) return;
+    const doc = this.container.ownerDocument;
+    const ranked: FoldableGroup[] = [];
+    for (const key of order) {
+      const k = key.replace(/^#/, '').trim().toLowerCase();
+      const found = groups.find((g) => !ranked.includes(g) && ((g.label && g.label.toLowerCase() === k) || g.items.includes(key.trim())));
+      if (found) ranked.push(found);
+    }
+    ranked.push(...[...groups].reverse().filter((g) => !ranked.includes(g)));
+
+    const fold = (g: FoldableGroup, on: boolean) => {
+      if (!on) {
+        if (!g.wrap) return;
+        g.block.append(...g.rows);
+        g.wrap.remove();
+        g.block.classList.remove('aurebesh-group-collapsed');
+        return;
+      }
+      if (!g.wrap) {
+        const wrap = doc.createElement('span');
+        wrap.className = 'aurebesh-table-picker';
+        const toggle = doc.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'aurebesh-group-toggle';
+        const name = g.label || this.t('ui.more');
+        toggle.title = name;
+        toggle.setAttribute('aria-label', name);
+        const first = g.items.map((item) => COMMANDS[item]?.icon).find((icon) => icon && ICONS[icon]);
+        const face = [iconElement(doc, first ?? 'more'), iconElement(doc, 'chevronDown')].filter((i): i is SVGSVGElement => !!i);
+        toggle.replaceChildren(...face);
+        toggle.addEventListener('mousedown', (e) => e.preventDefault());
+        const pop = doc.createElement('div');
+        pop.className = 'aurebesh-group-pop';
+        pop.setAttribute('role', 'group');
+        pop.setAttribute('aria-label', name);
+        pop.hidden = true;
+        toggle.addEventListener('click', (e) => {
+          pop.hidden = !pop.hidden;
+          if (!pop.hidden && e.detail === 0) pop.querySelector<HTMLElement>('button:not(:disabled), select:not(:disabled)')?.focus(); // opened with the keyboard
+        });
+        this.closeOnOutside(wrap, pop, toggle);
+        wrap.append(toggle, pop);
+        g.wrap = wrap;
+        g.pop = pop;
+      }
+      g.pop!.append(...g.rows);
+      g.block.appendChild(g.wrap);
+      g.block.classList.add('aurebesh-group-collapsed');
+    };
+    const wrapped = () => {
+      const top = groups[0].block.offsetTop;
+      return groups.some((g) => g.block.offsetTop > top + 2);
+    };
+    let width = -1;
+    const fit = () => {
+      if (!bar.clientWidth || bar.clientWidth === width) return;
+      width = bar.clientWidth;
+      for (const g of ranked) fold(g, false);
+      for (const g of ranked) {
+        if (!wrapped()) break;
+        fold(g, true);
+      }
+    };
+    const observer = new win.ResizeObserver(fit);
+    observer.observe(bar);
+    this.cleanup.push(() => observer.disconnect());
   }
 
   private buildContextualTools(commands: string[]): void {
