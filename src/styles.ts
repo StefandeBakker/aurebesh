@@ -32,6 +32,17 @@ export const HEADLESS_CSS = `
 .aurebesh-find-row{display:flex;align-items:center}
 .aurebesh-table-picker{position:relative;display:inline-block}
 .aurebesh-table-pop{position:absolute;top:100%;inset-inline-start:0;z-index:10}
+.aurebesh-media-frame{position:absolute;z-index:5;box-sizing:border-box;pointer-events:none}
+.aurebesh-media-frame[hidden]{display:none}
+.aurebesh-media-handle{position:absolute;box-sizing:border-box;width:10px;height:10px;margin:-5px 0 0 -5px;pointer-events:auto;touch-action:none}
+.aurebesh-media-handle[data-dir="nw"]{left:0;top:0;cursor:nwse-resize}
+.aurebesh-media-handle[data-dir="n"]{left:50%;top:0;cursor:ns-resize}
+.aurebesh-media-handle[data-dir="ne"]{left:100%;top:0;cursor:nesw-resize}
+.aurebesh-media-handle[data-dir="e"]{left:100%;top:50%;cursor:ew-resize}
+.aurebesh-media-handle[data-dir="se"]{left:100%;top:100%;cursor:nwse-resize}
+.aurebesh-media-handle[data-dir="s"]{left:50%;top:100%;cursor:ns-resize}
+.aurebesh-media-handle[data-dir="sw"]{left:0;top:100%;cursor:nesw-resize}
+.aurebesh-media-handle[data-dir="w"]{left:0;top:50%;cursor:ew-resize}
 /* an overlay on top of the page, under its button: it takes no room in the toolbar. What was in rows flows along in one line (more lines only when it is too wide) */
 .aurebesh-group-pop{position:absolute;top:100%;inset-inline-start:0;z-index:30;display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;width:max-content;max-width:min(420px,90vw)}
 .aurebesh-group-pop .aurebesh-row{display:contents}
@@ -56,7 +67,7 @@ export const HEADLESS_CSS = `
 .aurebesh-content table{border-collapse:collapse;width:100%;table-layout:fixed}
 .aurebesh-content td,.aurebesh-content th{min-width:30px}
 .aurebesh-content img,.aurebesh-content video{max-width:100%;height:auto}
-.aurebesh-content iframe{display:block;width:100%;aspect-ratio:16/9;border:0;pointer-events:none}
+.aurebesh-content iframe{display:inline-block;vertical-align:top;max-width:100%;width:560px;aspect-ratio:16/9;border:0;pointer-events:none}
 .aurebesh-content pre{overflow-x:auto;tab-size:2;direction:ltr;text-align:left}
 .aurebesh-content pre[dir=rtl]{direction:rtl;text-align:right}
 .aurebesh-content:not([dir]),.aurebesh-content :is(p,h1,h2,h3,blockquote,li,td,th):not([dir]){unicode-bidi:plaintext}
@@ -173,6 +184,21 @@ export const CSS = `
 .aurebesh-group-pop{position:absolute;top:100%;inset-inline-start:0;z-index:30;display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;width:max-content;max-width:min(420px,90vw);margin-top:4px;padding:4px;gap:2px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:6px;background:var(--aurebesh-bg,#fff);box-shadow:0 4px 14px rgba(0,0,0,.15)}
 .aurebesh-group-pop .aurebesh-row{display:contents}
 .aurebesh-group-pop[hidden]{display:none}
+.aurebesh-media-frame{position:absolute;z-index:5;box-sizing:border-box;pointer-events:none;border:1px solid var(--aurebesh-accent,#2563eb)}
+.aurebesh-media-frame[hidden]{display:none}
+.aurebesh-media-handle{position:absolute;box-sizing:border-box;width:10px;height:10px;margin:-5px 0 0 -5px;pointer-events:auto;touch-action:none;border:1px solid var(--aurebesh-accent,#2563eb);background:var(--aurebesh-bg,#fff)}
+.aurebesh-media-handle[data-dir="nw"]{left:0;top:0;cursor:nwse-resize}
+.aurebesh-media-handle[data-dir="n"]{left:50%;top:0;cursor:ns-resize}
+.aurebesh-media-handle[data-dir="ne"]{left:100%;top:0;cursor:nesw-resize}
+.aurebesh-media-handle[data-dir="e"]{left:100%;top:50%;cursor:ew-resize}
+.aurebesh-media-handle[data-dir="se"]{left:100%;top:100%;cursor:nwse-resize}
+.aurebesh-media-handle[data-dir="s"]{left:50%;top:100%;cursor:ns-resize}
+.aurebesh-media-handle[data-dir="sw"]{left:0;top:100%;cursor:nesw-resize}
+.aurebesh-media-handle[data-dir="w"]{left:0;top:50%;cursor:ew-resize}
+.aurebesh-size-fields{display:inline-flex;align-items:center;gap:4px}
+.aurebesh-size{width:64px;height:28px;padding:0 6px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:var(--aurebesh-bg,#fff);color:inherit;font:inherit;font-size:13px}
+.aurebesh-size-lock[aria-pressed="false"]{opacity:.45}
+@media (pointer:coarse){.aurebesh-media-handle{width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%}}
 .aurebesh-group-collapsed .aurebesh-group-toggle{gap:1px}
 .aurebesh-group-collapsed .aurebesh-group-toggle .aurebesh-icon+.aurebesh-icon{width:12px;height:12px}
 .aurebesh-table-pop{position:absolute;top:100%;inset-inline-start:0;z-index:10;margin-top:4px;padding:8px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:6px;background:var(--aurebesh-bg,#fff);box-shadow:0 4px 14px rgba(0,0,0,.15)}
@@ -268,8 +294,8 @@ export const CSS = `
 .aurebesh-color-custom{display:flex;align-items:center;justify-content:space-between;margin-top:6px;font-size:12px}
 .aurebesh-color-custom input{width:40px;height:24px;padding:0;border:0;background:none;cursor:pointer}
 .aurebesh-content img,.aurebesh-content video{max-width:100%;height:auto;border-radius:4px}
-.aurebesh-content video{display:block;margin:.5em 0}
-.aurebesh-content iframe{display:block;width:100%;aspect-ratio:16/9;margin:.5em 0;border:0;border-radius:4px;pointer-events:none}
+.aurebesh-content video{display:inline-block;vertical-align:top;margin:.5em 0}
+.aurebesh-content iframe{display:inline-block;vertical-align:top;max-width:100%;width:560px;aspect-ratio:16/9;margin:.5em 0;border:0;border-radius:4px;pointer-events:none}
 .aurebesh-media-form{display:flex;flex-direction:column;gap:6px;min-width:260px}
 .aurebesh-media-form input[type="url"],.aurebesh-media-form input[type="text"]{padding:5px 8px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:var(--aurebesh-bg,#fff);color:inherit;font:inherit;font-size:13px}
 /* the link box is one row, so that it stays small where it hangs on the text */

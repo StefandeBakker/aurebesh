@@ -1,4 +1,4 @@
-import { IFRAME_ATTRS, isSafeImageSrc, isSafeVideoSrc, parseVideoUrl } from './media-urls';
+import { DEFAULT_EMBED_STYLE, IFRAME_ATTRS, isSafeImageSrc, isSafeVideoSrc, parseVideoUrl } from './media-urls';
 import { ensureParagraphAfter } from './table';
 
 export type MediaKind = 'image' | 'video';
@@ -108,6 +108,52 @@ export function selectedImage(): HTMLImageElement | null {
   return node instanceof HTMLImageElement && node.closest('.aurebesh-content') ? node : null;
 }
 
+/** What can be scaled: a picture, a video file or an embedded video. */
+export type MediaElement = HTMLImageElement | HTMLVideoElement | HTMLIFrameElement;
+
+export const isMediaElement = (node: unknown): node is MediaElement =>
+  node instanceof HTMLImageElement || node instanceof HTMLVideoElement || node instanceof HTMLIFrameElement;
+
+/** The picture or video that was picked with the pointer (a video or an embed cannot be selected like a picture can). */
+let picked: MediaElement | null = null;
+
+export const pickMedia = (el: MediaElement | null): void => {
+  picked = el;
+};
+
+/** The picture or video that was picked with the pointer, while it is still in a text. */
+export const pickedMedia = (): MediaElement | null => (picked && picked.isConnected && picked.closest('.aurebesh-content') ? picked : null);
+
+/** The picture that is selected as a whole, or else the picture or video that was picked: what the size tools work on. */
+export function selectedMedia(): MediaElement | null {
+  return selectedImage() ?? pickedMedia();
+}
+
+/** The pictures and videos of `content` under the point, topmost last: an embedded video lets the pointer through, so it is found by its box. */
+export function mediaAt(content: HTMLElement, x: number, y: number): MediaElement | null {
+  const hits = Array.from(content.querySelectorAll<HTMLElement>('img, video, iframe')).filter((el): el is MediaElement => {
+    const r = el.getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  });
+  return hits[hits.length - 1] ?? null;
+}
+
+/** How big it is on the screen now, in whole pixels. */
+export function mediaSize(el: HTMLElement): { width: number; height: number } {
+  const r = el.getBoundingClientRect();
+  return { width: Math.round(r.width), height: Math.round(r.height) };
+}
+
+/**
+ * Gives a picture or a video a size: the width in pixels and the shape of the box as an aspect ratio, so that the height follows when the
+ * box is narrower than the width (it is never wider than where it is). Two pictures with the same height have the same height wherever they are.
+ */
+export function setMediaSize(el: HTMLElement, width: number, height: number): void {
+  const w = Math.max(1, Math.round(width));
+  const h = Math.max(1, Math.round(height));
+  setStyles(el, { width: `${w}px`, height: 'auto', 'aspect-ratio': `${w} / ${h}`, 'max-width': '100%' });
+}
+
 const setStyles = (img: HTMLElement, styles: Record<string, string>): void => {
   for (const [prop, value] of Object.entries(styles)) {
     if (value) img.style.setProperty(prop, value);
@@ -118,14 +164,17 @@ const setStyles = (img: HTMLElement, styles: Record<string, string>): void => {
 
 /** Width as a percentage of the editor (25, 50, 75, 100); an empty value restores the natural size. */
 export function setImageWidth(percent: string): void {
-  const img = selectedImage();
+  const img = selectedMedia();
   if (!img) return;
-  setStyles(img, { width: /^\d{1,3}$/.test(percent) ? `${percent}%` : '' });
+  if (/^\d{1,3}$/.test(percent)) return setStyles(img, { width: `${percent}%` });
+  // natural size for a picture or a video file; an embed has none, it goes to the width of the box
+  if (img instanceof HTMLIFrameElement) setStyles(img, { width: '100%', 'max-width': '100%', height: 'auto', 'aspect-ratio': img.style.aspectRatio || '16 / 9' });
+  else setStyles(img, { width: '', height: '', 'aspect-ratio': '', 'max-width': '' });
 }
 
 /** 'left' | 'center' | 'right' put the image on its own line; anything else puts it back inline. */
 export function setImageAlign(align: string): void {
-  const img = selectedImage();
+  const img = selectedMedia();
   if (!img) return;
   const margins: Record<string, [string, string]> = { left: ['0', 'auto'], center: ['auto', 'auto'], right: ['auto', '0'] };
   const m = margins[align];
@@ -176,7 +225,7 @@ export function insertVideo(url: string): void {
   if (source.kind === 'file') return insertBlock(videoHtml(source.src));
   // source.src is rebuilt from a validated id, so it is safe to put in the markup.
   const attrs = Object.entries(IFRAME_ATTRS).map(([k, v]) => (v ? `${k}="${v}"` : k)).join(' ');
-  insertBlock(`<iframe src="${source.src}" ${attrs}></iframe>`);
+  insertBlock(`<iframe src="${source.src}" ${attrs} style="${DEFAULT_EMBED_STYLE}"></iframe>`);
 }
 
 /** Inserts a video from a known file URL (e.g. the result of an upload), without requiring a file extension. */
