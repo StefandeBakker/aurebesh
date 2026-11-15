@@ -6,9 +6,9 @@ import { defineAurebeshElement } from '../src/element';
 const html = (md: string) => markdownToHtml(md);
 
 describe('Markdown to HTML: blocks', () => {
-  it('reads headings (hash and underline) and caps them at the three levels the editor has', () => {
+  it('reads headings (hash and underline), up to the six levels the editor has', () => {
     expect(html('# One\n\n## Two\n\n### Three')).toBe('<h1>One</h1><h2>Two</h2><h3>Three</h3>');
-    expect(html('#### Four\n\n###### Six')).toBe('<h3>Four</h3><h3>Six</h3>');
+    expect(html('#### Four\n\n###### Six')).toBe('<h4>Four</h4><h6>Six</h6>');
     expect(html('Title\n=====\n\nSub\n---')).toBe('<h1>Title</h1><h2>Sub</h2>');
     expect(html('## Closed ##')).toBe('<h2>Closed</h2>');
     expect(html('#NoSpace')).toBe('<p>#NoSpace</p>');

@@ -29,3 +29,62 @@ export function handleListKey(e: KeyboardEvent): boolean {
   if (checked !== null && now && !now.hasAttribute('data-checked') && now.parentElement?.matches('ul[data-task]')) now.setAttribute('data-checked', checked);
   return true;
 }
+
+// ---- the look of the marker ------------------------------------------------------------------------------
+
+/**
+ * The look of the marker of a list: a bullet list has a disc, a circle or a square, a numbered list has numbers, letters or Roman
+ * numerals. It is the `list-style-type` in the style of the `<ul>` or `<ol>` (the sanitizer keeps these and no other); the default look has no style.
+ */
+export type ListKind = 'ul' | 'ol';
+
+export const BULLET_STYLES = ['disc', 'circle', 'square'];
+export const NUMBER_STYLES = ['decimal', 'lower-alpha', 'upper-alpha', 'lower-roman', 'upper-roman'];
+
+/** The look that has no style of its own in the HTML: what a list is without one. */
+export const DEFAULT_LIST_STYLE: Record<ListKind, string> = { ul: 'disc', ol: 'decimal' };
+
+/** What the marker looks like in the dropdown: the first of them, as it is written. */
+export const LIST_SAMPLES: Record<string, string> = {
+  disc: '●',
+  circle: '○',
+  square: '■',
+  decimal: '1. 2. 3.',
+  'lower-alpha': 'a. b. c.',
+  'upper-alpha': 'A. B. C.',
+  'lower-roman': 'i. ii. iii.',
+  'upper-roman': 'I. II. III.',
+};
+
+const exec = (cmd: string) => document.execCommand(cmd, false);
+
+/** The list that the caret is in (the innermost, not a task list), or null. */
+export function currentList(): HTMLElement | null {
+  const sel = document.getSelection();
+  const node = sel?.anchorNode;
+  const el = node && (node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement);
+  const list = el?.closest('ul:not([data-task]),ol');
+  return list && list.closest('.aurebesh-content') ? (list as HTMLElement) : null;
+}
+
+/** The style of the marker of the list that the caret is in, when it is a list of this kind. */
+export function currentListStyle(kind: ListKind): string | null {
+  const list = currentList();
+  if (!list || list.tagName.toLowerCase() !== kind) return null;
+  return list.style.listStyleType || DEFAULT_LIST_STYLE[kind];
+}
+
+/** Gives the list that the caret is in this look; where there is no list of this kind it becomes one first. */
+export function setListStyle(kind: ListKind, style: string): void {
+  const valid = kind === 'ul' ? BULLET_STYLES : NUMBER_STYLES;
+  if (!valid.includes(style)) return;
+  let list = currentList();
+  if (!list || list.tagName.toLowerCase() !== kind) {
+    exec(kind === 'ul' ? 'insertUnorderedList' : 'insertOrderedList');
+    list = currentList();
+  }
+  if (!list || list.tagName.toLowerCase() !== kind) return;
+  if (style === DEFAULT_LIST_STYLE[kind]) list.style.removeProperty('list-style-type');
+  else list.style.setProperty('list-style-type', style);
+  if (!list.getAttribute('style')?.trim()) list.removeAttribute('style');
+}

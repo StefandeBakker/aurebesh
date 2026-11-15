@@ -46,6 +46,8 @@ export const HEADLESS_CSS = `
 .aurebesh-media-handle[data-dir="w"]{left:0;top:50%;cursor:ew-resize}
 /* an overlay on top of the page, under its button: it takes no room in the toolbar. What was in rows flows along in one line (more lines only when it is too wide) */
 .aurebesh-group-pop{position:absolute;top:100%;inset-inline-start:0;z-index:30;display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;width:max-content;max-width:min(420px,90vw)}
+.aurebesh-split{position:relative;display:inline-flex;align-items:center}
+.aurebesh-split>.aurebesh-table-picker{position:static}
 .aurebesh-emoji{display:flex;flex-direction:column;width:min(312px,calc(100vw - 32px))}
 .aurebesh-emoji-tabs,.aurebesh-emoji-tones{display:flex;flex-wrap:nowrap}
 .aurebesh-emoji-list{overflow-y:auto;max-height:288px}
@@ -77,7 +79,7 @@ export const HEADLESS_CSS = `
 .aurebesh-content iframe{display:inline-block;vertical-align:top;max-width:100%;width:560px;aspect-ratio:16/9;border:0;pointer-events:none}
 .aurebesh-content pre{overflow-x:auto;tab-size:2;direction:ltr;text-align:left}
 .aurebesh-content pre[dir=rtl]{direction:rtl;text-align:right}
-.aurebesh-content:not([dir]),.aurebesh-content :is(p,h1,h2,h3,blockquote,li,td,th):not([dir]){unicode-bidi:plaintext}
+.aurebesh-content:not([dir]),.aurebesh-content :is(p,h1,h2,h3,h4,h5,h6,blockquote,li,td,th):not([dir]){unicode-bidi:plaintext}
 .aurebesh-content div[style*="column-count"] :is(table,pre,blockquote,aside,img,video,iframe){break-inside:avoid}
 .aurebesh-content.aurebesh-col-resize,.aurebesh-content.aurebesh-col-resize *{cursor:col-resize}
 .aurebesh-content.aurebesh-col-resizing{user-select:none}
@@ -206,6 +208,20 @@ export const CSS = `
 .aurebesh-size{width:64px;height:28px;padding:0 6px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:4px;background:var(--aurebesh-bg,#fff);color:inherit;font:inherit;font-size:13px}
 .aurebesh-size-lock[aria-pressed="false"]{opacity:.45}
 @media (pointer:coarse){.aurebesh-media-handle{width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%}}
+.aurebesh-split{position:relative;display:inline-flex;align-items:center}
+.aurebesh-split>.aurebesh-table-picker{position:static}
+.aurebesh-toolbar .aurebesh-split>button:first-child{border-start-end-radius:0;border-end-end-radius:0}
+.aurebesh-toolbar .aurebesh-split button.aurebesh-split-arrow{display:inline-flex;align-items:center;justify-content:center;min-width:0;width:18px;padding:0;border-start-start-radius:0;border-end-start-radius:0}
+.aurebesh-toolbar .aurebesh-split button.aurebesh-split-arrow::after{margin:0}
+.aurebesh-heading-sample{display:block;line-height:1.25;white-space:nowrap}
+.aurebesh-heading-sample.aurebesh-heading-h1{font-size:22px;font-weight:700}
+.aurebesh-heading-sample.aurebesh-heading-h2{font-size:18px;font-weight:700}
+.aurebesh-heading-sample.aurebesh-heading-h3{font-size:15px;font-weight:700}
+.aurebesh-heading-sample.aurebesh-heading-h4{font-size:14px;font-weight:700}
+.aurebesh-heading-sample.aurebesh-heading-h5{font-size:13px;font-weight:700}
+.aurebesh-heading-sample.aurebesh-heading-h6{font-size:12px;font-weight:700}
+.aurebesh-list-pop{display:flex;flex-direction:column}
+.aurebesh-list-sample{display:block;min-width:5.5em;white-space:nowrap}
 .aurebesh-emoji{display:flex;flex-direction:column;width:min(312px,calc(100vw - 32px))}
 .aurebesh-emoji-tabs,.aurebesh-emoji-tones{display:flex;flex-wrap:nowrap}
 .aurebesh-emoji-list{overflow-y:auto;max-height:288px}
@@ -422,7 +438,7 @@ export const CSS = `
 ::highlight(aurebesh-tag){color:var(--aurebesh-hl-tag,#116329)}
 .aurebesh-content a{color:var(--aurebesh-accent,#2563eb)}
 /* Every block finds its own direction from its first strong letter (Arabic, Hebrew); a dir attribute overrides it. */
-.aurebesh-content:not([dir]),.aurebesh-content :is(p,h1,h2,h3,blockquote,li,td,th):not([dir]){unicode-bidi:plaintext}
+.aurebesh-content:not([dir]),.aurebesh-content :is(p,h1,h2,h3,h4,h5,h6,blockquote,li,td,th):not([dir]){unicode-bidi:plaintext}
 .aurebesh-content pre{direction:ltr;text-align:left}
 .aurebesh-content pre[dir=rtl]{direction:rtl;text-align:right}
 .aurebesh-content :is(ul,ol)[dir=rtl]{padding-inline-start:40px}

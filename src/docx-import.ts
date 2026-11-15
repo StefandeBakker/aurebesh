@@ -150,7 +150,11 @@ function chain(ctx: Context, id: string | null): Style[] {
 interface Numbering {
   /** `ordered` or `bullet`, per number and level. */
   kind(numId: string, level: number): 'ol' | 'ul';
+  /** The `list-style-type` of a numbered list that is not the plain numbers: letters or Roman numerals; an empty text for the rest. */
+  style(numId: string, level: number): string;
 }
+
+const LIST_STYLE_OF_FORMAT: Record<string, string> = { lowerLetter: 'lower-alpha', upperLetter: 'upper-alpha', lowerRoman: 'lower-roman', upperRoman: 'upper-roman' };
 
 function readNumbering(root: Element | null): Numbering {
   const abstracts = new Map<string, Map<number, string>>();
@@ -170,12 +174,16 @@ function readNumbering(root: Element | null): Numbering {
       nums.set(attr(n, 'numId') ?? '', { abstract: attr(child(n, 'abstractNumId'), 'val') ?? '', levels });
     }
   }
+  const formatOf = (numId: string, level: number): string => {
+    const n = nums.get(numId);
+    return n?.levels.get(level) ?? abstracts.get(n?.abstract ?? '')?.get(level) ?? 'bullet';
+  };
   return {
     kind(numId, level) {
-      const n = nums.get(numId);
-      const fmt = n?.levels.get(level) ?? abstracts.get(n?.abstract ?? '')?.get(level) ?? 'bullet';
+      const fmt = formatOf(numId, level);
       return fmt === 'bullet' || fmt === 'none' ? 'ul' : 'ol';
     },
+    style: (numId, level) => LIST_STYLE_OF_FORMAT[formatOf(numId, level)] ?? '',
   };
 }
 
@@ -551,7 +559,7 @@ interface Para {
   tag: string;
   attrs: string;
   align: string | null;
-  list: { numId: string; level: number; kind: 'ol' | 'ul' } | null;
+  list: { numId: string; level: number; kind: 'ol' | 'ul'; style: string } | null;
 }
 
 function paragraph(ctx: Context, p: Element): Para {
@@ -565,10 +573,10 @@ function paragraph(ctx: Context, p: Element): Para {
   const named = names.find((n) => /^heading\s*\d$/.test(n) || n === 'title');
   if (named) {
     level = named === 'title' ? 1 : Number(named.replace(/\D/g, ''));
-    tag = `h${Math.min(3, Math.max(1, level))}`;
+    tag = `h${Math.min(6, Math.max(1, level))}`;
   } else {
     const outline = attr(child(pPr, 'outlineLvl'), 'val') ?? attr(child(styles.map((s) => s.pPr).find((x) => child(x, 'outlineLvl')) ?? null, 'outlineLvl'), 'val');
-    if (outline !== null && /^[0-8]$/.test(outline)) tag = `h${Math.min(3, Number(outline) + 1)}`;
+    if (outline !== null && /^[0-8]$/.test(outline)) tag = `h${Math.min(6, Number(outline) + 1)}`;
   }
   if (tag === 'p' && names.some((n) => /^(?:quote|intense quote|block text)$/.test(n))) tag = 'blockquote';
   const heading = tag.startsWith('h');
@@ -579,7 +587,7 @@ function paragraph(ctx: Context, p: Element): Para {
   let list: Para['list'] = null;
   if (numPr && numId && numId !== '0' && !heading) {
     const ilvl = Number(attr(child(numPr, 'ilvl'), 'val') ?? styles.map((s) => attr(child(child(s.pPr, 'numPr'), 'ilvl'), 'val')).find((v) => v !== null) ?? 0);
-    list = { numId, level: ilvl, kind: ctx.numbering.kind(numId, ilvl) };
+    list = { numId, level: ilvl, kind: ctx.numbering.kind(numId, ilvl), style: ctx.numbering.style(numId, ilvl) };
   }
 
   const writer = new Writer();
@@ -622,7 +630,7 @@ function renderBlocks(ctx: Context, parent: Element): string {
       case 'p': {
         const para = paragraph(ctx, c);
         if (para.list) {
-          const { numId, level, kind } = para.list;
+          const { numId, level, kind, style } = para.list;
           while (stack.length && stack[stack.length - 1].level > level) closeTo(stack.length - 1);
           const top = stack[stack.length - 1];
           if (top && top.level === level && (top.numId !== numId || top.tag !== kind)) closeTo(stack.length - 1);
@@ -630,7 +638,7 @@ function renderBlocks(ctx: Context, parent: Element): string {
           if (now && now.level === level) {
             if (liOpen) html += '</li>';
           } else {
-            html += `<${kind}>`;
+            html += `<${kind}${style ? ` style="list-style-type: ${style}"` : ''}>`;
             stack.push({ tag: kind, level, numId });
           }
           html += `<li${para.attrs}>${para.inner}`;

@@ -230,7 +230,7 @@ function nodeAt(root: Node, path: number[]): Node | null {
 
 /** Whether nothing that can be seen is before this point in its block: a space there is not seen either. */
 function atBlockStart(root: Element, node: Node, offset: number): boolean {
-  const block = (node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement)?.closest('p,h1,h2,h3,li,td,th,blockquote,div,caption,aside') ?? root;
+  const block = (node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement)?.closest('p,h1,h2,h3,h4,h5,h6,li,td,th,blockquote,div,caption,aside') ?? root;
   const range = root.ownerDocument.createRange();
   range.selectNodeContents(block);
   range.setEnd(node, offset);
