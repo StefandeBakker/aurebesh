@@ -205,7 +205,7 @@ describe('the default toolbar', () => {
       [['font', 'size', 'weight', 'clear', 'clearStyle'], ['bold', 'italic', 'underline', 'underlineStyle', 'strike', 'strikeStyle', 'highlight', 'color']],
       [['ul', 'ol', 'task'], ['alignLeft', 'alignCenter', 'alignRight']],
       [['h1', 'h2', 'quote'], ['code', 'codeblock']], // the headings and the quote; the two kinds of code
-      [['link', 'image', 'video'], ['table', 'hr']],
+      [['link', 'image', 'video'], ['table', 'hr', 'emoji']],
       [['columns']],
     ]);
     // undo and redo are in the strip above it, not in the toolbar

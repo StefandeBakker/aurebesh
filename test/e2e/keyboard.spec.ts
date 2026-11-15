@@ -215,7 +215,7 @@ test.describe('accessibility', () => {
     const second = await page.evaluate(() => (document.activeElement as HTMLElement).getAttribute('title'));
     expect(second).toBe('Clear one kind of formatting'); // the first is Clear formatting: the boxes for font and size are not buttons
     await page.keyboard.press('End');
-    expect(await page.evaluate(() => (document.activeElement as HTMLElement).getAttribute('title'))).toBe('Horizontal line'); // columns is a box, so this is the last button
+    expect(await page.evaluate(() => (document.activeElement as HTMLElement).getAttribute('title'))).toBe('Emoji'); // columns is a box, so this is the last button
     await page.keyboard.press('Home');
     expect(await page.evaluate(() => (document.activeElement as HTMLElement).getAttribute('title'))).toBe('Clear formatting');
     expect(await stops()).toBe(1);

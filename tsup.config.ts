@@ -12,6 +12,7 @@ export default defineConfig({
     comments: 'src/entries/comments.ts',
     suggestions: 'src/entries/suggestions.ts',
     mentions: 'src/entries/mentions.ts',
+    emoji: 'src/entries/emoji.ts',
     find: 'src/entries/find.ts',
     'locales/en': 'src/entries/locales/en.ts',
     'locales/nl': 'src/entries/locales/nl.ts',
