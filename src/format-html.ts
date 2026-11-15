@@ -6,7 +6,7 @@
  * Only the white space between blocks is touched: the text in a paragraph, a heading, a cell or a list item is as it is, and what is in a
  * code block (`<pre>`) is never changed.
  */
-const BLOCKS = new Set(['p', 'h1', 'h2', 'h3', 'blockquote', 'ul', 'ol', 'li', 'table', 'caption', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'colgroup', 'col', 'pre', 'hr', 'div', 'aside']);
+const BLOCKS = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'ul', 'ol', 'li', 'table', 'caption', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'colgroup', 'col', 'pre', 'hr', 'div', 'aside']);
 
 /** Only the white space that HTML collapses: a no-break space is text. */
 const LEADING = /^[ \t\n\r\f]+/;

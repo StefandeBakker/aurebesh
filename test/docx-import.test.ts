@@ -183,9 +183,9 @@ describe('HTML with line breaks and an indent between the blocks, written as a W
 });
 
 describe('a document of a word processor', () => {
-  it('turns the styles of headings into headings, with the levels beyond three as the third', async () => {
+  it('turns the styles of headings into headings, up to the six levels the editor has', async () => {
     const out = await fromDocx(docx({ styles: STYLES, body: p('One', '<w:pStyle w:val="Heading1"/>') + p('Two', '<w:pStyle w:val="Heading2"/>') + p('Five', '<w:pStyle w:val="Heading5"/>') + p('Text') }));
-    expect(out.html).toBe('<h1>One</h1><h2>Two</h2><h3>Five</h3><p>Text</p>');
+    expect(out.html).toBe('<h1>One</h1><h2>Two</h2><h5>Five</h5><p>Text</p>');
   });
 
   it('does not write the formatting that the style or the document says for everything: bold in a heading, the size of the text', async () => {
@@ -242,7 +242,7 @@ describe('a document of a word processor', () => {
     const out = await fromDocx(docx({ styles: STYLES, numbering: NUMBERING, body }));
     expect(out.html).toBe(
       '<ul><li>a</li><li>b<ul><li>b1</li></ul></li><li>c</li></ul><p>between</p>' +
-        '<ol><li>one</li><li>two<ol><li>two-a</li></ol></li></ol><ul><li>styled</li></ul>',
+        '<ol><li>one</li><li>two<ol style="list-style-type: lower-alpha"><li>two-a</li></ol></li></ol><ul><li>styled</li></ul>',
     );
   });
 

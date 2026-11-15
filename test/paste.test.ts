@@ -367,8 +367,8 @@ describe('other pages', () => {
     expect(out).toBe('<p><strong>B</strong> <em>I</em> <s>S</s> x<sup>2</sup></p>');
   });
 
-  it('turns h4-h6 into h3, and keeps tables', () => {
-    expect(pasted('<h5>t</h5>').out).toBe('<h3>t</h3>');
+  it('keeps h4-h6, and keeps tables', () => {
+    expect(pasted('<h5>t</h5>').out).toBe('<h5>t</h5>');
     expect(pasted('<table style="width:100%"><colgroup><col></colgroup><tbody><tr><td style="background:#eee"><p>a</p></td></tr></tbody></table>').out).toContain('<table><tbody><tr><td><p>a</p></td></tr></tbody></table>');
   });
 

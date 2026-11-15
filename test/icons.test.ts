@@ -52,7 +52,7 @@ describe('the toolbar buttons', () => {
 
   it('show an icon for what a symbol explains badly, and text where text is clear', () => {
     const el = build();
-    for (const t of ['Undo', 'Redo', 'Clear formatting', 'Bullet list', 'Numbered list', 'Align left', 'Align center', 'Align right', 'Quote', 'Inline code', 'Code block', 'Link', 'Image', 'Video', 'Table', 'Horizontal line']) {
+    for (const t of ['Undo', 'Redo', 'Clear formatting', 'Bullet list', 'Numbered list', 'Align left', 'Align center', 'Align right', 'Heading', 'Quote', 'Inline code', 'Code block', 'Link', 'Image', 'Video', 'Table', 'Horizontal line']) {
       const b = btn(el, t);
       expect(b, t).not.toBeNull();
       expect(b.querySelector('svg.aurebesh-icon'), t).not.toBeNull();
@@ -63,7 +63,6 @@ describe('the toolbar buttons', () => {
     expect(btn(el, 'Italic').textContent).toBe('I');
     expect(btn(el, 'Underline').textContent).toBe('U');
     expect(btn(el, 'Strikethrough').textContent).toBe('S');
-    expect(btn(el, 'Heading 1').textContent).toBe('H1');
     el.remove();
   });
 

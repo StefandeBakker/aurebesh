@@ -31,7 +31,7 @@ export interface BlockHandleHost {
   calloutType(): string;
 }
 
-const KINDS: BlockKind[] = ['p', 'h1', 'h2', 'h3', 'ul', 'ol', 'task', 'quote', 'code', 'callout'];
+const KINDS: BlockKind[] = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'task', 'quote', 'code', 'callout'];
 
 export class BlockHandle {
   private handle: HTMLButtonElement;

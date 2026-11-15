@@ -43,7 +43,7 @@ export const hasHandle = (el: Element): boolean => !isGuard(el) && !el.classList
 /** Puts the caret at the start (or the end) of the text of a block. */
 export function caretIn(block: Element, atEnd = false): void {
   const doc = block.ownerDocument;
-  const target = block.matches('h1,h2,h3,p,li,pre,blockquote,td,th') ? block : block.querySelector('h1,h2,h3,p,li,pre,blockquote,td,th') ?? block;
+  const target = block.matches('h1,h2,h3,h4,h5,h6,p,li,pre,blockquote,td,th') ? block : block.querySelector('h1,h2,h3,h4,h5,h6,p,li,pre,blockquote,td,th') ?? block;
   const range = doc.createRange();
   range.selectNodeContents(target);
   range.collapse(!atEnd);
@@ -115,11 +115,11 @@ export function deleteBlock(content: HTMLElement, block: HTMLElement): void {
   if (target) caretIn(target);
 }
 
-export type BlockKind = 'p' | 'h1' | 'h2' | 'h3' | 'quote' | 'ul' | 'ol' | 'task' | 'code' | 'callout';
+export type BlockKind = 'p' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'quote' | 'ul' | 'ol' | 'task' | 'code' | 'callout';
 
 /** Whether a block is one of those that can be turned into another: text, quotes, lists, code and callouts (not tables, rows or media). */
 export function canTurn(block: Element): boolean {
-  return block.matches('p,h1,h2,h3,blockquote,ul,ol,pre') || block.matches('div[data-callout]');
+  return block.matches('p,h1,h2,h3,h4,h5,h6,blockquote,ul,ol,pre') || block.matches('div[data-callout]');
 }
 
 /** The lines of a block as inline HTML: what stays of it when it becomes another kind of block. */
@@ -203,6 +203,9 @@ export function turnInto(content: HTMLElement, block: HTMLElement, kind: BlockKi
       case 'h1':
       case 'h2':
       case 'h3':
+      case 'h4':
+      case 'h5':
+      case 'h6':
         html = items.map((i) => `<${kind}>${i || '<br>'}</${kind}>`).join('');
         break;
       case 'quote':
@@ -238,7 +241,7 @@ export function kindOf(block: Element): BlockKind | null {
   if (block.matches('ul[data-task]')) return 'task';
   if (block.matches('ul')) return 'ul';
   if (block.matches('ol')) return 'ol';
-  if (block.matches('h1,h2,h3')) return block.tagName.toLowerCase() as BlockKind;
+  if (block.matches('h1,h2,h3,h4,h5,h6')) return block.tagName.toLowerCase() as BlockKind;
   if (block.matches('blockquote')) return 'quote';
   if (block.matches('pre')) return 'code';
   if (block.matches('div[data-callout]')) return 'callout';

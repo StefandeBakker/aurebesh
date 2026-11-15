@@ -5,7 +5,7 @@
  * tables (with their alignment), horizontal lines, backslash escapes and HTML that Markdown allows inside text.
  *
  * `markdownToHtml` gives HTML that still has to be sanitized (Markdown may contain any HTML); `fromMarkdown` does that too. Both need
- * no DOM until the sanitizer runs. Only `h1` to `h3` exist in the editor: `####` and deeper become `h3`.
+ * no DOM until the sanitizer runs. The six levels of heading exist in the editor.
  */
 import { normalizeLanguage } from './languages';
 import { sanitize } from './sanitize';
@@ -427,7 +427,7 @@ function parseBlocks(lines: string[], refs: Refs): string {
 
     const atx = atxHeading(line);
     if (atx) {
-      const level = Math.min(3, atx.level);
+      const level = Math.min(6, atx.level);
       out.push(`<h${level}>${parseInline(atx.text, refs)}</h${level}>`);
       i++;
       continue;

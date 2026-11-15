@@ -488,15 +488,16 @@ test.describe('the toolbar layout', () => {
     for (const b of g.filter((x: any) => x.rows.length === 2)) expect(b.rows[1].top).toBeGreaterThanOrEqual(b.rows[0].bottom - 1);
   });
 
-  test('a block is never cut in two: when it is narrow whole blocks go to the next line', async ({ page }) => {
+  test('a block is never cut in two: when it is narrow whole blocks fold into a button, and the toolbar stays on one line', async ({ page }) => {
     await page.setViewportSize({ width: 660, height: 800 });
     await open(page);
     const g = await groups(page);
     const tops = new Set(g.map((b: any) => Math.round(b.top)));
-    expect(tops.size).toBeGreaterThan(1); // it wrapped
+    expect(tops.size).toBe(1); // it did not wrap: whole blocks folded away (see `collapse`)
+    await expect(page.locator('.aurebesh-toolbar .aurebesh-group-collapsed').first()).toBeVisible();
     for (const b of g) {
       expect(b.height).toBeLessThan(70); // no block is taller than its two rows
-      expect(b.rows.length === 1 || b.rows[1].top >= b.rows[0].bottom - 1).toBe(true);
+      expect(b.rows.length <= 1 || b.rows[1].top >= b.rows[0].bottom - 1 || b.rows[1].bottom === 0).toBe(true);
     }
     // blocks do not overlap each other
     for (let i = 0; i < g.length; i++)
@@ -517,7 +518,8 @@ test.describe('the toolbar layout', () => {
     await selectAll(page);
     await button(page, 'Italic').click();
     await button(page, 'Align center').click();
-    await button(page, 'Heading 2').click();
+    await button(page, 'Heading').click(); // the headings are one dropdown
+    await page.locator('.aurebesh-heading-option', { hasText: 'Heading 2' }).click();
     const out = await html(page);
     expect(out).toMatch(/<h2[^>]*text-align:\s*center[^>]*>.*<(i|em)>hello<\/(i|em)>/);
   });

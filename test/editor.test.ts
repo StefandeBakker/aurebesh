@@ -203,8 +203,8 @@ describe('the default toolbar', () => {
   it('follows the Home tab of Word: blocks of two rows (the font, the paragraph, the styles, what can be inserted, the layout)', () => {
     expect(blocks(DEFAULT_TOOLBAR)).toEqual([
       [['font', 'size', 'weight', 'clear', 'clearStyle'], ['bold', 'italic', 'underline', 'underlineStyle', 'strike', 'strikeStyle', 'highlight', 'color']],
-      [['ul', 'ol', 'task'], ['alignLeft', 'alignCenter', 'alignRight']],
-      [['h1', 'h2', 'quote'], ['code', 'codeblock']], // the headings and the quote; the two kinds of code
+      [['ul', 'ulStyle', 'ol', 'olStyle', 'task'], ['alignLeft', 'alignCenter', 'alignRight']],
+      [['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'quote'], ['code', 'codeblock']], // the headings and the quote; the two kinds of code
       [['link', 'image', 'video'], ['table', 'hr']],
       [['columns']],
     ]);
@@ -242,7 +242,7 @@ describe('the default toolbar', () => {
     expect(s[0][0]).toEqual(['Font', 'Size (pt)', 'Weight', 'Clear formatting', 'Clear one kind of formatting']);
     expect(s[0][1].slice(0, 5)).toEqual(['Bold', 'Italic', 'Underline', 'Underline style', 'Strikethrough']);
     expect(s[0][1]).not.toContain('Inline code'); // inline code is with the code block, not with the character styles
-    expect(s[2]).toEqual([['Heading 1', 'Heading 2', 'Quote'], ['Inline code', 'Code block']]);
+    expect(s[2]).toEqual([['Heading', 'Quote'], ['Inline code', 'Code block']]); // H1 and H2 are one dropdown
     el.remove();
   });
 

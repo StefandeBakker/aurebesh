@@ -5,7 +5,7 @@
  */
 
 const ROOT = '.aurebesh-content';
-const BLOCKS = 'p,h1,h2,h3,blockquote,pre,li,td,th,div,aside';
+const BLOCKS = 'p,h1,h2,h3,h4,h5,h6,blockquote,pre,li,td,th,div,aside';
 
 const elementOf = (node: Node | null | undefined): Element | null =>
   (node && (node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement)) || null;

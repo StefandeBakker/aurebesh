@@ -5,12 +5,15 @@
  */
 
 const ROOT = '.aurebesh-content';
-const BLOCKS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'UL', 'OL', 'PRE', 'BLOCKQUOTE', 'TABLE', 'HR']);
+const BLOCKS = new Set(['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'PRE', 'BLOCKQUOTE', 'TABLE', 'HR']);
 
 const ON_SPACE: Array<[RegExp, string]> = [
   [/^#$/, 'h1'],
   [/^##$/, 'h2'],
   [/^###$/, 'h3'],
+  [/^####$/, 'h4'],
+  [/^#####$/, 'h5'],
+  [/^######$/, 'h6'],
   [/^[-*+]$/, 'ul'],
   [/^\d{1,3}[.)]$/, 'ol'],
   [/^>$/, 'quote'],

@@ -167,7 +167,7 @@ import 'aurebesh/element'; // registers <aurebesh-editor>
 The toolbar is made of **blocks**. In the `toolbar` option `|` starts a new block and `/` starts a second row inside a block. A block always stays in one piece: when the toolbar is narrow, whole blocks go to the next line instead of a block being cut in two. The default:
 
 ```
-font size weight clear clearStyle / bold italic underline underlineStyle strike strikeStyle highlight color | ul ol task / alignLeft alignCenter alignRight | h1 h2 quote / code codeblock | link image video / table hr | columns
+font size weight clear clearStyle / bold italic underline underlineStyle strike strikeStyle highlight color | ul ulStyle ol olStyle task / alignLeft alignCenter alignRight | h1 h2 h3 h4 h5 h6 quote / code codeblock | link image video / table hr | columns
 ```
 
 That is five blocks: the font (typeface, size and clear formatting on top, character styles, highlight and colour below), the paragraph (lists, then alignment), the styles (headings and quote on top, then the two kinds of code, inline and block), what you can insert (link, picture and video, then table and line) and the layout (columns). Leave out every `/` and each block is a single row that wraps like before (a block with a name, `#Name`, that has more than three buttons goes to the next line after every three); a toolbar without any `|` is one block.
@@ -218,8 +218,8 @@ The items:
 | History and document | `undo` `redo` `find` `import` `export` `fullscreen` |
 | Font | `font` `size` `weight` `clear` `clearStyle` |
 | Character styles | `bold` `italic` `underline` `underlineStyle` `strike` `strikeStyle` `sub` `sup` `code` `highlight` `color` |
-| Paragraph | `ul` `ol` `task` `indent` `outdent` `alignLeft` `alignCenter` `alignRight` `alignJustify` `ltr` `rtl` |
-| Styles | `h1` `h2` `h3` `quote` `codeblock` `codeLanguage` `callout` |
+| Paragraph | `ul` `ulStyle` `ol` `olStyle` `task` `indent` `outdent` `alignLeft` `alignCenter` `alignRight` `alignJustify` `ltr` `rtl` |
+| Styles | `h1` to `h6` (and `heading`) `quote` `codeblock` `codeLanguage` `callout` |
 | Insert | `link` `image` `video` `table` `hr` |
 | Layout | `columns` `page` `orientation` `layout` `blocks` `sidebar` |
 | Comments and suggestions (with those options) | `comment` `comments` `suggest` `suggestions` |
@@ -473,6 +473,22 @@ The language is a name on the block, a plain name of up to 20 letters, digits an
 In the editor the language stands in the corner of the block. You can also type it: `` ```py `` + Enter makes a Python block. In Markdown it is the word after the fence (`` ```python ``), and it is read from it, also in its short names (`js`, `ts`, `py`, `sh`, `yml`, `c#`, `c++`...); a language that is not in the list (such as `mermaid`) is kept as it is, with the generic colours. The colours need the CSS Custom Highlight API (see Browser support); the language is kept without it. Choosing a language is a change of the block itself, so the browser's undo does not take it back.
 
 The `CODE_LANGUAGES` list and `normalizeLanguage()` are exported, for a page that wants the same names.
+
+## One button where there were two
+
+Items that belong together are one button with an arrow, instead of two buttons next to each other. The button does what it did; the arrow opens the dropdown of its look. Nothing changes in the `toolbar` option: when the second item follows the first, they are drawn as one.
+
+| The button | The arrow (the item that follows it) | The dropdown has |
+| --- | --- | --- |
+| `underline` | `underlineStyle` | the kind of line and a colour |
+| `strike` | `strikeStyle` | a single or a double line and a colour |
+| `clear` | `clearStyle` | what to take away: bold, italic, a line, a colour, or everything |
+| `ul` | `ulStyle` | the marker of a bullet list: a disc, a circle or a square |
+| `ol` | `olStyle` | the numbering: numbers, letters (a. b. c. and A. B. C.) or Roman numerals (i. ii. and I. II.) |
+
+**Headings** are one dropdown too: two or more of `h1` to `h6` in a row make one button (the item `heading` is all six), and its list has normal text and the levels, each shown as big as it will be. The default toolbar has all six; `Mod+Alt+1` to `6` and `# ` to `###### ` at the start of a line make them too. An item that stands alone (`h2` between other things, `underlineStyle` without `underline`) is a button of its own, as before.
+
+**The look of a list** is in the style of the list, so it is in the HTML, whatever shows it: `<ol style="list-style-type: lower-alpha">`. The sanitizer keeps these looks (`disc`, `circle`, `square`, `decimal`, `lower-alpha`, `upper-alpha`, `lower-roman`, `upper-roman`) and nothing else. Choosing a look in a text that is no list yet makes it a list, and a list of the other kind turns into this one. Word documents have it as the kind of numbering (`lowerLetter`, `upperRoman`, a circle or a square for a bullet) when you export, and read it back when you import. Markdown has a list, without the look of its marker.
 
 ## Task lists
 
@@ -806,7 +822,7 @@ Markdown to HTML to Markdown gives the same Markdown for what the editor writes 
 
 | | Read from Markdown | Written to Markdown |
 |---|---|---|
-| Headings | `#` to `######` and underlined; `####` and deeper become `h3` (the editor has three levels) | `#` to `###` |
+| Headings | `#` to `######` and underlined | `#` to `######` |
 | Text | **strong**, *emphasis*, `~~strike~~`, `` `code` ``, backslash escapes, entities, hard breaks (two spaces or `\`) | the same |
 | Links and images | inline, reference (`[a][r]` with `[r]: url`), `<automatic>`, bare `https://` and `www.` links, titles | inline, with the title |
 | Lists | bullet and numbered, nested, tight and loose, lazy continuation | the same; the start number of a numbered list is not kept |
@@ -880,7 +896,7 @@ To add a language to your own application without changing the package, pass its
 | `Mod+Shift+7` / `Mod+Shift+8` / `Mod+Shift+9` | Numbered / bullet / task list |
 | `Mod+Enter` | Check or uncheck the task with the caret |
 | `Shift+Enter` | A line break inside the block (`<br>`), where `Enter` starts a new one; the same in every browser, in a list item, a heading, a quote, a callout and a table cell (in a code block it is a new line) |
-| `Mod+Alt+1` / `2` / `3` | Heading 1 / 2 / 3 |
+| `Mod+Alt+1` to `6` | Heading 1 to 6 |
 | `Mod+Alt+C` | Code block |
 | `Ctrl/Cmd+click` on a link | Open the link in a new tab (a plain click only puts the caret in it) |
 | `Tab` / `Shift+Tab` in a list | Indent / outdent the item (nested lists) |

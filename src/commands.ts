@@ -1,4 +1,5 @@
 import { SAFE_COLOR } from './colors';
+import { setListStyle } from './lists';
 import { currentColumns, setColumns } from './columns';
 import { currentDirection, setDirection } from './direction';
 import { currentLink, isInlineCode, setLink, toggleInlineCode } from './inline';
@@ -93,6 +94,22 @@ export const COMMANDS: Record<string, CommandDef> = {
   h2: { name: 'h2', label: 'H2', title: 'Heading 2', run: toggleBlock('h2'), isActive: isBlock('h2') },
   /** Not in the default toolbar; reachable with Mod+Alt+3 and the `### ` Markdown shortcut. */
   h3: { name: 'h3', label: 'H3', title: 'Heading 3', run: toggleBlock('h3'), isActive: isBlock('h3') },
+  /** The deeper levels are in the dropdown of the headings; Mod+Alt+4 to 6 and the `#### ` Markdown shortcuts make them too. */
+  h4: { name: 'h4', label: 'H4', title: 'Heading 4', run: toggleBlock('h4'), isActive: isBlock('h4') },
+  h5: { name: 'h5', label: 'H5', title: 'Heading 5', run: toggleBlock('h5'), isActive: isBlock('h5') },
+  h6: { name: 'h6', label: 'H6', title: 'Heading 6', run: toggleBlock('h6'), isActive: isBlock('h6') },
+  /** The headings in one dropdown (see `buildHeadingPicker`): `exec('heading', 'h2')` makes the paragraph one, `'p'` makes it text again. */
+  heading: {
+    name: 'heading',
+    icon: 'heading',
+    label: 'H',
+    title: 'Heading',
+    run: (level) => {
+      if (level === 'p') exec('formatBlock', 'p');
+      else if (/^h[1-6]$/.test(level ?? '')) COMMANDS[level!].run();
+    },
+    isActive: () => ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].some((l) => isBlock(l)()),
+  },
   quote: { name: 'quote', icon: 'quote', label: '❝', title: 'Quote', run: toggleBlock('blockquote'), isActive: isBlock('blockquote') },
   codeblock: { name: 'codeblock', icon: 'codeblock', label: '{ }', title: 'Code block', run: toggleBlock('pre'), isActive: isBlock('pre') },
   hr: { name: 'hr', icon: 'hr', label: '―', title: 'Horizontal line', run: () => exec('insertHorizontalRule') },
@@ -115,6 +132,10 @@ export const COMMANDS: Record<string, CommandDef> = {
     run: (arg, extra) => (arg === 'color' ? setDecoration('strike', { color: extra || null }) : setDecoration('strike', { style: arg === 'double' ? 'double' : 'solid' })),
   },
   task: { name: 'task', icon: 'task', label: '☑', title: 'Task list', run: () => toggleTaskList(), isActive: () => isTaskList() },
+  /** The look of the marker of the list (a disc, a circle, a square). Built by the editor as a dropdown; next to `ul` in the toolbar it is the arrow of that button. */
+  ulStyle: { name: 'ulStyle', icon: 'ul', label: '•', title: 'Bullet style', domEdit: true, run: (style) => setListStyle('ul', style ?? '') },
+  /** The look of the numbers of the list (numbers, letters, Roman numerals). */
+  olStyle: { name: 'olStyle', icon: 'ol', label: '1.', title: 'Numbering style', domEdit: true, run: (style) => setListStyle('ol', style ?? '') },
   ul: { name: 'ul', icon: 'ul', label: '• List', title: 'Bullet list', run: () => exec('insertUnorderedList'), isActive: () => state('insertUnorderedList') },
   ol: { name: 'ol', icon: 'ol', label: '1. List', title: 'Numbered list', run: () => exec('insertOrderedList'), isActive: () => state('insertOrderedList') },
   alignLeft: align('alignLeft', '≡', 'Align left', 'justifyLeft'),
@@ -283,8 +304,8 @@ export const COMMANDS: Record<string, CommandDef> = {
  */
 export const DEFAULT_TOOLBAR = [
   'font', 'size', 'weight', 'clear', 'clearStyle', '/', 'bold', 'italic', 'underline', 'underlineStyle', 'strike', 'strikeStyle', 'highlight', 'color', '|',
-  'ul', 'ol', 'task', '/', 'alignLeft', 'alignCenter', 'alignRight', '|',
-  'h1', 'h2', 'quote', '/', 'code', 'codeblock', '|',
+  'ul', 'ulStyle', 'ol', 'olStyle', 'task', '/', 'alignLeft', 'alignCenter', 'alignRight', '|',
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'quote', '/', 'code', 'codeblock', '|',
   'link', 'image', 'video', '/', 'table', 'hr', '|',
   'columns',
 ];
