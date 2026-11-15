@@ -41,6 +41,9 @@
       "mentions": [
         "./dist/mentions.d.ts"
       ],
+      "emoji": [
+        "./dist/emoji.d.ts"
+      ],
       "find": [
         "./dist/find.d.ts"
       ],
@@ -132,6 +135,16 @@
       "require": {
         "types": "./dist/mentions.d.cts",
         "default": "./dist/mentions.cjs"
+      }
+    },
+    "./emoji": {
+      "import": {
+        "types": "./dist/emoji.d.ts",
+        "default": "./dist/emoji.js"
+      },
+      "require": {
+        "types": "./dist/emoji.d.cts",
+        "default": "./dist/emoji.cjs"
       }
     },
     "./find": {

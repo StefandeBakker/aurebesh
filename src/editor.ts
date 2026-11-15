@@ -22,6 +22,7 @@ import { DEFAULT_LABELS, LANGUAGES, resolveLanguage } from './labels';
 import type { Labels } from './labels';
 import { mediaAt, mediaSize, pickMedia, pickedMedia, selectedImage, selectedMedia, setMediaSize } from './media';
 import type { MediaElement } from './media';
+import type { EmojiApi } from './emoji';
 import { MIN_HEIGHT, MIN_WIDTH, MediaFrame } from './media-frame';
 import { currentCell, handleCellArrow, handleTab, trackCellDrag } from './table';
 import { attachColumnResize } from './table-resize';
@@ -132,6 +133,12 @@ export interface AurebeshOptions {
   callouts?: CalloutDef[];
   /** The slash menu: typing `/` at the start of a line lists what to insert (callouts, headings, lists...). Default: on when the toolbar has the `callout` item. */
   slash?: boolean;
+  /**
+   * Emoji: the `emoji` item of the toolbar opens a picker, and typing `:smi` after a space lists the emoji that match (`:smile:` becomes the
+   * emoji, and `/emoji` in the slash menu starts one). The emoji are loaded when they are first used. Default: on when the toolbar has
+   * the `emoji` item; false turns the short codes and the slash item off.
+   */
+  emoji?: boolean;
   /**
    * Mentions: typing `@` at the start of a line or after a space lists people (from `search`, which the application provides), and a pick
    * becomes a chip in the text, `<span data-mention="id">@Name</span>`. Default: off. The `mention` event tells who was mentioned;
@@ -299,6 +306,8 @@ export class Aurebesh {
   private tip: HTMLElement | null = null;
   private fullscreen = false;
   private formLink: HTMLAnchorElement | null = null;
+  private emojiApi: Promise<EmojiApi> | null = null;
+  private emojiOn = false;
   private lastMedia: MediaElement | null = null;
   private mediaFrame: MediaFrame | null = null;
   private sizeInputs: { width: HTMLInputElement; height: HTMLInputElement; lock: HTMLButtonElement } | null = null;
@@ -729,6 +738,21 @@ export class Aurebesh {
       ),
     );
 
+    this.emojiOn = options.emoji ?? commands.includes('emoji');
+    if (this.emojiOn) {
+      // the emoji (a part of their own) are loaded when a colon is typed after a space, or the first time the picker is opened
+      this.listen(this.content, 'input', () => {
+        const at = this.container.ownerDocument.getSelection();
+        const node = at?.rangeCount ? at.getRangeAt(0).startContainer : null;
+        if (!this.emojiApi && !(node && node.nodeType === Node.TEXT_NODE && /(?:^|[\s(]):[\p{L}\p{N}_+-]{1,40}$/u.test((node as Text).data.slice(0, at!.getRangeAt(0).startOffset)))) return;
+        this.loadEmoji().then((api) => api.typed(), () => {});
+      });
+      this.cleanup.push(() => {
+        const api = this.emojiApi;
+        this.emojiApi = null;
+        api?.then((a) => a.destroy(), () => {});
+      });
+    }
     if (options.slash ?? commands.includes('callout')) {
       this.cleanup.push(attachSlashMenu({ content: this.content, items: () => this.slashItems(), t: (key) => this.t(key), canEdit: () => this.content.isContentEditable }));
     }
@@ -1729,6 +1753,7 @@ export class Aurebesh {
     if (item === 'color') return this.buildColorPicker(cmd, 'inherit', this.t('ui.automatic'));
     if (item === 'highlight') return this.buildColorPicker(cmd, 'transparent', this.t('ui.noHighlight'));
     if (item === 'table') return this.buildTablePicker();
+    if (item === 'emoji') return this.buildEmojiPicker(cmd);
     if (item === 'image' || item === 'video') return this.buildMediaPicker(item, cmd);
     return this.makeButton(cmd);
   }
@@ -2091,6 +2116,72 @@ export class Aurebesh {
     rovingToolbar(tools, () => this.content.focus());
   }
 
+  /** A dropdown that would go past the right edge of the window opens to the left of its button instead. */
+  private keepInWindow(pop: HTMLElement): void {
+    const win = this.container.ownerDocument.defaultView;
+    if (!win) return;
+    pop.classList.remove('aurebesh-pop-end');
+    if (pop.getBoundingClientRect().right > win.innerWidth - 8) pop.classList.add('aurebesh-pop-end');
+  }
+
+  /** The emoji, loaded when they are needed: the data of them is not in the editor until then. */
+  private loadEmoji(): Promise<EmojiApi> {
+    return (this.emojiApi ??= import('./emoji').then((m) =>
+      m.createEmoji({
+        content: this.content,
+        t: (key) => this.t(key),
+        language: () => this.language,
+        canEdit: () => this.content.isContentEditable,
+        run: (change) => this.runChange(change),
+        insert: (char) => {
+          this.restoreSelection();
+          this.content.focus();
+          this.exec('emoji', char);
+        },
+      }),
+    ));
+  }
+
+  /** The button with the emoji picker: a dropdown with a search box, the groups and the skin tones. */
+  private buildEmojiPicker(cmd: CommandDef): HTMLElement {
+    const doc = this.container.ownerDocument;
+    const wrap = doc.createElement('span');
+    wrap.className = 'aurebesh-table-picker';
+    const pop = doc.createElement('div');
+    pop.className = 'aurebesh-table-pop aurebesh-emoji-pop';
+    pop.hidden = true;
+    let built = false;
+    const toggle = this.makeButton(cmd, () => {
+      pop.hidden = !pop.hidden;
+      if (pop.hidden) return;
+      if (built) {
+        pop.firstElementChild?.dispatchEvent(new Event('aurebesh-open'));
+        this.keepInWindow(pop);
+        return pop.querySelector<HTMLInputElement>('.aurebesh-emoji-search')?.focus();
+      }
+      built = true;
+      pop.textContent = '…';
+      this.loadEmoji().then(
+        (api) => {
+          pop.replaceChildren(api.buildPicker(() => {
+            pop.hidden = true;
+            toggle.focus();
+          }));
+          this.keepInWindow(pop);
+          if (!pop.hidden) pop.querySelector<HTMLInputElement>('.aurebesh-emoji-search')?.focus();
+        },
+        (err) => {
+          built = false;
+          pop.hidden = true;
+          this.fail(err);
+        },
+      );
+    });
+    this.closeOnOutside(wrap, pop, toggle);
+    wrap.append(toggle, pop);
+    return wrap;
+  }
+
   /** The fields of the width and the height in pixels, and the lock that keeps the shape: for two pictures of the same height, give both the same. */
   private buildSizeFields(): HTMLElement {
     const doc = this.container.ownerDocument;
@@ -2397,6 +2488,7 @@ export class Aurebesh {
     for (const name of ['h1', 'h2', 'h3', 'ul', 'ol', 'task', 'quote', 'codeblock', 'hr']) {
       items.push({ id: name, label: this.title(this.commands[name]), run: () => this.exec(name) });
     }
+    if (this.emojiOn) items.push({ id: 'emoji', label: this.title(this.commands.emoji), keywords: 'smiley emoticon', run: () => void this.loadEmoji().then((api) => api.start(), () => {}) });
     if (this.panelIds.includes('blocks')) {
       for (const l of LAYOUTS) items.push({ id: l.id, label: this.t(`block.${l.id}`), keywords: 'row columns layout', run: () => this.addBlock(l.id) });
     }

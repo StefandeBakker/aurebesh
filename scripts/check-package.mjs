@@ -22,7 +22,7 @@ const entries = Object.entries(pkg.exports).filter(([key]) => key !== './package
 for (const [key, entry] of entries) {
   for (const file of files(entry)) if (!existsSync(resolve(root, file))) fail(`${key}: ${file} does not exist`);
 }
-for (const key of ['./docx', './comments', './suggestions', './mentions', './find', './locales/nl']) {
+for (const key of ['./docx', './comments', './suggestions', './mentions', './emoji', './find', './locales/nl']) {
   if (!pkg.exports[key]) fail(`${key} is not in the exports of package.json`);
 }
 if (!Array.isArray(pkg.sideEffects) || !pkg.sideEffects.includes('./dist/element.js')) fail('sideEffects in package.json should list ./dist/element.js and ./dist/element.cjs');

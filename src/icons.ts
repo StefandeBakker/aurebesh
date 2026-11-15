@@ -17,6 +17,7 @@ const LTR: Shape[] = [
 ];
 
 export const ICONS: Record<string, Shape[]> = {
+  smile: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', { d: 'M8.2 14.2c.9 1.7 2.2 2.6 3.8 2.6s2.9-.9 3.8-2.6' }], ['circle', { cx: 9, cy: 9.6, r: 1.1, fill: 'currentColor', stroke: 'none' }], ['circle', { cx: 15, cy: 9.6, r: 1.1, fill: 'currentColor', stroke: 'none' }]],
   // a group of the toolbar that was folded away (see `collapse`): the arrow that opens it, and three dots for a group without an icon of its own
   chevronDown: [['path', { d: 'M6 9.5l6 6 6-6' }]],
   more: [['circle', { cx: 5.5, cy: 12, r: 1.4, fill: 'currentColor', stroke: 'none' }], ['circle', { cx: 12, cy: 12, r: 1.4, fill: 'currentColor', stroke: 'none' }], ['circle', { cx: 18.5, cy: 12, r: 1.4, fill: 'currentColor', stroke: 'none' }]],
