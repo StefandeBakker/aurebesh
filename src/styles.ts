@@ -32,6 +32,7 @@ export const HEADLESS_CSS = `
 .aurebesh-find-row{display:flex;align-items:center}
 .aurebesh-table-picker{position:relative;display:inline-block}
 .aurebesh-table-pop{position:absolute;top:100%;inset-inline-start:0;z-index:10}
+.aurebesh-table-pop.aurebesh-pop-end{inset-inline-start:auto;inset-inline-end:0}
 .aurebesh-media-frame{position:absolute;z-index:5;box-sizing:border-box;pointer-events:none}
 .aurebesh-media-frame[hidden]{display:none}
 .aurebesh-media-handle{position:absolute;box-sizing:border-box;width:10px;height:10px;margin:-5px 0 0 -5px;pointer-events:auto;touch-action:none}
@@ -47,6 +48,12 @@ export const HEADLESS_CSS = `
 .aurebesh-group-pop{position:absolute;top:100%;inset-inline-start:0;z-index:30;display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;width:max-content;max-width:min(420px,90vw)}
 .aurebesh-split{position:relative;display:inline-flex;align-items:center}
 .aurebesh-split>.aurebesh-table-picker{position:static}
+.aurebesh-emoji{display:flex;flex-direction:column;width:min(312px,calc(100vw - 32px))}
+.aurebesh-emoji-tabs,.aurebesh-emoji-tones{display:flex;flex-wrap:nowrap}
+.aurebesh-emoji-list{overflow-y:auto;max-height:288px}
+.aurebesh-emoji-grid{display:grid;grid-template-columns:repeat(6,1fr)}
+.aurebesh-emoji-tabs[hidden]{display:none}
+.aurebesh-emoji-menu .aurebesh-emoji-item{display:flex;align-items:center}
 .aurebesh-group-pop .aurebesh-row{display:contents}
 .aurebesh-group-pop[hidden]{display:none}
 .aurebesh-table-grid{display:grid;gap:2px}
@@ -215,6 +222,27 @@ export const CSS = `
 .aurebesh-heading-sample.aurebesh-heading-h6{font-size:12px;font-weight:700}
 .aurebesh-list-pop{display:flex;flex-direction:column}
 .aurebesh-list-sample{display:block;min-width:5.5em;white-space:nowrap}
+.aurebesh-emoji{display:flex;flex-direction:column;width:min(312px,calc(100vw - 32px))}
+.aurebesh-emoji-tabs,.aurebesh-emoji-tones{display:flex;flex-wrap:nowrap}
+.aurebesh-emoji-list{overflow-y:auto;max-height:288px}
+.aurebesh-emoji-grid{display:grid;grid-template-columns:repeat(6,1fr)}
+.aurebesh-emoji-tabs[hidden]{display:none}
+.aurebesh-emoji-menu .aurebesh-emoji-item{display:flex;align-items:center}
+.aurebesh-emoji{gap:6px}
+.aurebesh-emoji-search{height:30px;padding:0 8px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:6px;background:var(--aurebesh-bg,#fff);color:inherit;font:inherit;font-size:13px}
+.aurebesh-emoji-tabs{gap:2px;justify-content:space-between}
+.aurebesh-emoji-pop .aurebesh-emoji .aurebesh-emoji-grid .aurebesh-emoji-btn,.aurebesh-emoji-pop .aurebesh-emoji .aurebesh-emoji-tabs button,.aurebesh-emoji-pop .aurebesh-emoji .aurebesh-emoji-tones .aurebesh-emoji-tone{min-width:0;padding:0;border:0;border-radius:6px;background:transparent;cursor:pointer;font-weight:400;line-height:1}
+.aurebesh-emoji-pop .aurebesh-emoji .aurebesh-emoji-grid .aurebesh-emoji-btn{height:48px;font-size:30px}
+.aurebesh-emoji-pop .aurebesh-emoji .aurebesh-emoji-tabs button{flex:1;height:30px;font-size:17px;opacity:.7}
+.aurebesh-emoji-pop .aurebesh-emoji .aurebesh-emoji-tabs button:hover,.aurebesh-emoji-pop .aurebesh-emoji .aurebesh-emoji-btn:hover,.aurebesh-emoji-pop .aurebesh-emoji .aurebesh-emoji-tone:hover{background:var(--aurebesh-hover,rgba(0,0,0,.08));opacity:1}
+.aurebesh-emoji-btn:focus-visible,.aurebesh-emoji-tabs button:focus-visible,.aurebesh-emoji-tone:focus-visible{outline:2px solid var(--aurebesh-accent,#2563eb);outline-offset:-2px}
+.aurebesh-emoji-title{padding:6px 4px 2px;color:var(--aurebesh-label,#667085);font-size:12px;font-weight:600}
+.aurebesh-emoji-none{padding:16px;color:var(--aurebesh-label,#667085);font-size:13px;text-align:center}
+.aurebesh-emoji-tones{justify-content:space-between;padding-top:4px;border-top:1px solid var(--aurebesh-border,#d0d5dd)}
+.aurebesh-emoji-pop .aurebesh-emoji .aurebesh-emoji-tones .aurebesh-emoji-tone{flex:1;height:32px;font-size:18px}
+.aurebesh-emoji-pop .aurebesh-emoji .aurebesh-emoji-tones .aurebesh-emoji-tone[aria-pressed="true"]{background:var(--aurebesh-active-bg,#e0e9ff)}
+.aurebesh-emoji-glyph{width:1.6em;font-size:17px}
+.aurebesh-table-pop.aurebesh-pop-end{inset-inline-start:auto;inset-inline-end:0}
 .aurebesh-group-collapsed .aurebesh-group-toggle{gap:1px}
 .aurebesh-group-collapsed .aurebesh-group-toggle .aurebesh-icon+.aurebesh-icon{width:12px;height:12px}
 .aurebesh-table-pop{position:absolute;top:100%;inset-inline-start:0;z-index:10;margin-top:4px;padding:8px;border:1px solid var(--aurebesh-border,#d0d5dd);border-radius:6px;background:var(--aurebesh-bg,#fff);box-shadow:0 4px 14px rgba(0,0,0,.15)}

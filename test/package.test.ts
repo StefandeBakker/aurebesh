@@ -45,6 +45,8 @@ describe('the parts that work without the editor', () => {
     expect(Object.keys(suggestions).sort()).toEqual(['SUGGESTION_ID', 'acceptIn', 'diffText', 'finalHtml', 'finalNode', 'rejectIn', 'suggestionCss', 'suggestionsIn']);
     const mentions = await import('../src/entries/mentions');
     expect(Object.keys(mentions).sort()).toEqual(['MENTION_ID', 'mentionCss', 'mentionsIn']);
+    const emoji = await import('../src/entries/emoji');
+    expect(Object.keys(emoji).sort()).toEqual(['EMOJI_GROUPS', 'SKIN_TONES', 'emojiName', 'searchEmoji', 'withTone']);
     const find = await import('../src/entries/find');
     expect(Object.keys(find).sort()).toEqual(['findRanges', 'replaceRanges']);
   });

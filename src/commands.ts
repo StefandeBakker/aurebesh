@@ -113,6 +113,8 @@ export const COMMANDS: Record<string, CommandDef> = {
   quote: { name: 'quote', icon: 'quote', label: '❝', title: 'Quote', run: toggleBlock('blockquote'), isActive: isBlock('blockquote') },
   codeblock: { name: 'codeblock', icon: 'codeblock', label: '{ }', title: 'Code block', run: toggleBlock('pre'), isActive: isBlock('pre') },
   hr: { name: 'hr', icon: 'hr', label: '―', title: 'Horizontal line', run: () => exec('insertHorizontalRule') },
+  /** An emoji picker, built by the editor; `exec('emoji', '😀')` puts one in the text. */
+  emoji: { name: 'emoji', icon: 'smile', label: '☺', title: 'Emoji', run: (char) => char && exec('insertText', char) },
   /** The look of an underline: the kind of line and a colour. Built by the editor as a picker. */
   underlineStyle: {
     name: 'underlineStyle',
@@ -306,7 +308,7 @@ export const DEFAULT_TOOLBAR = [
   'font', 'size', 'weight', 'clear', 'clearStyle', '/', 'bold', 'italic', 'underline', 'underlineStyle', 'strike', 'strikeStyle', 'highlight', 'color', '|',
   'ul', 'ulStyle', 'ol', 'olStyle', 'task', '/', 'alignLeft', 'alignCenter', 'alignRight', '|',
   'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'quote', '/', 'code', 'codeblock', '|',
-  'link', 'image', 'video', '/', 'table', 'hr', '|',
+  'link', 'image', 'video', '/', 'table', 'hr', 'emoji', '|',
   'columns',
 ];
 

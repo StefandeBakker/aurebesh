@@ -151,6 +151,7 @@ import 'aurebesh/element'; // registers <aurebesh-editor>
 | `visibleItems` | Show only these items of the toolbar and the strip above it, e.g. `['bold','italic','link']` (default: all; see *Showing only some items*) |
 | `headless` | No look of its own: the page styles everything (see *Your own look*) |
 | `exportName` | The name of exported files, without the extension, and the title in them (default `document`) |
+| `emoji` | The emoji picker and the `:short` codes (see *Emoji*): on with the `emoji` item in the toolbar; `false` turns the short codes off |
 | `mentions` | `@mentions`: the people to pick from, `{ search(query) }` (see *Mentions*; default off) |
 | `comments` | Comments on selected text: `{ author, threads }` (see *Comments*; default off) |
 | `suggestions` | Suggestion mode (tracked changes): `{ author, enabled? }` (see *Suggestions*; default off) |
@@ -569,6 +570,16 @@ The text stays in `<u>` or `<s>` and the look is two properties on it, so the te
 ```
 
 The sanitizer allows `text-decoration-style` (`double`, `dashed`, `dotted` or `wavy`) and `text-decoration-color` (a hex or `rgb()` colour) on `u`, `s`, `strike` and `del`, and nothing else. In Markdown the line is `<u>text</u>` and `~~text~~`: the kind of line and the colour are not kept. The look is a direct DOM edit, so the browser's undo does not take it back (the line itself it does). A line above the text (overline) and the thickness of a line are not there.
+
+## Emoji
+
+The `emoji` item (in the default toolbar, next to the horizontal line) opens a picker: a search box, the groups (smileys, people and gestures, animals and nature, food and drink, activities, travel and places, objects, symbols and flags), the ones used last on top, and a skin tone for the hands and the people. A click puts the emoji at the caret and the picker stays open for the next one; Escape closes it. With the keyboard: Arrow Down goes from the search box into the list, the arrow keys move, Enter picks, Home and End go to the first and the last.
+
+- **Over six hundred common emoji**, each with a name and some words in **English and Dutch**. The search looks in both, from the start of a word, with any case and without accents: `thumbs`, `duim` and `DUIM` all find 👍. The names under the pointer follow the language of the editor (Dutch has its own, every other language shows the English ones).
+- **Short codes**: type a colon and two letters after a space (`:smi`) and a list shows what matches; the arrow keys and Enter (or Tab) pick one, Escape closes it. `:smile:` becomes the emoji as soon as the last colon is typed. A colon in a sentence (`Note: this`, `10:30`) is left alone. With the `slash` menu on, `/emoji` starts the list.
+- **Only characters**: the HTML has the emoji itself, so it is also in the Markdown, the text and the Word document, and the sanitizer has nothing to do with it. The skin tone is the modifier after the character.
+- **Loaded when it is used**: the emoji are a part of their own (about 42 KB, 17 KB gzipped, with the picker) that is fetched when the picker is opened or the first colon is typed. An editor that never uses them never has them. The same data is in `aurebesh/emoji` (`EMOJI_GROUPS`, `searchEmoji`, `withTone`, `emojiName`) for your own use.
+- `emoji: false` turns the short codes and the slash item off (the toolbar item is yours to leave out); `exec('emoji', '😀')` puts one in the text.
 
 ## Mentions
 
@@ -1082,6 +1093,7 @@ Some parts of the package are also worth having without the editor: converting a
 | `aurebesh/comments` | `commentCss`, `cleanThreads`, `commentIdsIn`, `COMMENT_ID` | 14 KB, 5 KB |
 | `aurebesh/find` | `findRanges`, `replaceRanges` | 9 KB, 3 KB |
 | `aurebesh/mentions` | `mentionsIn`, `mentionCss`, `MENTION_ID` | 5 KB, 2 KB |
+| `aurebesh/emoji` | `EMOJI_GROUPS`, `searchEmoji`, `withTone`, `emojiName`, `SKIN_TONES` | 35 KB, 15 KB |
 | `aurebesh/locales/nl` (also `en`, `de`, `fr`, `es`) | the texts of that language, as the default export and as `LABELS_NL` | 9 KB, 3 KB |
 
 ```js
